@@ -1,0 +1,7 @@
+std = "luau+hulldown"
+exclude = ["tools/**/node_modules/**"]
+
+[rules]
+shadowing = "allow"
+mixed_table = "allow"
+multiple_statements = "allow"

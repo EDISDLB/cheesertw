@@ -1,0 +1,7 @@
+# Toolchain pinned for contributors (install with `rokit install`).
+[tools]
+rojo = "rojo-rbx/rojo@7.4.4"
+lune = "lune-org/lune@0.10.4"
+stylua = "JohnnyMorganz/StyLua@2.1.0"
+selene = "Kampfkarren/selene@0.28.0"
+luau-lsp = "JohnnyMorganz/luau-lsp@1.70.1"

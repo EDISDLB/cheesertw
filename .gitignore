@@ -1,0 +1,22 @@
+# build outputs
+/build/
+*.rbxl
+*.rbxlx
+*.rbxm
+*.rbxmx
+sourcemap.json
+/.tools/
+# python
+__pycache__/
+*.pyc
+.venv/
+# node
+node_modules/
+# os/editor
+.DS_Store
+*.swp
+.vscode/*
+!.vscode/settings.json
+# secrets
+.env
+*.key

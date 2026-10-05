@@ -1,0 +1,21 @@
+{
+	"name": "Hulldown",
+	"servePort": 34872,
+	"globIgnorePaths": ["**/*.spec.luau", "**/*.md"],
+	"tree": {
+		"$className": "DataModel",
+		"ReplicatedFirst": { "$path": "src/ReplicatedFirst" },
+		"ReplicatedStorage": { "$path": "src/ReplicatedStorage" },
+		"ServerScriptService": { "$path": "src/ServerScriptService" },
+		"StarterPlayer": {
+			"$properties": { "CameraMaxZoomDistance": 400, "DevComputerMovementMode": "Scriptable", "DevTouchMovementMode": "Scriptable" },
+			"StarterPlayerScripts": { "$path": "src/StarterPlayer/StarterPlayerScripts" }
+		},
+		"Players": { "$properties": { "CharacterAutoLoads": false } },
+		"Workspace": {
+			"$properties": { "StreamingEnabled": true, "Gravity": 29.43 }
+		},
+		"Lighting": { "$properties": { "Technology": "Future", "GlobalShadows": true } },
+		"SoundService": { "$properties": { "RespectFilteringEnabled": true } }
+	}
+}
