@@ -6,7 +6,8 @@
 	                  diff(old, new) -> {Patch}, applyPatches(target, patches).
 	Dependencies:     Types/Core (Patch).
 	State:            None.
-	Validation:       diff requires two tables; applyPatches validates op/path and refuses to traverse non-tables.
+	Validation:       diff requires two tables and rejects cyclic data and non string/number keys (which
+	                  applyPatches would refuse); applyPatches validates op/path and refuses to traverse non-tables.
 	Error handling:   Malformed patches raise descriptive errors (callers on the client pcall and request a resync).
 	Performance notes: diff walks both trees once; keys are visited in a deterministic sorted order so identical
 	                  inputs always produce identical patch lists (important for tests and sequence numbers).
@@ -189,18 +190,50 @@ local function isPlainTable(value: any): boolean
 	return type(value) == "table" and getmetatable(value) == nil
 end
 
+local function pathToString(path: { PathKey }): string
+	local parts = {}
+	for _, k in path do
+		table.insert(parts, tostring(k))
+	end
+	return "/" .. table.concat(parts, "/")
+end
+
 local function appendPath(path: { PathKey }, key: PathKey): { PathKey }
+	-- applyPatches only accepts string/number path elements: refuse to emit a patch the receiver must reject
+	-- (on the client that would turn into an endless full-resync loop).
+	local keyType = type(key)
+	if keyType ~= "string" and keyType ~= "number" then
+		error(`TableUtil.diff: unsupported key type {keyType} at {pathToString(path)}`, 0)
+	end
 	local child = table.clone(path)
 	table.insert(child, key)
 	return child
 end
 
-local function diffInto(old: { [any]: any }, new: { [any]: any }, path: { PathKey }, out: { Patch })
+local function diffInto(
+	old: { [any]: any },
+	new: { [any]: any },
+	path: { PathKey },
+	out: { Patch },
+	active: { [any]: { [any]: boolean } }
+)
+	-- Cyclic data cannot be replicated as patches: the same (old, new) pair recurring on the recursion path means
+	-- both trees loop. Fail fast instead of recursing until the stack overflows.
+	local pairsOfOld = active[old]
+	if pairsOfOld == nil then
+		pairsOfOld = {}
+		active[old] = pairsOfOld
+	elseif pairsOfOld[new] then
+		error(`TableUtil.diff: cyclic table at {pathToString(path)}`, 0)
+	end
+	pairsOfOld[new] = true
 	for _, key in TableUtil.sortedKeys(new) do
 		local newValue = new[key]
 		local oldValue = old[key]
-		if isPlainTable(newValue) and isPlainTable(oldValue) then
-			diffInto(oldValue, newValue, appendPath(path, key), out)
+		if rawequal(newValue, oldValue) then
+			continue -- same value or same table reference: nothing changed below this key
+		elseif isPlainTable(newValue) and isPlainTable(oldValue) then
+			diffInto(oldValue, newValue, appendPath(path, key), out, active)
 		elseif oldValue == nil or not deepEqualValue(oldValue, newValue, {}) then
 			table.insert(out, { op = "set", path = appendPath(path, key), value = deepCopyValue(newValue, {}) })
 		end
@@ -217,6 +250,7 @@ local function diffInto(old: { [any]: any }, new: { [any]: any }, path: { PathKe
 	for _, key in removed do
 		table.insert(out, { op = "delete", path = appendPath(path, key), value = nil })
 	end
+	pairsOfOld[new] = nil
 end
 
 --- Minimal ordered patch list that transforms `old` into `new` (values in patches are deep copies).
@@ -225,16 +259,13 @@ function TableUtil.diff(old: { [any]: any }, new: { [any]: any }): { Patch }
 		error("TableUtil.diff: both arguments must be tables", 2)
 	end
 	local out: { Patch } = {}
-	diffInto(old, new, {}, out)
-	return out
-end
-
-local function pathToString(path: { PathKey }): string
-	local parts = {}
-	for _, k in path do
-		table.insert(parts, tostring(k))
+	local ok, err: any = pcall(function()
+		diffInto(old, new, {}, out, {})
+	end)
+	if not ok then
+		error(err, 2)
 	end
-	return "/" .. table.concat(parts, "/")
+	return out
 end
 
 --- Applies patches in order, mutating `target` in place; returns `target`.

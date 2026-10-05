@@ -12,8 +12,10 @@
 	Performance notes: Overrides copy only the touched sections. Read `Config.<Section>.<KEY>` at use time (or after
 	                  boot) — an override replaces the section table, so references cached before it go stale.
 
-	Adding a section (other teams): create Config/<Section>.luau returning a plain table (optionally with a BOUNDS
-	table of overridable keys -> { min, max, integer }), then add it to SECTIONS below and to the Config table.
+	Sections are pre-registered for every owning team (Battle, Combat, Spotting, Movement, Economy, Progression,
+	Matchmaking, Bots, Audio, Vfx, Interface, Places, DevAccess): fill your own Config/<Section>.luau (plain table plus
+	an optional BOUNDS table of overridable keys -> { min, max, integer }). Content data lives in Config/Content and is
+	indexed by Config/ContentRegistry, not here. A brand-new section must be added to SECTIONS and the Config table.
 ]]
 
 local Freeze = require("@game/ReplicatedStorage/Shared/Core/Freeze")
@@ -22,6 +24,16 @@ local Result = require("@game/ReplicatedStorage/Shared/Core/Result")
 local ErrorCodes = require("@game/ReplicatedStorage/Shared/Net/ErrorCodes")
 
 local Battle = require("@self/Battle")
+local Combat = require("@self/Combat")
+local Spotting = require("@self/Spotting")
+local Movement = require("@self/Movement")
+local Economy = require("@self/Economy")
+local Progression = require("@self/Progression")
+local Matchmaking = require("@self/Matchmaking")
+local Bots = require("@self/Bots")
+local Audio = require("@self/Audio")
+local Vfx = require("@self/Vfx")
+local Interface = require("@self/Interface")
 local Places = require("@self/Places")
 local DevAccess = require("@self/DevAccess")
 
@@ -30,12 +42,36 @@ export type OverridePatch = { [string]: { [string]: any } }
 
 local Config = {
 	Battle = Freeze.deep(Battle),
+	Combat = Freeze.deep(Combat),
+	Spotting = Freeze.deep(Spotting),
+	Movement = Freeze.deep(Movement),
+	Economy = Freeze.deep(Economy),
+	Progression = Freeze.deep(Progression),
+	Matchmaking = Freeze.deep(Matchmaking),
+	Bots = Freeze.deep(Bots),
+	Audio = Freeze.deep(Audio),
+	Vfx = Freeze.deep(Vfx),
+	Interface = Freeze.deep(Interface),
 	Places = Freeze.deep(Places),
 	DevAccess = Freeze.deep(DevAccess),
 }
 
 --- Section names in deterministic order. Add new sections here AND in the Config table above.
-local SECTIONS: { string } = { "Battle", "DevAccess", "Places" }
+local SECTIONS: { string } = {
+	"Audio",
+	"Battle",
+	"Bots",
+	"Combat",
+	"DevAccess",
+	"Economy",
+	"Interface",
+	"Matchmaking",
+	"Movement",
+	"Places",
+	"Progression",
+	"Spotting",
+	"Vfx",
+}
 
 local originals: { [string]: any } = {}
 for _, name in SECTIONS do
@@ -86,7 +122,8 @@ end
 
 -- Flattens a nested patch table into ("A.B", value) leaves.
 local function flatten(prefix: string, value: any, out: { { path: string, value: any } })
-	if type(value) == "table" then
+	-- An empty table is a leaf (and fails the numeric bound check) instead of silently overriding nothing.
+	if type(value) == "table" and next(value) ~= nil then
 		for _, key in TableUtil.sortedKeys(value) do
 			local keyText = tostring(key)
 			flatten(if prefix == "" then keyText else prefix .. "." .. keyText, value[key], out)
@@ -118,7 +155,9 @@ function Config.applyOverrides(patch: OverridePatch): Result.Result<{ string }>
 			continue
 		end
 		local leaves = {}
-		flatten("", sectionPatch, leaves)
+		for _, key in TableUtil.sortedKeys(sectionPatch) do
+			flatten(tostring(key), sectionPatch[key], leaves)
+		end
 		for _, leaf in leaves do
 			local fullPath = `{sectionName}.{leaf.path}`
 			local bound = bounds[leaf.path]

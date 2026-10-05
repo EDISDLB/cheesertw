@@ -17,6 +17,9 @@
 	  * A handler disconnected during a Fire (by itself or another handler) is not called afterwards in that Fire.
 	  * A handler connected during a Fire is not called until the next Fire.
 	  * `:Wait()` suspends the calling coroutine until the next Fire and returns its arguments (Roblox runtime code).
+	    A waiting thread that is cancelled before the Fire is skipped silently.
+	  * A yielding handler suspends the firing thread (and delays later handlers) until it resumes: never yield in
+	    a handler; `task.spawn` the yielding work instead.
 ]]
 
 local CoreTypes = require("../Types/Core")
@@ -124,6 +127,10 @@ end
 function SignalClass.Wait(self: SignalImpl): ...any
 	local thread = coroutine.running()
 	SignalClass.Once(self, function(...)
+		-- The waiting thread may have been cancelled/closed meanwhile (task.cancel, Trove cleanup): drop silently.
+		if coroutine.status(thread) ~= "suspended" then
+			return
+		end
 		local ok, err = coroutine.resume(thread, ...)
 		if not ok then
 			log:error("resumed waiting thread errored: %s", tostring(err))

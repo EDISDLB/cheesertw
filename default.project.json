@@ -1,21 +1,67 @@
 {
 	"name": "Hulldown",
 	"servePort": 34872,
-	"globIgnorePaths": ["**/*.spec.luau", "**/*.md"],
+	"globIgnorePaths": [
+		"**/*.spec.luau",
+		"**/*.md"
+	],
 	"tree": {
 		"$className": "DataModel",
-		"ReplicatedFirst": { "$path": "src/ReplicatedFirst" },
-		"ReplicatedStorage": { "$path": "src/ReplicatedStorage" },
-		"ServerScriptService": { "$path": "src/ServerScriptService" },
+		"ReplicatedFirst": {
+			"$path": "src/ReplicatedFirst"
+		},
+		"ReplicatedStorage": {
+			"$path": "src/ReplicatedStorage"
+		},
+		"ServerScriptService": {
+			"$path": "src/ServerScriptService"
+		},
 		"StarterPlayer": {
-			"$properties": { "CameraMaxZoomDistance": 400, "DevComputerMovementMode": "Scriptable", "DevTouchMovementMode": "Scriptable" },
-			"StarterPlayerScripts": { "$path": "src/StarterPlayer/StarterPlayerScripts" }
+			"$properties": {
+				"CameraMaxZoomDistance": 400,
+				"DevComputerMovementMode": "Scriptable",
+				"DevTouchMovementMode": "Scriptable",
+				"CreateDefaultPlayerModule": {
+					"Bool": false
+				},
+				"EnableMouseLockOption": false
+			},
+			"StarterPlayerScripts": {
+				"$path": "src/StarterPlayer/StarterPlayerScripts"
+			}
 		},
-		"Players": { "$properties": { "CharacterAutoLoads": false } },
+		"Players": {
+			"$properties": {
+				"CharacterAutoLoads": false
+			}
+		},
 		"Workspace": {
-			"$properties": { "StreamingEnabled": true, "Gravity": 29.43 }
+			"$properties": {
+				"StreamingEnabled": false,
+				"Gravity": 29.43,
+				"PlayerCharacterDestroyBehavior": {
+					"Enum": 2
+				}
+			}
 		},
-		"Lighting": { "$properties": { "Technology": "Future", "GlobalShadows": true } },
-		"SoundService": { "$properties": { "RespectFilteringEnabled": true } }
+		"Lighting": {
+			"$properties": {
+				"LightingStyle": {
+					"Enum": 0
+				},
+				"PrioritizeLightingQuality": {
+					"Bool": false
+				},
+				"GlobalShadows": true
+			}
+		},
+		"SoundService": {
+			"$properties": {
+				"RespectFilteringEnabled": true,
+				"DefaultListenerLocation": {
+					"Enum": 1
+				}
+			}
+		}
 	}
 }

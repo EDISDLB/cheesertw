@@ -60,6 +60,11 @@ local function resolveDeveloper(player: Player)
 			ctx.log:warn("group rank lookup failed for %d: %s", player.UserId, tostring(value))
 		end
 	end
+	-- The lookup yields: the player may have left meanwhile (PlayerRemoving already cleared the cache). Caching for
+	-- a departed player would leave a stale entry behind, so only cache for players still in the server.
+	if ctx.adapters.players:getPlayerByUserId(player.UserId) ~= player then
+		return
+	end
 	DebugService._devCache[player.UserId] = access.isAllowed(player.UserId, rank, ctx.isStudio)
 end
 

@@ -7,6 +7,7 @@
 	State:            None beyond the running totals.
 	Validation:       A filter that matches no spec file is an error (prevents false green runs).
 	Error handling:   Load errors and test failures are reported with message + location; exit code 1 on any.
+	                  Files using it.only/describe.only fail the run unless HULLDOWN_ALLOW_ONLY=1 (local focusing).
 	Performance notes: Bytecode is cached across files by the Loader.
 
 	Usage: lune run tests/run.luau [-- filter ...]   (filters are case-insensitive substrings of the spec path)
@@ -21,6 +22,8 @@ local SPEC_ROOTS = { "tests/Unit", "tests/Integration", "tests/Regression" }
 local TEST_TIMEOUT_SECONDS = 15
 
 local useColor = process.env.NO_COLOR == nil
+-- Focused specs (it.only / describe.only) silently skip the rest of their file; they must never reach a commit.
+local allowFocus = process.env.HULLDOWN_ALLOW_ONLY == "1"
 
 local function color(name: string, text: string): string
 	if not useColor then
@@ -94,7 +97,7 @@ local function printLogs(lines: { string })
 	end
 end
 
-local totals = { passed = 0, failed = 0, skipped = 0, loadErrors = 0, files = 0 }
+local totals = { passed = 0, failed = 0, skipped = 0, loadErrors = 0, focusErrors = 0, files = 0 }
 local startedAll = os.clock()
 local failedFiles = {}
 
@@ -151,11 +154,26 @@ for _, file in selected do
 		totals.failed += result.failed
 		totals.skipped += result.skipped
 		local count = result.passed + result.failed + result.skipped
-		local label = if result.failed > 0 then color("red", "FAIL ") else color("green", "PASS ")
+		local rejectedFocus = result.focused and not allowFocus
+		if rejectedFocus then
+			totals.focusErrors += 1
+		end
+		local label = if result.failed > 0 or rejectedFocus then color("red", "FAIL ") else color("green", "PASS ")
 		local extra = if result.skipped > 0 then `, {result.skipped} skipped` else ""
 		print(`{label}{file} ({count} tests{extra}, {string.format("%.1f", ms)} ms)`)
 		if count == 0 then
 			print(color("yellow", "    warning: spec file declares no tests"))
+		end
+		if rejectedFocus then
+			if result.failed == 0 then
+				table.insert(failedFiles, file)
+			end
+			print(
+				color(
+					"red",
+					"    focused tests (.only) skip the rest of this file: remove them (HULLDOWN_ALLOW_ONLY=1 allows it locally)"
+				)
+			)
 		end
 		if result.failed > 0 then
 			table.insert(failedFiles, file)
@@ -185,7 +203,7 @@ print(
 		elapsed
 	)
 )
-if totals.failed > 0 or totals.loadErrors > 0 then
+if totals.failed > 0 or totals.loadErrors > 0 or totals.focusErrors > 0 then
 	print(color("red", "FAILED: " .. table.concat(failedFiles, ", ")))
 	process.exit(1)
 end

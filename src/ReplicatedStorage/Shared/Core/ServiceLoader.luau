@@ -10,9 +10,10 @@
 	                  duplicate names, missing dependencies (with "registered but not enabled for role" hints),
 	                  dependency cycles (reported as the full chain). These are boot errors (boot() throws).
 	Error handling:   Init errors or yields mark the service Failed and Skip every service that depends on it
-	                  (transitively); Start errors mark it Failed. Each failure fires ServiceFailed(name, phase, err)
-	                  and is logged. Stop errors/timeouts are reported in the stop() result. `failFast` rethrows
-	                  Init failures instead (useful in tests).
+	                  (transitively); Start errors mark it Failed, also after Start yielded (a Start that yields,
+	                  e.g. a long-running loop, is reported Started once it has begun). Each failure fires
+	                  ServiceFailed(name, phase, err) and is logged. Stop errors/timeouts are reported in the stop()
+	                  result. `failFast` rethrows Init failures instead (useful in tests).
 	Performance notes: Boot-time only. No scheduler access: `spawn`, `cancel` and `wait` are injected
 	                  (Main passes task.spawn/task.cancel/task.wait; tests pass deterministic fakes).
 
@@ -412,7 +413,9 @@ function LoaderClass.start(self: ServiceLoader)
 			continue
 		end
 		record.status = "Starting"
+		local began = false
 		self._spawn(function()
+			began = true
 			local ok, err = xpcall(startFn :: any, traceback, record.module)
 			if ok then
 				-- Cast: the solver keeps the outer refinement inside this closure, but Start may have run long.
@@ -423,6 +426,11 @@ function LoaderClass.start(self: ServiceLoader)
 				fail(self, record, "Start", tostring(err))
 			end
 		end)
+		-- A Start that yielded (e.g. a long-running loop) has begun its work: report it as Started rather than
+		-- "Starting" forever. A later error still marks it Failed.
+		if began and (record.status :: ServiceStatus) == "Starting" then
+			record.status = "Started"
+		end
 	end
 	self._phase = "Started"
 end

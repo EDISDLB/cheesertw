@@ -13,6 +13,12 @@ local SHARED_IMPURITY_ALLOWLIST = {
 	["src/ReplicatedStorage/Shared/Core/Clock.luau"] = true,
 }
 
+-- The only files allowed to take `require` as a value (plug-in discovery through a local dynamicRequire alias).
+local DYNAMIC_REQUIRE_ALLOWLIST = {
+	["src/ServerScriptService/Server/Main.server.luau"] = true,
+	["src/ReplicatedStorage/Client/Main.luau"] = true,
+}
+
 local PRINT_ALLOWLIST = {
 	["src/ReplicatedStorage/Shared/Core/Log.luau"] = true,
 }
@@ -93,6 +99,36 @@ local function findViolations(code: string, patterns: { { pattern: string, label
 			if string.find(line, rule.pattern) then
 				table.insert(found, `{lineNumber}: {rule.label}`)
 			end
+		end
+	end
+	return found
+end
+
+-- Every use of the `require` global must be a call with a string literal ("@game/...", "./X"). Taking `require` as a
+-- value (an alias that could later require Instances) is only allowed for the dynamicRequire line of the two Mains.
+-- `code` is already stripped (strings are "", comments removed). Returns "line: message" entries.
+local function requireViolations(code: string, file: string): { string }
+	local found = {}
+	local lineNumber = 0
+	for line in string.gmatch(code .. "\n", "([^\n]*)\n") do
+		lineNumber += 1
+		local start = 1
+		while true do
+			local s, e = string.find(line, "%f[%w_%.:]require%f[^%w_]", start)
+			if s == nil then
+				break
+			end
+			local rest = string.sub(line, e + 1)
+			local literalCall = string.match(rest, "^%s*%(%s*[\"'`]") ~= nil or string.match(rest, "^%s*[\"'`]") ~= nil
+			local tableKey = string.match(rest, "^%s*=[^=]") ~= nil
+				and string.match(string.sub(line, 1, s - 1), "[{,]%s*$")
+			local sanctionedAlias = DYNAMIC_REQUIRE_ALLOWLIST[file] == true
+				and string.match(line, "^%s*local%s+dynamicRequire%s*=%s*require%s*::%s*any%s*$") ~= nil
+			if not literalCall and not tableKey and not sanctionedAlias then
+				local what = if string.match(rest, "^%s*%(") then "non-string require" else "require used as a value"
+				table.insert(found, `{lineNumber}: {what}`)
+			end
+			start = e + 1
 		end
 	end
 	return found
@@ -180,22 +216,28 @@ describe("Source conventions (ARCHITECTURE §3)", function()
 	it("requires use string literals (instance requires only through the sanctioned dynamicRequire in Main)", function()
 		local problems = {}
 		for _, file in files do
-			-- Strings become "" (still a literal), so only non-literal requires remain detectable.
-			local stripped = stripCommentsAndStrings(fs.readFile(file))
-			local lineNumber = 0
-			for code in string.gmatch(stripped .. "\n", "([^\n]*)\n") do
-				lineNumber += 1
-				local start = 1
-				while true do
-					local s, e = string.find(code, "%f[%w_%.:]require%s*%(", start)
-					if s == nil then
-						break
+			for _, v in requireViolations(stripCommentsAndStrings(fs.readFile(file)), file) do
+				table.insert(problems, `{file}:{v}`)
+			end
+		end
+		report(problems)
+	end)
+
+	it("every Shared module with logic has a mirrored unit spec (rule 10)", function()
+		-- Type-only and data-only modules (no `function`) are exempt; their consumers' specs cover them.
+		local problems = {}
+		for _, file in files do
+			if string.find(file, "^src/ReplicatedStorage/Shared/") then
+				local code = stripCommentsAndStrings(fs.readFile(file))
+				if string.find(code, "%f[%w_]function%f[^%w_]") then
+					local rel = string.gsub(string.gsub(file, "^src/", ""), "%.luau$", "")
+					local dir, name = string.match(rel, "^(.*)/([^/]+)$")
+					local spec = if name == "init"
+						then `tests/Unit/{dir}/{string.match(dir :: string, "([^/]+)$")}.spec.luau`
+						else `tests/Unit/{dir}/{name}.spec.luau`
+					if not fs.isFile(spec) then
+						table.insert(problems, `{file}: missing {spec}`)
 					end
-					local nextChar = string.match(code, "^%s*(.)", e + 1)
-					if nextChar ~= '"' and nextChar ~= "'" and nextChar ~= "`" then
-						table.insert(problems, `{file}:{lineNumber}: non-string require`)
-					end
-					start = e + 1
 				end
 			end
 		end
@@ -226,6 +268,20 @@ describe("Source conventions (ARCHITECTURE §3)", function()
 			end
 		end
 		report(problems)
+	end)
+
+	it("the require rule flags aliases and non-literal calls", function()
+		local function count(source: string, file: string): number
+			return #requireViolations(stripCommentsAndStrings(source), file)
+		end
+		expect(count('local A = require("./A")\nlocal B = require(script.B)', "src/X.luau")).toBe(1)
+		expect(count("local r = require\nlocal x = r(script.Y)", "src/X.luau")).toBe(1)
+		expect(count("local dynamicRequire = require :: any", "src/X.luau")).toBe(1)
+		expect(count("local dynamicRequire = require :: any", "src/ServerScriptService/Server/Main.server.luau")).toBe(
+			0
+		)
+		expect(count("local t = { require = 1, x = 2 }\nt.require(x)\nlocal requireX = 2", "src/X.luau")).toBe(0)
+		expect(count("pcall(require, script.Z)", "src/X.luau")).toBe(1)
 	end)
 
 	it("the comment/string stripper itself works", function()

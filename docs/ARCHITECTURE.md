@@ -74,19 +74,43 @@ docs/                           ARCHITECTURE (this), design/, research/, systems
 ### 2.1 Places and server roles
 
 One Rojo build is published to every place in the universe. `Shared/Config/Places.luau` maps
-`game.PlaceId` → role. The server bootstrap decides which services start.
+`game.PlaceId` → `{ role, mapId? }`. The server bootstrap decides which services start.
 
 | Role | Where | Hosts |
 |---|---|---|
-| `Hub` | public servers of the Hub place | Garage, profile, store, tech tree, missions, platoons, matchmaking queue + (leader-elected) global matchmaker |
-| `Battle` | reserved servers of the Battle place | exactly one `BattleInstance` (Random, Training, Bootcamp, Practice, Event) |
+| `Hub` | public servers of the Hub place (MaxPlayers 50) | Garage, profile (the **only** role that opens profile sessions), store and receipts, tech tree, missions, platoons, matchmaking queue + (leader-elected) global matchmaker, reward-inbox draining |
+| `Battle` | reserved servers of the Battle place (MaxPlayers 32, access "Secure within universe only") | exactly one `BattleInstance` (Random, Training, Bootcamp, Practice, Event). v1 uses one Battle place and builds the map from `Content/Maps` at boot, before players arrive; `Places.luau` may later map per-map Battle places if join-time map replication proves too slow |
 | `Dev` | Roblox Studio or any unmapped PlaceId | Hub **and** an in-process battle host; local matchmaking with bot fill; debug tools enabled for the developer |
 
-Battle handoff: Hub matchmaker → `TeleportService:ReserveServer(battlePlaceId)` returns
-`(accessCode, privateServerId)` → match manifest stored in MemoryStore under
-`match:<privateServerId>` → players teleported with `TeleportOptions.ReservedServerAccessCode`.
-The battle server reads `match:<game.PrivateServerId>`; teleport data from clients is **never** trusted.
-After results, players are teleported back to the Hub (Dev: returned to the garage in-process).
+Battle handoff (values in `docs/research/00-DECISIONS.md` §19):
+1. Hub matchmaker → `TeleportService:ReserveServerAsync(battlePlaceId)` returns `(accessCode, privateServerId)`
+   (`ReserveServer` is deprecated).
+2. Match manifest (≤ 8 KB) written to the MemoryStore hash map `match` under key `<privateServerId>`: match id, mode,
+   map, place, `mmType` (the Hub's `game.MatchmakingType`), roster with team, ticket and a compact **loadout snapshot**
+   per human (taken by the Hub at enqueue while the vehicle is locked), bot seed and bot slots.
+3. Each Hub teleports its own players with `TeleportOptions.ReservedServerAccessCode` (≤ 50 per `TeleportAsync`,
+   5 attempts, 40 s deadline, then re-queue at the original `enqueuedAt`) and records `profile.activeBattle` for
+   "Return to battle".
+4. The battle server reads `match:<game.PrivateServerId>`. Access codes never expire, and reusing one starts a fresh
+   empty server, so it **rejects stale codes**: if `PrivateServerId` is empty, `PrivateServerOwnerId ≠ 0`, the manifest
+   is missing or tombstoned, or `game.MatchmakingType ≠ manifest.mmType`, everyone is sent back to the Hub. It admits
+   only roster UserIds arriving from a Hub `SourcePlaceId`. Teleport data is **never** trusted. Slots still empty after
+   the 45 s arrival window are played by bots.
+5. Battle servers **never open profile sessions**: everything they need (roster, loadouts) is in the manifest, read-only.
+   At battle end they append a reward entry keyed by battle id to each human's reward inbox (§7), tombstone the
+   manifest (`{ended = true}`), and teleport players back to the Hub, where the results screen opens. The Hub applies
+   inbox entries idempotently under its session lock (Dev: same flow in-process).
+
+Place settings shared by every place (required in `default.project.json`, because several are NotScriptable or
+PluginSecurity and scripts cannot set them): `Workspace.StreamingEnabled = false` for Hub and Battle in v1 (there is no character, so
+streaming would need a server-side `ReplicationFocus` Part per player that leaks positions; client prediction and
+445–564 m sightlines need the whole map, which is static and not secret; revisit only if the client memory gate in
+00-DECISIONS §18 fails); characters off (`Players.CharacterAutoLoads = false`, nothing in `StarterGui`,
+`Workspace.PlayerCharacterDestroyBehavior = Enabled`, `StarterPlayer.CreateDefaultPlayerModule = false`,
+`EnableMouseLockOption = false`); `Lighting.LightingStyle = Realistic` with `PrioritizeLightingQuality = false`
+(`Lighting.Technology` is deprecated and not scriptable; Rojo 7.4.4 needs explicit typed values for both);
+`SoundService.DefaultListenerLocation = None`. Players.BanningEnabled and "Allow Third Party Teleports = off" are set in
+Studio / Creator Dashboard.
 
 ---
 
@@ -98,7 +122,7 @@ After results, players are teleported back to the Hub (Dev: returned to the gara
    module: `require("@self/Child")`. Remember: inside `Folder/init.luau`, `./X` means a **sibling of Folder**.
    Never use instance requires, `_G`, `shared`, or `getfenv`. The single exception is plug-in discovery in
    `Server/Main.server.luau` and `Client/Main.luau` (children of `Services/` / `Controllers/` are required through a
-   local `dynamicRequire` alias). `tests/Regression/SourceConventions.spec.luau` enforces rules 1, 2, 3, 7 and 9.
+   local `dynamicRequire` alias). `tests/Regression/SourceConventions.spec.luau` enforces rules 1, 2, 3, 7, 9 and 10.
 3. **Shared modules are pure**: no `game:GetService`, no `workspace`, no `task.wait`/`task.spawn`, no `os.clock()`/`tick()`.
    Time comes in as a `now: number` argument or an injected `Clock`. World queries come in through the `World`
    interface (`Types.World`). Randomness comes from `Core/RNG` (seeded, deterministic). This keeps them testable in Lune.
@@ -116,8 +140,9 @@ After results, players are teleported back to the Hub (Dev: returned to the gara
    One module per file. Folder modules use `init.luau`.
 9. Every module has a header comment: **Purpose, Dependencies, State, Validation, Error handling, Performance notes**
    (one line each is fine for small modules).
-10. Every Shared module has a spec in `tests/Unit/<same path>/<Module>.spec.luau`. Server services get integration
-    specs using mocks. Bugs get a regression spec in `tests/Regression/`.
+10. Every Shared module has a spec in `tests/Unit/<same path>/<Module>.spec.luau` (folder modules:
+    `<Folder>/<Folder>.spec.luau`; type-only and data-only modules without functions are covered by their
+    consumers). Server services get integration specs using mocks. Bugs get a regression spec in `tests/Regression/`.
 11. Performance: no per-frame table allocation in hot loops (sim, projectiles, spotting, rendering); reuse buffers;
     use `--!native` only on proven hot math modules; stagger expensive work across ticks.
 12. Formatting: StyLua (tabs, 120 cols). Lint: Selene clean.
@@ -216,8 +241,11 @@ and surfaced to the `HealthService`). `game:BindToClose` → `Stop` in reverse o
   Violations are reported to `AntiExploitService:strike(player, reason, weight)`; they never reach handlers.
 * `NetClient` (Client) waits for the remotes folder and exposes typed `fire/invoke/on`.
 * High-frequency traffic uses **binary codecs** in `Net/Codecs/*` (Luau `buffer`) over `UnreliableRemoteEvent`
-  (payload ≤ 900 bytes; split if needed): `InputPacket` (C2S 30 Hz, carries last 3 inputs for loss tolerance) and
-  `SnapshotPacket` (S2C 20 Hz, per-observer filtered). Everything else is reliable `RemoteEvent`.
+  (payload ≤ 900 bytes, a margin under the engine's 1,000-byte drop limit; split if needed): `InputPacket` (C2S 30 Hz,
+  ≤ 64 B, carries last 3 inputs for loss tolerance) and `SnapshotPacket` (S2C 20 Hz, per-observer filtered).
+  Everything else is reliable `RemoteEvent`. Every C2S remote declares a token bucket in the registry (budgets in
+  00-DECISIONS §19); the engine's ≈ 500 requests/s per client is a ceiling, not a control. Number validators reject
+  NaN/±inf (`math.isfinite`). Target bandwidth per client: ≤ 20 KB/s average, ≤ 40 KB/s peak S2C, ≤ 3 KB/s C2S.
 * Request/response from client uses `Function` remotes **C2S only** (server never invokes clients). Every mutating
   request carries a client-generated `requestId` (string ≤ 40) for idempotency.
 * Profile replication: `DataSync` sends a full sanitized profile view on join, then `ProfilePatch` lists produced by
@@ -227,7 +255,9 @@ and surfaced to the `HealthService`). `game:BindToClose` → `Stop` in reverse o
 
 All Roblox platform calls that tests must fake go through adapters defined as types in `Types.luau` and implemented in
 `Server/Adapters`: `World` (raycasts/ground/LOS on the map), `DataStoreAdapter`, `MemoryStoreAdapter`, `MessagingAdapter`,
-`TeleportAdapter`, `MarketplaceAdapter`, `PlayersAdapter`. Tests use `tests/Harness/Mocks/*` with failure injection.
+`TeleportAdapter` (`ReserveServerAsync`, `TeleportAsync`), `MarketplaceAdapter` (`BindReceiptHandler`, subscription
+status), `PlayersAdapter`. Tests use `tests/Harness/Mocks/*` with failure injection. `RobloxWorld` builds its
+`RaycastParams` with `IncludeInstances`/`ExcludeInstances` (they supersede `FilterDescendantsInstances`).
 
 ---
 
@@ -247,7 +277,8 @@ accumulator at **30 Hz** (`Config.Battle.TICK_RATE`). Tick order:
 3. **Turret & gun** — `TurretSim` rotates turret/gun toward the aim point within traverse speed and limits
    (yaw arcs for casemate TDs, depression/elevation incl. rear depression), `GunState` advances reload/magazines/specials.
 4. **Aiming** — `Dispersion` updates the server-side aiming circle from movement/rotation/shots.
-5. **Projectiles** — `ProjectileSystem` steps ballistic shells (gravity per shell, max range), casts against the map
+5. **Projectiles** — `ProjectileSystem` steps ballistic shells (gravity per shell, max range; a swept segment per
+   tick, so no sub-stepping), casts against the map
    (`World:raycast`) and vehicle armor (`ArmorGeometry` in each vehicle's local space, broadphase by bounding sphere),
    resolves hits with `Penetration` + `DamageModel` (sequential armor layers, spaced armor, ricochet continuation,
    overmatch, normalization, post-penetration module/crew path, HE splash).
@@ -256,8 +287,10 @@ accumulator at **30 Hz** (`Config.Battle.TICK_RATE`). Tick order:
    penalties, signal-range relay, spotted timers, last-known positions).
 8. **Objectives** — `BattleRules` capture progress/reset, victory/defeat/draw evaluation, timer.
 9. **Replication** — per observer: own vehicle (full state + `lastProcessedInputTick`), allies (always), enemies only if
-   spotted by the observer's team; reliable event stream (`ShotFired`, `ShotResult`, `ModuleEvent`, `VehicleDestroyed`,
-   `Spotted/Unspotted`, `CaptureUpdate`, `ChatCommand`…).
+   spotted by the observer's team (full state within 564 m, minimap-only records at 2 Hz beyond); reliable event stream
+   (`ShotFired`, `ShotResult`, `ModuleEvent`, `VehicleDestroyed`, `Spotted/Unspotted`, `CaptureUpdate`, `ChatCommand`…).
+   Shots by enemies the observer's team cannot see never reveal the shooter: they arrive as an anonymous `ShotHeard`
+   (calibre class, position snapped to 50 m with bearing noise) and a tracer for only the last ≤ 100 m of flight.
 
 `VehicleEntity` holds: definition id, resolved loadout + computed `VehicleStats`, sim state, turret state, gun state,
 ammo counts, HP, modules `{[ModuleKind]: {hp, maxHp, state = "Ok"|"Damaged"|"Destroyed", repairT}}`, crew
@@ -279,8 +312,16 @@ same map geometry, keeps an input history, and reconciles when a snapshot with `
 plus pivots (turret ring, gun trunnion, muzzle, view point, camo points, exhausts, track contact points).
 * Server: builds `ArmorGeometry` (convex polyhedra with per-face thickness/zone/spaced flag) and module volumes from
   the blueprint — **no Instances**.
-* Client: `Client/Render/VehicleRenderer` builds Roblox models from the same blueprint (cached per vehicle definition,
-  cloned per entity), with LOD tiers (Detail layer culled first) and customization (paint/camo/emblem/inscription).
+* Client: `Client/Render/VehicleRenderer` builds Roblox models from the same blueprint (one template per vehicle
+  definition and LOD tier, cloned per entity) with customization (paint/camo/emblem/inscription). Each vehicle model has
+  **one anchored, invisible, non-colliding root part**; the active LOD model is welded to it, the turret and gun hang on
+  `Motor6D` joints (write `Transform`, fallback `C0`), and every visible root is moved by a single
+  `workspace:BulkMoveTo(roots, cframes, Enum.BulkMoveMode.FireCFrameChanged)` per frame. Visual parts are massless with
+  `CanCollide`/`CanQuery`/`CanTouch` off and live under a client-created `Workspace.ClientVehicles` folder (they never
+  stream out and never replicate). LOD by camera distance ÷ zoom with 10 % hysteresis; a switch reparents one tier
+  model: LOD0 ≤ 400 parts (< 150 studs; at most 4/3/2 vehicles on High/Medium/Low), LOD1 ≤ 80 parts (≤ 600 studs),
+  LOD2 ≤ 16 parts (≤ 2,400 studs), LOD3 = 2-D marker only. Budgets: ≤ 3,000 rendered vehicle parts on PC, ≤ 1,500 on
+  mobile; full table in 00-DECISIONS §18. Markers are one pooled screen-space overlay, not per-vehicle `BillboardGui`s.
 * Armor Inspector uses `ArmorGeometry` + `Penetration` to show thickness, effective thickness and outcome at the cursor.
 
 ### 6.4 The World interface (`Types.World`)
@@ -297,8 +338,12 @@ type World = {
 WorldHit = { position: Vector3, normal: Vector3, distance: number, material: string, objectId: string?, destructible: boolean }
 ```
 `Server/Adapters/RobloxWorld` implements it with `workspace:Raycast/Blockcast` over the map folder + Terrain using
-collision groups and attributes (`Foliage`, `Destructible`, `Water`, `SmokeVolume`). `tests/Harness/HeightmapWorld`
-implements it analytically (heightfield + boxes + foliage spheres) so whole battles run headless in Lune.
+collision groups and attributes (`Destructible`, `Water`). `groundAt` is a bilinear lookup in a heightfield `buffer`
+baked from the map's terrain recipe (1 sample per 2 studs; structures and bridges fall back to a raycast), and the
+foliage/smoke part of `sightLine` is evaluated **analytically** from the map's authored concealment volumes (a 16 m
+grid of spheres/capsules), never from engine geometry, so client graphics settings cannot change spotting.
+`tests/Harness/HeightmapWorld` implements the same interface analytically (heightfield + boxes + the same foliage
+volumes) so whole battles run headless in Lune. Budget: ≤ 600 world queries per 30 Hz tick.
 
 ---
 
@@ -308,31 +353,60 @@ implements it analytically (heightfield + boxes + foliage spheres) so whole batt
 * `Shared/Progression/Transactions` implements every economic action as a **pure function**
   `(profile, args, content, now) -> Result<{ profile: Profile, events: {DomainEvent} }>` operating on a copy:
   purchase/sell vehicle, research module/vehicle (vehicle XP then free XP), mount module/equipment/ammo/consumables,
-  convert XP, train/retrain crew, learn skill, buy/apply customization, claim mission/achievement reward, garage slot,
-  store purchase. Validation errors use codes from `Net/ErrorCodes`.
+  convert XP, train/retrain crew, learn perk, buy/apply customization, claim mission/achievement reward,
+  store purchase (garage slots are unlimited, so there is no slot purchase). Validation errors use codes from
+  `Net/ErrorCodes`.
 * Server `ProgressionService` resolves the player's session profile, runs the transaction, commits via `DataService`,
   publishes the domain events (to Missions/Achievements/Notifications) and lets `DataSync` patch the client.
-* `Shared/Battle/Scoring` turns a battle ledger into per-player XP/credits/crew XP/free XP with the economy config;
-  `RewardService` applies them **idempotently** (`profile.processed.battles` ring) and writes battle history.
+* `Shared/Battle/Scoring` turns a battle ledger into per-player XP/credits/crew XP/free XP plus the results-screen ledger
+  lines with the economy config. It runs on the **battle server**, which cannot touch profiles: it appends one entry
+  `{battleId, issuedAt, rewards, stats}` per human to the DataStore `RewardInbox_v1`, key `u_<UserId>` (`UpdateAsync`,
+  ≤ 20 entries, no-op if the battle id is already there) **before** teleporting players back.
+* `RewardService` runs **in the Hub only**, under the session lock: on profile load and every 30 s while
+  `profile.pendingBattles` is non-empty it reads the inbox fresh, applies each entry whose battle id is not in
+  `profile.processed.battles` (ring of 200), unlocks the vehicle and records battle history, **saves the profile**, and
+  only then removes the consumed inbox entries. A crash between steps is safe because the ring makes re-application a
+  no-op. Vehicles locked for a battle that never reports are unlocked after 30 min.
 
-### Data persistence (`DataService`)
-Session-locked profiles (ProfileStore-style) on `DataStoreAdapter`: `UpdateAsync` lock `{jobId, placeId, at}`,
-lock steal after timeout, autosave every 60 s with jitter, save + release on leave, `BindToClose` flush,
-exponential backoff with budget awareness, schema migration on load, `validateAndRepair` for corrupted/partial data,
-kick-with-message on unrecoverable load failure (never play on a default profile that could overwrite real data).
-Developer-product receipts and battle rewards are idempotent through the profile's `processed` rings.
+### Data persistence (`DataService`, Hub and Dev only)
+Session-locked profiles (ProfileStore-style) on `DataStoreAdapter`, store `Profiles_v1`, key `Player_<UserId>`. The lock
+lives in the value as `MetaData.ActiveSession = {placeId, jobId, sessionGuid, at}` and every write goes through
+`UpdateAsync`, which re-checks `sessionGuid` (a server whose lock was stolen aborts and kicks its copy). Autosave every
+60 s with a random first offset; save + release on leave; on a conflicting lock send a MessagingService release request,
+retry at 5 s then every 10 s and steal after 40 s; a lock not refreshed for 300 s is taken immediately. Per-key serial
+write queue with exponential backoff and budget awareness (`GetRequestBudgetForRequestType`), `BindToClose` parallel
+flush within 25 s, schema migration on load, `validateAndRepair` for corrupted/partial data, kick-with-message after
+120 s of failed loading (never play on a default profile that could overwrite real data). Battle servers never open
+sessions. Idempotency rings: `processed.receipts` (200 purchase ids), `processed.battles` (200), `requestId` (last 50
+per session).
+
+### Purchases
+Developer products are granted by `MarketplaceService:BindReceiptHandler(Enum.ReceiptType.DeveloperProduct, handler)`
+in the Hub, with a `ProcessReceipt` fallback that returns `NotProcessedYet`; Battle places bind a handler that always
+returns `NotProcessedYet` (the receipt is redelivered in the Hub) and hide the experience shop. The handler waits for the
+profile, runs the `Transactions` grant and records the `PurchaseId` in **one** `UpdateAsync`, and returns
+`Enum.ReceiptDecision.Processed` only after that write succeeds (one receipt can be processed on two servers at once).
+Prices use Managed Pricing: the client displays `GetProductInfoAsync` prices and never hard-codes Robux amounts.
+Subscription status (HULLDOWN Plus) is read on the server (`GetUserSubscriptionStatusAsync`,
+`Players.UserSubscriptionStatusChanged`). No paid random items.
 
 ---
 
 ## 8. Matchmaking
 
 * `Shared/Matchmaking/Matchmaker` is a **pure** algorithm: `(tickets, now, config, rng) -> { matches, remaining }`.
-  Tickets: `{ ticketId, members: {userId}, platoonId?, vehicle: {defId, tier, class, role}, mode, region, enqueuedAt }`.
-  It honors team size (15v15), tier spread & templates, class mirroring/limits, platoon constraints, wait-time
-  relaxation and **bot fill** for low population.
-* Hub `QueueService` stores tickets in MemoryStore (`MemoryStoreAdapter`), a leader-elected `MatchmakerService`
-  (lock with TTL) runs the algorithm, reserves battle servers, writes manifests, and notifies hubs via `MessagingAdapter`;
-  hubs teleport their players (`TeleportAdapter`) with retry → requeue on failure.
+  Tickets: `{ ticketId, members: {userId}, platoonId?, vehicle: {defId, tier, class, role}, mode, region, mmType,
+  hubJobId, enqueuedAt }`, where `mmType` is the Hub's `game.MatchmakingType`. Pools are keyed by
+  `(mode, regionBucket, mmType)`; `mmType` is never relaxed, because cross-play-disabled console players cannot share a
+  server with others. It honors team size (15v15), tier spread & templates, class mirroring/limits, platoon
+  constraints, wait-time relaxation and **bot fill** for low population.
+* Hub `QueueService` stores tickets in MemoryStore sorted maps (one per bucket; TTL 120 s refreshed every 30 s with a
+  state-guarded `UpdateAsync`), a leader-elected `MatchmakerService` (hash-map lease with a 15 s TTL) runs the algorithm
+  every 3 s, claims tickets atomically (state Q → M), reserves battle servers (`ReserveServerAsync`), writes manifests
+  (≤ 8 KB) and assignment records, and notifies hubs via `MessagingAdapter` (best effort: hubs also poll their
+  assignments); hubs teleport their players (`TeleportAdapter`) with retry → requeue on failure.
+* MemoryStore is small at low CCU (memory 64 KB + 1.2 KB × users; 1,000 + 120 × CCU request units per minute), hence
+  the 8 KB manifest cap, short TTLs, explicit removal and an index of non-empty buckets (empty scans still cost).
 * Dev role: the same algorithm runs in-process and starts a local `BattleInstance`.
 
 ---
@@ -341,8 +415,9 @@ Developer-product receipts and battle rewards are idempotent through the profile
 
 ```
 Config/
-  init.luau            aggregates + freezes everything; applies LiveOverrides (validated) on the server
-  Places.luau          PlaceId -> role
+  init.luau            aggregates + freezes everything; applies LiveOverrides (validated, read once per battle from
+                       Experience Configs so values never change mid-battle) on the server
+  Places.luau          PlaceId -> { role, mapId? }
   Battle.luau          tick rate, timers, team size, capture rules, victory rules, snapshot rates
   Combat.luau          penetration/normalization/ricochet/overmatch rules, RNG ranges, HE/HEAT rules, fire, ramming, fall damage
   Spotting.luau        view range cap, proximity radius, check intervals, camo rules, foliage, firing penalties, spotted timers
@@ -353,7 +428,7 @@ Config/
   Audio.luau / Vfx.luau  mix buses, distance bands, pool sizes (client tunables)
   Content/
     Factions.luau  Classes.luau  Roles.luau  Tiers.luau
-    Shells.luau  Guns/  Turrets/  Engines/  Tracks/  Radios/        (modules may be shared across vehicles)
+    Shells.luau  Guns/  Turrets/  Engines/  Tracks/                 (modules may be shared across vehicles; no radio module)
     Vehicles/<Faction>/<VehicleId>.luau                              (one file per vehicle)
     TechTree.luau  (branches & unlock edges; validated as a DAG)
     Equipment.luau  Consumables.luau  CrewSkills.luau  Customization.luau
@@ -388,11 +463,28 @@ Client/
   Audio/                        AudioEngine (buses, voices, priority, ducking, distance variants, occlusion), Banks
   Effects/                      pooled VFX (muzzle, tracer, impacts, ricochet, fire, smoke, explosion, dust, tracks, wrecks)
 ```
-* UI is code-built (no Studio-authored GUIs), themed by `Theme` tokens only (no literal colors in screens).
+* UI is code-built (no Studio-authored GUIs), themed by `Theme` tokens only (no literal colors in screens). Tokens come
+  from `docs/design/brand-art.md`; engine StyleSheets are not used in v1 (Lune cannot evaluate them). Root
+  `UIScale = clamp(viewportHeight / 1080, 0.75, 1.5)` (× 1.25 on TV); the Compact layout is chosen by viewport height
+  < 600 px; no `TextScaled` on body text, so `PreferredTextSize` works.
 * Every interactive element is reachable by gamepad (Focus groups, explicit NextSelection where needed) and touch.
-* `InputMode` (`MouseKeyboard`|`Gamepad`|`Touch`) switches prompts/glyphs and the mobile battle layout.
-* Accessibility settings (colorblind palettes, UI scale, text scale, reduced effects, subtitles, audio sliders, camera
-  and aim sensitivity) are read through `Settings` and applied centrally (Theme, Layout, Effects, AudioEngine).
+* **Input** uses the Input Action System only (`InputContext` → `InputAction` → `InputBinding`, contexts Battle, Sniper,
+  Menu, Spectate, Garage; on-screen buttons bind through `InputBinding.UIButton`). `InputMode`
+  (`MouseKeyboard`|`Gamepad`|`Touch`) follows `UserInputService.PreferredInput` and switches prompts/glyphs
+  (`GetImageForKeyCode`) and the mobile battle layout. Reserved inputs are never bound: Esc/ButtonStart, F9, F11, F12,
+  PrintScreen. No `ContextActionService` touch buttons.
+* **Camera**: `CameraType.Scriptable`, one `BindToRenderStep` at `Enum.RenderPriority.Camera.Value + 1`; there are no
+  characters, so the default PlayerModule controls are off.
+* **Audio**: `Audio/AudioEngine` builds the graph client-side with the modular Audio API only — `AudioPlayer` →
+  `AudioEmitter`/`AudioListener` → `Wire` → per-bus `AudioFader` (+ `AudioFilter`, `AudioEqualizer`, sidechain
+  `AudioCompressor`) → master `AudioCompressor` → `AudioLimiter` → `AudioDeviceOutput`; never `Sound`/`SoundGroup`.
+  Buses follow `docs/design/audio.md` (3-D buses are listeners on the camera grouped by `AudioInteractionGroup`);
+  pooled voices with a 32-voice budget (20 on mobile) and priority stealing; every loop is owned by an entity scope;
+  speed-of-sound delays and music quantisation use `Play(atTime)` against `SoundService:GetMixerTime()`; acoustic
+  simulation is off in v1 (raycast occlusion instead). The server never plays SFX.
+* Accessibility settings (colorblind schemes from brand-art §3.4, UI scale, text scale, reduced effects, subtitles,
+  audio sliders, camera and aim sensitivity) are read through `Settings` and applied centrally (Theme, Layout, Effects,
+  AudioEngine).
 
 ---
 
@@ -412,8 +504,12 @@ third-party game assets anywhere.
   (validated against server reload/ammo/alive/gun state), UI requests (validated, rate-limited, idempotent).
 * Speed/teleport/fly/noclip are impossible by construction (server simulates movement); damage/penetration/target
   spoofing impossible (server computes ballistics); reload bypass impossible (server `GunState`).
-* Economy: all mutations via `Transactions` on the server with validation + idempotency; purchases via `ProcessReceipt`
-  idempotent by receipt id; rewards idempotent by battle id; no client-supplied amounts are ever trusted.
+* Economy: all mutations via `Transactions` on the server with validation + idempotency; purchases via
+  `BindReceiptHandler` in the Hub, idempotent by `PurchaseId`; rewards idempotent by battle id through the reward inbox;
+  no client-supplied amounts are ever trusted.
+* Characters are disabled in every place, which removes the character fly/noclip/fling and network-ownership exploit
+  classes. Battle places accept only server-initiated teleports ("Secure within universe only") and reject stale or
+  foreign access codes (§2.1).
 * `AntiExploitService` aggregates strikes (rate-limit, schema failures, impossible requests) → warn/kick thresholds,
   structured logs. Debug remotes reject non-developers (`Config.DevAccess`) and are disabled outside Studio unless the
   user is allow-listed.
@@ -431,5 +527,21 @@ third-party game assets anywhere.
   (join/leave/rejoin/shutdown/DataStore failure/duplicate reward/purchase/corrupted data), matchmaker QA
   (1, 2, 5, 10, 15, 29, 30, 31, 60, 100 players, platoons, leaves, timeouts), combat edge cases, and regression
   specs derived from `docs/research/07-qa-regression-catalogue.md`.
+* **Must-pass invariants.** `tests/Harness/Invariants.check(battle)` runs after every tick of every headless battle and
+  soak and fails on: any NaN/±inf in vehicle, projectile or capture state; hp outside [0, maxHp], invalid module state,
+  negative ammo or reload; hull below ground − 0.05 m unless falling, or outside map bounds; an observer's snapshot or
+  event stream carrying an enemy that the observer's team does not see (full state only when team-visible and ≤ 564 m;
+  never an unspotted enemy's identity or exact position); damage-ledger sum ≠ HP lost; capture progress outside
+  [0, 100]; input accepted from a destroyed vehicle or after the battle ended. The client harness asserts no voices or
+  effects remain on destroyed entities and the voice count stays within budget.
+* **P0 (every commit, inside `scripts/check.sh`, < 3 min):** all headless Data/Persistence, Net/Security,
+  Armor/Penetration, Results/Rewards and Transactions specs, including: no C2S remote carries damage, HP, hit results,
+  rewards, currency or positions (REG-NET-03); schema fuzzing (NaN, inf, huge strings, deep tables); armor
+  watertightness (10,000 rays per configuration, 0 leaks); the same battle id or `PurchaseId` applied twice, even
+  concurrently, changes the profile once; a failed load never writes; a stolen lock rejects the old server's saves;
+  `BindToClose` finishes within 25 s; `MatchmakingType` is never mixed; determinism (`seed + input log + content hash`
+  reproduces the event-stream hash, so Shared code never reads wall-clock time and iterates entities in sorted order).
+  Nightly (P1): 30-bot soaks on every map with zero stuck events, map scanners, 100k-case fuzzing. Per release (P2): UI,
+  audio and device checklist.
 * `scripts/check.sh` must pass before every commit. Reports must state honestly what was tested headlessly vs what
-  requires in-engine verification.
+  requires in-engine verification (the list lives in `docs/research/00-DECISIONS.md` §22).

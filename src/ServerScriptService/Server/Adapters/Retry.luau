@@ -34,6 +34,7 @@ local PERMANENT_DATASTORE_CODES: { [number]: boolean } = {
 	[402] = true,
 	[403] = true,
 	[404] = true,
+	[509] = true, -- OperationNotAllowed: writes blocked on a personal RCC
 	[511] = true,
 	[512] = true,
 	[513] = true,
@@ -45,10 +46,14 @@ function Retry.errorCode(err: string): number?
 	return if code then tonumber(code) else nil
 end
 
---- True unless the message carries a known permanent DataStore error code.
+--- True unless the message carries a known permanent DataStore error code (or is Studio's "no API access").
 function Retry.isTransient(err: string): boolean
 	local code = Retry.errorCode(err)
 	if code ~= nil and PERMANENT_DATASTORE_CODES[code] then
+		return false
+	end
+	-- Studio without "Enable Studio Access to API Services" fails every request; retrying only delays boot.
+	if string.find(err, "Studio access to APIs is not allowed", 1, true) ~= nil then
 		return false
 	end
 	return true

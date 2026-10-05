@@ -6,7 +6,8 @@
 	Dependencies:     Types/Core (Clock), Types/Net (RateSpec).
 	State:            owner -> bucketName -> { tokens, last }. Owners are weak keys so departed Players can be
 	                  collected even if forget() was missed.
-	Validation:       Rate specs must have perSecond >= 0 and burst >= 1 (checked on first use of a bucket).
+	Validation:       Rate specs must have perSecond >= 0 and burst >= 1 (checked on first use of a bucket); costs
+	                  must be finite and >= 0.
 	Error handling:   A clock that goes backwards is treated as zero elapsed time (never mints tokens).
 	Performance notes: O(1) per consume; buckets are created lazily; prune() drops idle full buckets.
 
@@ -62,12 +63,16 @@ local function getBucket(self: RateLimiter, owner: any, name: string, rate: Rate
 	return bucket
 end
 
---- Consumes `cost` tokens (default 1). Returns true if allowed.
+--- Consumes `cost` tokens (default 1; finite and >= 0). Returns true if allowed.
 function RateLimiterClass.consume(self: RateLimiter, owner: any, name: string, rate: RateSpec, cost: number?): boolean
+	local c = cost or 1
+	if type(c) ~= "number" or c ~= c or c < 0 or c == math.huge then
+		-- A negative cost would mint tokens; NaN would always pass the comparison below.
+		error(`RateLimiter:consume cost must be a finite number >= 0, got {tostring(c)}`, 2)
+	end
 	local now = self._clock:now()
 	local bucket = getBucket(self, owner, name, rate, now)
 	refill(bucket, rate, now)
-	local c = cost or 1
 	if bucket.tokens >= c then
 		bucket.tokens -= c
 		return true

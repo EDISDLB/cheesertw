@@ -213,3 +213,85 @@ describe("TableUtil.diff / applyPatches", function()
 		end
 	end)
 end)
+
+describe("TableUtil.diff (adversarial shapes)", function()
+	local function roundTrip(old: any, new: any): any
+		local target = TableUtil.deepCopy(old)
+		TableUtil.applyPatches(target, TableUtil.diff(old, new))
+		return target
+	end
+
+	it("arrays: shrink to empty, grow from empty, remove from the middle, insert at the front", function()
+		local cases = {
+			{ { 1, 2, 3 }, {} },
+			{ {}, { 1, 2, 3 } },
+			{ { "a", "b", "c", "d" }, { "a", "c", "d" } },
+			{ { "b", "c" }, { "a", "b", "c" } },
+			{ { { id = 1 }, { id = 2 }, { id = 3 } }, { { id = 3 } } },
+			{ { { id = 1 } }, { { id = 1, hp = 5 }, { id = 2 } } },
+		}
+		for _, case in cases do
+			expect(roundTrip(case[1], case[2])).toEqual(case[2])
+		end
+	end)
+
+	it("array shrink deletes run from the highest index down (no holes mid-way)", function()
+		local patches = TableUtil.diff({ 1, 2, 3, 4, 5 }, { 1, 2 })
+		local deleted = {}
+		for _, p in patches do
+			if p.op == "delete" then
+				table.insert(deleted, p.path[1])
+			end
+		end
+		expect(deleted).toEqual({ 5, 4, 3 })
+	end)
+
+	it("type changes: array <-> dictionary, value <-> table, nested deletes", function()
+		local cases = {
+			{ { list = { 1, 2 } }, { list = { a = 1 } } },
+			{ { list = { a = 1 } }, { list = { 1, 2 } } },
+			{ { v = 5 }, { v = { 5 } } },
+			{ { v = { deep = { deeper = { x = 1 } } } }, { v = 5 } },
+			{ { a = { b = { c = { d = 1 } } } }, { a = { b = {} } } },
+			{ { a = { b = { c = { d = 1 } } }, keep = true }, { keep = true } },
+			{ { x = false }, { x = true } },
+			{ { x = 0 / 0 }, { x = 0 / 0 } },
+		}
+		for _, case in cases do
+			expect(roundTrip(case[1], case[2])).toEqual(case[2])
+		end
+		expect(TableUtil.diff({ x = 0 / 0 }, { x = 0 / 0 })).toEqual({})
+	end)
+
+	it("never aliases patch values with the new tree, even for shared subtables", function()
+		local shared = { hp = 1 }
+		local new = { a = shared, b = shared }
+		local patches = TableUtil.diff({}, new)
+		for _, p in patches do
+			expect(p.value).never.toBe(shared)
+		end
+		shared.hp = 99
+		local target = TableUtil.applyPatches({}, patches)
+		expect(target).toEqual({ a = { hp = 1 }, b = { hp = 1 } })
+	end)
+
+	it("rejects keys applyPatches could never accept (boolean/table keys)", function()
+		expect(function()
+			TableUtil.diff({}, { [true] = 1 } :: any)
+		end).toThrow("unsupported key type boolean")
+		expect(function()
+			TableUtil.diff({ [{}] = 1 } :: any, {})
+		end).toThrow("unsupported key type table")
+	end)
+
+	it("applyPatches refuses to traverse through a non-table and leaves earlier patches applied", function()
+		local target = { a = 1 }
+		expect(function()
+			TableUtil.applyPatches(target, {
+				{ op = "set", path = { "b" }, value = 2 },
+				{ op = "set", path = { "a", "x" }, value = 3 },
+			})
+		end).toThrow("traverses a non-table")
+		expect(target.b).toBe(2)
+	end)
+end)

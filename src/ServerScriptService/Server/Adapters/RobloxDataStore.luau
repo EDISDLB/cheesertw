@@ -10,7 +10,9 @@
 	Error handling:   Returns (false, message) on failure; never throws. UpdateAsync transforms that throw are
 	                  surfaced as failures (Roblox aborts the write).
 	Performance notes: Default 3 attempts with backoff; DataService (owner of the retry/budget policy) can construct
-	                  this with { attempts = 1 }.
+	                  this with { attempts = 1 }. Request budgets use the Standard* DataStoreRequestType categories
+	                  (Get/GetVersion -> StandardRead, Set -> StandardWrite, Remove -> StandardRemove,
+	                  List -> StandardList, Update -> min(read, write)).
 ]]
 
 local AdapterTypes = require("@game/ReplicatedStorage/Shared/Types/Adapters")
@@ -38,6 +40,43 @@ local function toKeyInfo(info: DataStoreKeyInfo?): KeyInfo?
 end
 
 local RobloxDataStore = {}
+
+export type RequestTypes = {
+	read: Enum.DataStoreRequestType,
+	write: Enum.DataStoreRequestType,
+	remove: Enum.DataStoreRequestType,
+	list: Enum.DataStoreRequestType,
+	version: Enum.DataStoreRequestType,
+}
+
+-- Enum.DataStoreRequestType item by name, or nil when this engine build lacks it (Roblox enums throw on unknown
+-- members).
+local function enumItem(enum: any, name: string): any
+	local ok, item = pcall(function()
+		return enum[name]
+	end)
+	return if ok then item else nil
+end
+
+--- Budget categories for DataStore (non-ordered) calls. The legacy items (GetAsync, SetIncrementAsync, ...) are
+--- documented as "should not be used"; the Standard* items track the current per-server limits. Falls back to the
+--- legacy items when the modern ones are unavailable (older engines, Lune's reflection database).
+function RobloxDataStore.resolveRequestTypes(enum: any): RequestTypes
+	local function pick(modern: string, legacy: string): Enum.DataStoreRequestType
+		local item = enumItem(enum, modern) or enumItem(enum, legacy)
+		if item == nil then
+			error(`RobloxDataStore: Enum.DataStoreRequestType has neither {modern} nor {legacy}`, 0)
+		end
+		return item
+	end
+	return {
+		read = pick("StandardRead", "GetAsync"),
+		write = pick("StandardWrite", "SetIncrementAsync"),
+		remove = pick("StandardRemove", "SetIncrementAsync"),
+		list = pick("StandardList", "ListAsync"),
+		version = pick("StandardRead", "GetVersionAsync"),
+	}
+end
 
 function RobloxDataStore.new(options: Options?): DataStoreAdapter
 	local DataStoreService = game:GetService("DataStoreService")
@@ -160,19 +199,24 @@ function RobloxDataStore.new(options: Options?): DataStoreAdapter
 		end, retryOptions)
 	end
 
+	local requestTypes = RobloxDataStore.resolveRequestTypes(Enum.DataStoreRequestType)
+
 	function adapter.getRequestBudget(_self: DataStoreAdapter, kind: AdapterTypes.DataStoreRequestKind): number
-		local get = DataStoreService:GetRequestBudgetForRequestType(Enum.DataStoreRequestType.GetAsync)
-		local set = DataStoreService:GetRequestBudgetForRequestType(Enum.DataStoreRequestType.SetIncrementAsync)
-		if kind == "Get" then
-			return get
-		elseif kind == "Set" or kind == "Remove" then
-			return set
-		elseif kind == "Update" then
-			return math.min(get, set)
-		elseif kind == "List" then
-			return DataStoreService:GetRequestBudgetForRequestType(Enum.DataStoreRequestType.ListAsync)
+		local function budget(requestType: Enum.DataStoreRequestType): number
+			return DataStoreService:GetRequestBudgetForRequestType(requestType)
 		end
-		return DataStoreService:GetRequestBudgetForRequestType(Enum.DataStoreRequestType.GetVersionAsync)
+		if kind == "Get" then
+			return budget(requestTypes.read)
+		elseif kind == "Set" then
+			return budget(requestTypes.write)
+		elseif kind == "Remove" then
+			return budget(requestTypes.remove)
+		elseif kind == "Update" then
+			return math.min(budget(requestTypes.read), budget(requestTypes.write))
+		elseif kind == "List" then
+			return budget(requestTypes.list)
+		end
+		return budget(requestTypes.version)
 	end
 
 	local conforming: DataStoreAdapter = adapter -- type-checks every method against the interface

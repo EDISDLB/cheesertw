@@ -353,3 +353,163 @@ describe("NetServer player lifecycle", function()
 		net:forgetPlayer(p)
 	end)
 end)
+
+describe("NetServer security (adversarial)", function()
+	local function ownerCount(server: any): number
+		local n = 0
+		for _ in server._limiter._owners do
+			n += 1
+		end
+		return n
+	end
+
+	it("no handler ever sees NaN, inf, wrong types, oversized strings or extra arguments", function()
+		local seen = {}
+		net:on("Move", function(_, axis, tag)
+			table.insert(seen, { axis, tag })
+		end)
+		local P = table.pack
+		local hostile = {
+			P(0 / 0),
+			P(math.huge),
+			P(-math.huge),
+			P("0.5"),
+			P(true),
+			P({}),
+			P(Vector3.new(0, 0, 0)),
+			P(0, string.rep("x", 5)),
+			P(0, 5),
+			P(0, "\255"),
+			P(0, nil, "extra"),
+		}
+		for _, args in hostile do
+			clock:advance(10) -- refill so every call reaches validation
+			remote("Move"):_simulateFireServer(player, table.unpack(args, 1, args.n))
+		end
+		expect(seen).toEqual({})
+		expect(#violations).toBe(#hostile)
+		for i, v in violations do
+			expect(v.reason).toBe("INVALID_ARGS")
+			-- Only the last case is rejected for its argument count; all others by a validator.
+			if i < #hostile then
+				expect(v.detail).toMatch("^Move: arg[12]")
+			end
+		end
+	end)
+
+	it("rate limits are per player AND per remote (one spammer cannot starve others)", function()
+		local moves, buys = 0, 0
+		net:on("Move", function()
+			moves += 1
+		end)
+		net:onInvoke("Buy", function()
+			buys += 1
+			return Result.ok(true)
+		end)
+		local victim = game:GetService("Players"):addPlayer({ UserId = 3 })
+		for _ = 1, 50 do
+			remote("Move"):_simulateFireServer(player, 0)
+		end
+		expect(moves).toBe(2)
+		expect(remote("Buy"):_simulateInvokeServer(player, "x")).toBeOk() -- other remote: own bucket
+		remote("Move"):_simulateFireServer(victim, 0) -- other player: own bucket
+		expect(moves).toBe(3)
+		expect(buys).toBe(1)
+		victim:Kick("done")
+	end)
+
+	it("rate limiting happens before validation and handlers (floods cost one bucket check each)", function()
+		local validations = 0
+		net:destroy()
+		net = newNet({
+			registry = {
+				{
+					name = "Probe",
+					kind = "Event",
+					direction = "C2S",
+					rate = { perSecond = 0, burst = 1 },
+					args = {
+						function(_v: any): (boolean, string?)
+							validations += 1
+							return true, nil
+						end :: any,
+					},
+				},
+			},
+		})
+		net:on("Probe", function() end)
+		for _ = 1, 100 do
+			remote("Probe"):_simulateFireServer(player, 1)
+		end
+		expect(validations).toBe(1)
+		expect(#violations).toBe(99)
+	end)
+
+	it("leaves no per-player state behind after players leave (no leak across many sessions)", function()
+		net:destroy()
+		local adapter = MockPlayersAdapter.new()
+		net = newNet({ players = adapter })
+		net:on("Move", function() end)
+		for i = 1, 25 do
+			local p = adapter:addPlayer({ UserId = 1000 + i })
+			remote("Move"):_simulateFireServer(p, 0)
+			adapter:removePlayer(p)
+		end
+		expect(ownerCount(net)).toBe(0)
+	end)
+
+	it("clients can neither fire nor invoke server-to-client remotes", function()
+		remote("Notice"):_simulateFireServer(player, "spoof")
+		remote("Snapshot"):_simulateFireServer(player, buffer.create(4))
+		expect(#violations).toBe(2)
+		for _, v in violations do
+			expect(v.reason).toBe("PROTOCOL_VIOLATION")
+		end
+		expect(remote("Notice").ClassName).toBe("RemoteEvent") -- no OnServerInvoke surface exists
+		expect(remote("Notice").OnServerInvoke).toBeNil()
+	end)
+
+	it("a slow Function handler does not block other invocations (each call has its own thread)", function()
+		local order = {}
+		net:onInvoke("Buy", function(_, item)
+			if item == "slow" then
+				task.wait(0.05)
+			end
+			table.insert(order, item)
+			return Result.ok(item)
+		end)
+		local other = game:GetService("Players"):addPlayer({ UserId = 4 })
+		task.spawn(function()
+			remote("Buy"):_simulateInvokeServer(player, "slow")
+		end)
+		local fast = remote("Buy"):_simulateInvokeServer(other, "fast")
+		expect(fast).toBeOk()
+		expect(order).toEqual({ "fast" })
+		task.wait(0.1)
+		expect(order).toEqual({ "fast", "slow" })
+		other:Kick("done")
+	end)
+
+	it("handler errors never leak server details to the client", function()
+		net:onInvoke("Buy", function()
+			error("secret: DataStore key Profiles/123 failed at line 42")
+		end)
+		local result = remote("Buy"):_simulateInvokeServer(player, "x")
+		expect(result).toBeErr("INTERNAL")
+		expect(result.detail).toBeNil()
+	end)
+
+	it("a developer check or violation handler that throws fails closed without breaking the gate", function()
+		net:setDeveloperCheck(function(): boolean
+			error("group service down")
+		end)
+		net:setViolationHandler(function()
+			error("anti-exploit crashed")
+		end)
+		net:onInvoke("Admin", function()
+			return Result.ok("admin")
+		end)
+		expect(remote("Admin"):_simulateInvokeServer(player)).toBeErr("NOT_ALLOWED")
+		expect(capture:find("error", "violation handler failed")).never.toBeNil()
+	end)
+end)

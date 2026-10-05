@@ -7,7 +7,8 @@
 	Dependencies:     None (Roblox datatypes: Vector3).
 	State:            Source buffer, cursor, end offset.
 	Validation:       Reads past the end, over-long varints, varints above 2^53 and strings longer than `maxLen`
-	                  or the remaining bytes all raise errors.
+	                  or the remaining bytes all raise errors. readF32/readF64/readVector3 return whatever bits
+	                  arrive (NaN, inf included): decoders of client packets use readFiniteF32/readFiniteVector3.
 	Error handling:   Errors are prefixed "BufferReader:" with offsets for debugging.
 	Performance notes: No allocation except strings and Vector3 results.
 ]]
@@ -82,6 +83,20 @@ function ReaderClass.readF64(self: BufferReader): number
 	return v
 end
 
+local function inLimit(v: number, maxAbs: number?): boolean
+	return v == v and v ~= math.huge and v ~= -math.huge and (maxAbs == nil or math.abs(v) <= maxAbs)
+end
+
+--- f32 that must be finite (and |v| <= maxAbs when given): use for untrusted packets, NaN/inf raise errors.
+function ReaderClass.readFiniteF32(self: BufferReader, maxAbs: number?): number
+	local offset = self._pos
+	local v = ReaderClass.readF32(self)
+	if not inLimit(v, maxAbs) then
+		error(`BufferReader:readFiniteF32 rejected {v} at offset {offset}`, 2)
+	end
+	return v
+end
+
 function ReaderClass.readBool(self: BufferReader): boolean
 	need(self, 1, "readBool")
 	local v = buffer.readu8(self._buf, self._pos)
@@ -128,6 +143,16 @@ function ReaderClass.readVector3(self: BufferReader): Vector3
 	local b, p = self._buf, self._pos
 	self._pos += 12
 	return Vector3.new(buffer.readf32(b, p), buffer.readf32(b, p + 4), buffer.readf32(b, p + 8))
+end
+
+--- Vector3 whose components are finite (and |component| <= maxAbs when given); NaN/inf raise errors.
+function ReaderClass.readFiniteVector3(self: BufferReader, maxAbs: number?): Vector3
+	local offset = self._pos
+	local v = ReaderClass.readVector3(self)
+	if not (inLimit(v.X, maxAbs) and inLimit(v.Y, maxAbs) and inLimit(v.Z, maxAbs)) then
+		error(`BufferReader:readFiniteVector3 rejected {v} at offset {offset}`, 2)
+	end
+	return v
 end
 
 function ReaderClass.readVarUInt(self: BufferReader): number

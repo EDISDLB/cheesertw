@@ -230,3 +230,186 @@ describe("RNG (PCG32)", function()
 		end).toThrow("finite")
 	end)
 end)
+
+-- Independent PCG32 reference using four 16-bit limbs (little-endian) and schoolbook multiplication, so every
+-- intermediate stays far below 2^53. Seeds follow the module contract: floor(seed) mod 2^64.
+local Reference = {}
+
+local MUL_LIMBS = { 0x7F2D, 0x4C95, 0xF42D, 0x5851 } -- 6364136223846793005
+
+local function toLimbs(n: number): { number }
+	local v = math.floor(n)
+	return { v % 65536, (v // 65536) % 65536, (v // 4294967296) % 65536, (v // 281474976710656) % 65536 }
+end
+
+local function mulLimbs(a: { number }, b: { number }): { number }
+	local out = { 0, 0, 0, 0 }
+	for i = 1, 4 do
+		local carry = 0
+		for j = 1, 5 - i do
+			local k = i + j - 1
+			local cur = out[k] + a[i] * b[j] + carry
+			out[k] = cur % 65536
+			carry = cur // 65536
+		end
+	end
+	return out
+end
+
+local function addLimbs(a: { number }, b: { number }): { number }
+	local out, carry = {}, 0
+	for i = 1, 4 do
+		local cur = a[i] + b[i] + carry
+		out[i] = cur % 65536
+		carry = cur // 65536
+	end
+	return out
+end
+
+local function shr(a: { number }, bits: number): { number }
+	-- Shift right by `bits` (< 64): whole limbs first, then the remaining 0..15 bits across limb boundaries.
+	local q, r = bits // 16, bits % 16
+	local out = {}
+	for i = 1, 4 do
+		local lo = a[i + q] or 0
+		local hi = a[i + q + 1] or 0
+		out[i] = bit32.band(bit32.bor(bit32.rshift(lo, r), bit32.lshift(hi, 16 - r)), 0xFFFF)
+	end
+	return out
+end
+
+function Reference.new(seed: number, stream: number?)
+	local inc = addLimbs(mulLimbs(toLimbs(stream or 54), { 2, 0, 0, 0 }), { 1, 0, 0, 0 })
+	local self = { state = { 0, 0, 0, 0 }, inc = inc }
+	local function step()
+		self.state = addLimbs(mulLimbs(self.state, MUL_LIMBS), self.inc)
+	end
+	step()
+	self.state = addLimbs(self.state, toLimbs(seed))
+	step()
+	function self.nextU32(): number
+		local old = self.state
+		step()
+		local x = shr(old, 18)
+		local mixed = {}
+		for i = 1, 4 do
+			mixed[i] = bit32.bxor(x[i], old[i])
+		end
+		local shifted = shr(mixed, 27)
+		local xorshifted = shifted[1] + shifted[2] * 65536
+		local rot = shr(old, 59)[1]
+		return bit32.rrotate(xorshifted, rot)
+	end
+	return self
+end
+
+describe("RNG (adversarial determinism)", function()
+	it("matches an independent limb-arithmetic PCG32 for edge, negative, fractional and huge seeds", function()
+		local seeds = {
+			0,
+			1,
+			-1,
+			42,
+			-7,
+			0.999,
+			-0.5,
+			2 ^ 31,
+			2 ^ 32 - 1,
+			2 ^ 32,
+			2 ^ 53 - 1,
+			-(2 ^ 53),
+			2 ^ 63,
+			-(2 ^ 63),
+			2 ^ 64 + 2 ^ 12,
+			1e300,
+			-1e300,
+			123456789.75,
+		}
+		local seedRng = RNG.new(2024)
+		for _ = 1, 30 do
+			table.insert(seeds, seedRng:int(-2 ^ 31, 2 ^ 31 - 1) * 2 ^ seedRng:int(0, 30))
+		end
+		for _, seed in seeds do
+			for _, stream in { 54, 0, 7, -3 } do
+				local rng, ref = RNG.new(seed, stream), Reference.new(seed, stream)
+				for i = 1, 12 do
+					local got, want = rng:nextU32(), ref.nextU32()
+					if got ~= want then
+						error(`seed {seed} stream {stream} draw {i}: got {got}, reference {want}`, 0)
+					end
+				end
+			end
+		end
+	end)
+
+	it("seeds are floored: 1.9 and 1 give the same sequence, -0.5 and -1 too", function()
+		local a, b = RNG.new(1.9), RNG.new(1)
+		local c, d = RNG.new(-0.5), RNG.new(-1)
+		for _ = 1, 10 do
+			expect(a:nextU32()).toBe(b:nextU32())
+			expect(c:nextU32()).toBe(d:nextU32())
+		end
+	end)
+
+	it(
+		"truncatedNormal never exceeds mean +/- limitSigma * |stddev| (incl. tiny limits and negative stddev)",
+		function()
+			local rng = RNG.new(77)
+			for _, case in
+				{
+					{ mean = 0, sd = 1, limit = 0.001 },
+					{ mean = 0, sd = 1, limit = 0.5 },
+					{ mean = 10, sd = 3, limit = 1 },
+					{ mean = -5, sd = 2, limit = 3 },
+					{ mean = 0, sd = -2, limit = 2 },
+					{ mean = 100, sd = 0.01, limit = 4 },
+				}
+			do
+				local bound = case.limit * math.abs(case.sd) + 1e-9
+				-- Tiny limits reject almost every Box-Muller draw (32 tries each), so they get fewer samples.
+				local samples = if case.limit < 0.01 then 500 else 5000
+				for _ = 1, samples do
+					local v = rng:truncatedNormal(case.mean, case.sd, case.limit)
+					if math.abs(v - case.mean) > bound or v ~= v then
+						error(`truncatedNormal({case.mean}, {case.sd}, {case.limit}) produced {v}`, 0)
+					end
+				end
+			end
+		end
+	)
+
+	it("int() handles the full 2^32 span and single-value ranges", function()
+		local rng = RNG.new(5)
+		for _ = 1, 1000 do
+			local v = rng:int(-2 ^ 31, 2 ^ 31 - 1)
+			expect(v >= -2 ^ 31 and v <= 2 ^ 31 - 1 and v == math.floor(v)).toBe(true)
+			expect(rng:int(9, 9)).toBe(9)
+		end
+		expect(function()
+			rng:int(0, 2 ^ 32)
+		end).toThrow("exceeds 2^32")
+	end)
+
+	it("fork children are independent of each other and reproducible from restored state", function()
+		local parent = RNG.new(99)
+		parent:nextU32()
+		local state = parent:getState()
+		local childA = parent:fork(1)
+		local restored = RNG.fromState(state)
+		local childB = restored:fork(1)
+		for _ = 1, 20 do
+			expect(childA:nextU32()).toBe(childB:nextU32())
+		end
+		expect(parent:nextU32()).toBe(restored:nextU32())
+	end)
+
+	it("rejects non-finite fork salts and stream values", function()
+		local rng = RNG.new(1)
+		expect(function()
+			rng:fork(0 / 0)
+		end).toThrow("finite")
+		expect(function()
+			RNG.new(1, math.huge)
+		end).toThrow("finite")
+	end)
+end)

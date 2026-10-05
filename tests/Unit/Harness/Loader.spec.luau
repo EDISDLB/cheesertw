@@ -137,3 +137,55 @@ describe("Loader require semantics", function()
 		expect(segments("tests/Unit/X.spec.luau")).toEqual({ "tests", "Unit", "X.spec" })
 	end)
 end)
+
+describe("Loader require semantics (adversarial paths)", function()
+	local FIXTURES = "tests/Fixtures/RequireSemantics"
+	local loader = Loader.new()
+
+	it("resolves ../.. chains from a regular module", function()
+		local up = require("@tests/Fixtures/RequireSemantics/Folder/Deep/UpTwo")
+		expect(up.leaf.name).toBe("Leaf")
+		expect(up.inner.name).toBe("Inner")
+	end)
+
+	it("from an init module, ../ climbs from the folder's parent (one level less than a regular module)", function()
+		local fromInit = FIXTURES .. "/Folder/Deep/init.luau"
+		expect(loader:_resolve("../Leaf", fromInit)).toBe(FIXTURES .. "/Leaf.luau")
+		expect(loader:_resolve("./Child", fromInit)).toBe(FIXTURES .. "/Folder/Child.luau")
+		expect(loader:_resolve("@self/Inner", fromInit)).toBe(FIXTURES .. "/Folder/Deep/Inner.luau")
+		local fromRegular = FIXTURES .. "/Folder/Deep/Inner.luau"
+		expect(loader:_resolve("./UpTwo", fromRegular)).toBe(FIXTURES .. "/Folder/Deep/UpTwo.luau")
+		expect(loader:_resolve("../Child", fromRegular)).toBe(FIXTURES .. "/Folder/Child.luau")
+	end)
+
+	it(
+		"./Child inside Folder/init.luau does NOT find Folder/Child (that needs @self) and says where it looked",
+		function()
+			local ok, err = pcall(function()
+				loader:_resolve("./Child", FIXTURES .. "/Folder/init.luau")
+			end)
+			expect(ok).toBe(false)
+			expect(tostring(err)).toContain('module not found: "./Child" -> "' .. FIXTURES .. '/Child"')
+			expect(tostring(err)).toContain("from " .. FIXTURES .. "/Folder/init.luau")
+		end
+	)
+
+	it("refuses paths that escape the repository root", function()
+		expect(function()
+			loader:_resolve("../../../../../etc/passwd", "tests/A.luau")
+		end).toThrow("escapes the repository root")
+		expect(function()
+			loader:_resolve("@game/../../x", "src/A.luau")
+		end).toThrow("escapes the repository root")
+	end)
+
+	it("instance-path mapping strips .server/.client and init like Rojo", function()
+		local seg = Loader._internals.instanceSegments
+		local a, isInitA = seg("src/ServerScriptService/Server/Main.server.luau")
+		expect(a).toEqual({ "src", "ServerScriptService", "Server", "Main" })
+		expect(isInitA).toBe(false)
+		local b, isInitB = seg("src/ReplicatedStorage/Shared/Types/init.luau")
+		expect(b).toEqual({ "src", "ReplicatedStorage", "Shared", "Types" })
+		expect(isInitB).toBe(true)
+	end)
+end)

@@ -71,22 +71,44 @@ describe("Config", function()
 	end)
 end)
 
-describe("Config.Places", function()
-	it("resolves roles: Studio and unmapped places are Dev", function()
-		expect(Config.Places.resolveRole(0, true)).toBe("Dev")
-		expect(Config.Places.resolveRole(0, false)).toBe("Dev")
-		expect(Config.Places.resolveRole(123456, false)).toBe("Dev")
-		expect(Config.Places.resolveRole(123456, true)).toBe("Dev")
-		expect(Config.Places.placeIdFor("Hub")).toBe(Config.Places.HUB_PLACE_ID)
-		expect(Config.Places.ROLES).toEqual({ "Hub", "Battle", "Dev" })
+describe("Config.applyOverrides (adversarial patches from the DataStore)", function()
+	Test.afterEach(function()
+		Config.resetOverrides()
 	end)
-end)
 
-describe("Config.DevAccess", function()
-	it("always allows Studio and denies unknown users on live servers", function()
-		expect(Config.DevAccess.isAllowed(1, nil, true)).toBe(true)
-		expect(Config.DevAccess.isAllowed(1, nil, false)).toBe(false)
-		-- GROUP_ID is 0 (disabled) until the studio group exists, so rank never grants access.
-		expect(Config.DevAccess.isAllowed(1, 255, false)).toBe(Config.DevAccess.GROUP_ID ~= 0)
+	it("cannot widen its own bounds, touch sections without BOUNDS or inject unknown sections", function()
+		local cases: { any } = {
+			{ Battle = { BOUNDS = { TICK_RATE = { max = 1000 } } } },
+			{ Places = { HUB_PLACE_ID = 5 } },
+			{ DevAccess = { GROUP_ID = 1 } },
+			{ NotASection = { X = 1 } },
+			{ [1] = { TICK_RATE = 30 } },
+			{ Battle = { TICK_RATE = "30" } },
+			{ Battle = { TICK_RATE = 0 / 0 } },
+			{ Battle = { TICK_RATE = math.huge } },
+			{ Battle = "not a table" },
+		}
+		for _, patch in cases do
+			expect(Config.applyOverrides(patch)).toBeErr("INVALID_ARGS")
+		end
+		expect(Config.Battle.TICK_RATE).toBe(30)
+		expect(Config.Battle.BOUNDS.TICK_RATE.max).toBe(60)
+	end)
+
+	it("one bad key rejects the whole patch (valid keys in the same patch are not applied)", function()
+		local result = Config.applyOverrides({ Battle = { SNAPSHOT_RATE = 15, TICK_RATE = 9999 } })
+		expect(result).toBeErr("INVALID_ARGS")
+		expect(Config.Battle.SNAPSHOT_RATE).toBe(20)
+	end)
+
+	it("overridden sections stay deep-frozen and the shipped section is untouched", function()
+		local shipped = Config.Battle
+		expect(Config.applyOverrides({ Battle = { SNAPSHOT_RATE = 15 } })).toBeOk()
+		expect(Config.Battle).never.toBe(shipped)
+		expect(shipped.SNAPSHOT_RATE).toBe(20)
+		expect(table.isfrozen(Config.Battle)).toBe(true)
+		expect(function()
+			(Config.Battle :: any).SNAPSHOT_RATE = 1
+		end).toThrow()
 	end)
 end)

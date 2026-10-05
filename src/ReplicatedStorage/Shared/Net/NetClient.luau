@@ -94,10 +94,14 @@ local function validateOutgoing(self: NetClientImpl, spec: RemoteSpec, ...: any)
 		return `expected at most {#validators} arguments, got {count}`
 	end
 	for i, validator in validators do
-		local ok, err = validator((select(i, ...)))
-		if not ok then
-			local first = string.sub(err or "", 1, 1)
-			return if first == "." or first == "[" then `arg{i}{err}` else `arg{i}: {err or "invalid"}`
+		local called, ok, err = pcall(validator, (select(i, ...)))
+		if not called then
+			return `arg{i}: validator error ({tostring(ok)})`
+		end
+		if ok ~= true then
+			local message = if type(err) == "string" then err else "invalid"
+			local first = string.sub(message, 1, 1)
+			return if first == "." or first == "[" then `arg{i}{message}` else `arg{i}: {message}`
 		end
 	end
 	return nil

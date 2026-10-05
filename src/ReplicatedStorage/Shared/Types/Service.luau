@@ -80,6 +80,8 @@ export type ControllerContext = {
 	isStudio: boolean,
 	player: Player?,
 	lifecycle: Lifecycle,
+	--- The server's Hello handshake response (role, versions, health, developer flag).
+	hello: NetTypes.HelloResponse,
 }
 
 --- A service/controller module. Roles nil = every role. Init must not yield; Start may; Stop is optional.

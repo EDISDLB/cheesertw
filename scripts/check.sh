@@ -7,7 +7,7 @@ cd "$(dirname "$0")/.."
 if [[ -n "${HULLDOWN_TOOLS:-}" ]]; then export PATH="$HULLDOWN_TOOLS:$PATH"; fi
 DEFS="${HULLDOWN_ROBLOX_DEFS:-${HULLDOWN_TOOLS:-.tools}/roblox.d.luau}"
 
-FIX=0; ONLY=""; FILTER=""
+FIX=0; ONLY=""; FILTER=()
 while [[ $# -gt 0 ]]; do
 	case "$1" in
 		--fix) FIX=1 ;;
@@ -18,7 +18,7 @@ while [[ $# -gt 0 ]]; do
 				*) echo "check.sh: --only expects fmt|lint|types|test|build (got '${ONLY}')" >&2; exit 2 ;;
 			esac
 			;;
-		--) shift; FILTER="${*:-}"; break ;;
+		--) shift; FILTER=("$@"); break ;;
 		*) echo "check.sh: unknown argument '$1' (usage: [--fix] [--only fmt|lint|types|test|build] [-- test-filter])" >&2; exit 2 ;;
 	esac
 	shift
@@ -53,7 +53,8 @@ types() {
 	if [[ -n "$out" ]]; then echo "$out"; local n; n=$(echo "$out" | grep -cE '\): [A-Za-z]+:'); echo "    $n diagnostics"; return 1; fi
 	if [[ $status -ne 0 ]]; then echo "    luau-lsp exited with status $status"; return 1; fi
 }
-tests() { lune run tests/run.luau -- $FILTER; }
+# Filters are passed verbatim (no word splitting or globbing); the ${a[@]+...} form keeps bash 3.2 + `set -u` happy.
+tests() { lune run tests/run.luau -- ${FILTER[@]+"${FILTER[@]}"}; }
 build() { mkdir -p build && rojo build default.project.json -o build/Hulldown.rbxl >/dev/null; }
 
 run_step fmt fmt

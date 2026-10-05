@@ -118,9 +118,11 @@ local function hashValues(...: number | string): number
 		if type(v) == "number" then
 			local n = v
 			if n ~= n then
-				n = 0 / 0
+				-- NaN bit patterns differ by CPU (x86 0/0 is negative, ARM's is positive): hash a fixed tag instead.
+				h = fnvByte(h, 3)
+				continue
 			elseif n == 0 then
-				n = 0
+				n = 0 -- -0 and 0 hash alike
 			end
 			h = fnvByte(h, 1)
 			h = fnvString(h, string.pack("<d", n))

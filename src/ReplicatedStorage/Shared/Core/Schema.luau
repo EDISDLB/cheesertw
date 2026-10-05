@@ -54,8 +54,15 @@ end
 
 local function typeName(value: unknown): string
 	local t = typeof(value)
-	if t == "number" and (value :: number) ~= (value :: number) then
-		return "NaN"
+	if t == "number" then
+		local n = value :: number
+		if n ~= n then
+			return "NaN"
+		elseif n == math.huge then
+			return "inf"
+		elseif n == -math.huge then
+			return "-inf"
+		end
 	end
 	return t
 end
@@ -233,18 +240,23 @@ function Schema.array(element: Validator, options: LengthOptions?): Validator
 		end
 		local t = value :: { [any]: any }
 		local n = #t
+		local maxLen = opts.maxLen
+		-- Reject oversized input before scanning it (hostile clients can send huge tables).
+		if maxLen ~= nil and n > maxLen then
+			return false, `expected at most {maxLen} elements, got {n}`
+		end
 		local count = 0
 		for k in t do
 			count += 1
+			if maxLen ~= nil and count > maxLen then
+				return false, `expected at most {maxLen} elements`
+			end
 			if type(k) ~= "number" or k < 1 or k > n or k ~= math.floor(k) then
 				return false, `expected array, found non-sequential key {Schema.describe(k)}`
 			end
 		end
 		if count ~= n then
 			return false, "expected array without holes"
-		end
-		if opts.maxLen ~= nil and n > opts.maxLen then
-			return false, `expected at most {opts.maxLen} elements, got {n}`
 		end
 		if opts.minLen ~= nil and n < opts.minLen then
 			return false, `expected at least {opts.minLen} elements, got {n}`
@@ -307,6 +319,7 @@ function Schema.struct(fields: { [string]: Validator }, options: StructOptions?)
 			end
 		end
 		if not allowExtra then
+			-- Stops at the first unknown key, so hostile tables with many extra keys are cheap to reject.
 			for k in t do
 				if type(k) ~= "string" or fields[k] == nil then
 					return false, `unexpected key {Schema.describe(k)}`

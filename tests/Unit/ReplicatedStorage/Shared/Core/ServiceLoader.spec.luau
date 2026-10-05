@@ -258,7 +258,8 @@ describe("ServiceLoader failures", function()
 		loader:boot()
 		expect(log).toEqual({ "init:Blocking", "init:Crashing", "init:Later", "start:Blocking", "start:Later" })
 		expect(failures).toEqual({ "Crashing:Start" })
-		expect(loader:getStatus("Blocking")).toBe("Starting")
+		-- A Start that yields has begun its work (long-running loops): it is reported Started, not Starting forever.
+		expect(loader:getStatus("Blocking")).toBe("Started")
 		expect(loader:getStatus("Crashing")).toBe("Failed")
 		expect(loader:getStatus("Later")).toBe("Started")
 	end)
@@ -380,5 +381,130 @@ describe("ServiceLoader stop", function()
 		loader:boot()
 		loader:stop()
 		expect(log).toEqual({})
+	end)
+end)
+
+describe("ServiceLoader (adversarial edge cases)", function()
+	it("a self-dependency is reported as a cycle", function()
+		local loader = ServiceLoader.new()
+		loader:register(service("Narcissus", {}, { Dependencies = { "Narcissus" } }))
+		expect(function()
+			loader:boot()
+		end).toThrow("dependency cycle: Narcissus -> Narcissus")
+	end)
+
+	it("duplicate dependency entries and diamond graphs init each service exactly once", function()
+		local log = {}
+		local loader = ServiceLoader.new()
+		loader:registerMany({
+			service("Top", log, { Dependencies = { "Left", "Right", "Left" } }),
+			service("Left", log, { Dependencies = { "Base" } }),
+			service("Right", log, { Dependencies = { "Base", "Base" } }),
+			service("Base", log),
+		})
+		loader:boot()
+		expect(loader:getOrder()).toEqual({ "Base", "Left", "Right", "Top" })
+		local inits = {}
+		for _, e in log do
+			if string.sub(e, 1, 5) == "init:" then
+				table.insert(inits, e)
+			end
+		end
+		expect(inits).toEqual({ "init:Base", "init:Left", "init:Right", "init:Top" })
+	end)
+
+	it("an empty Roles list is never active; nil Roles is every role", function()
+		local loader = ServiceLoader.new({ role = "Hub" })
+		loader:registerMany({ service("Nowhere", {}, { Roles = {} }), service("Everywhere", {}) })
+		loader:boot()
+		expect(loader:getStatus("Nowhere")).toBe("Skipped")
+		expect(loader:getStatus("Everywhere")).toBe("Started")
+	end)
+
+	it("a failed Init skips the whole dependent chain but not unrelated services", function()
+		local log = {}
+		local loader = ServiceLoader.new()
+		loader:registerMany({
+			service("Broken", log, {
+				Init = function()
+					error("nope")
+				end,
+			}),
+			service("NeedsBroken", log, { Dependencies = { "Broken" } }),
+			service("NeedsNeeds", log, { Dependencies = { "NeedsBroken" } }),
+			service("Fine", log),
+		})
+		loader:boot()
+		expect(loader:getStatus("Broken")).toBe("Failed")
+		expect(loader:getStatus("NeedsBroken")).toBe("Skipped")
+		expect(loader:getStatus("NeedsNeeds")).toBe("Skipped")
+		expect(loader:getStatus("Fine")).toBe("Started")
+		expect(loader:getServices().NeedsNeeds).toBeNil()
+		expect(loader:getServices().Fine).never.toBeNil()
+	end)
+
+	it("cannot register after resolveOrder, and init twice is refused", function()
+		local loader = ServiceLoader.new()
+		loader:register(service("A", {}))
+		loader:resolveOrder()
+		expect(function()
+			loader:register(service("B", {}))
+		end).toThrow("cannot register after boot started")
+		loader:init()
+		expect(function()
+			loader:init()
+		end).toThrow("init() called twice")
+	end)
+
+	it("stop() is idempotent and stop() before boot is a no-op", function()
+		local fresh = ServiceLoader.new()
+		local report = fresh:stop(1)
+		expect(report.stopped).toEqual({})
+		local log = {}
+		local loader = ServiceLoader.new()
+		loader:register(service("A", log))
+		loader:boot()
+		expect(loader:stop(1).stopped).toEqual({ "A" })
+		expect(loader:stop(1).stopped).toEqual({})
+		local stops = 0
+		for _, e in log do
+			if e == "stop:A" then
+				stops += 1
+			end
+		end
+		expect(stops).toBe(1)
+	end)
+
+	it("a service whose Start yields forever is still stopped (it was reported Started)", function()
+		local log = {}
+		local loader = ServiceLoader.new()
+		loader:register(service("Loop", log, {
+			Start = function()
+				coroutine.yield()
+			end,
+		}))
+		loader:boot()
+		expect(loader:getStatus("Loop")).toBe("Started")
+		expect(loader:stop(1).stopped).toEqual({ "Loop" })
+		expect(loader:getStatus("Loop")).toBe("Stopped")
+	end)
+
+	it("an Init that yields via coroutine.yield is cancelled and never resumes later", function()
+		local resumedLater = false
+		local loader = ServiceLoader.new({
+			cancel = function(thread)
+				coroutine.close(thread)
+			end,
+		})
+		loader:register({
+			Name = "Sneaky",
+			Init = function()
+				coroutine.yield()
+				resumedLater = true
+			end,
+		})
+		loader:boot()
+		expect(loader:getStatus("Sneaky")).toBe("Failed")
+		expect(resumedLater).toBe(false)
 	end)
 end)

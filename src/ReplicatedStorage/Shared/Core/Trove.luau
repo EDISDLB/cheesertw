@@ -6,7 +6,7 @@
 	Dependencies:     Types/Core (Connection), Core/Log (cleanup error reporting); task.cancel for threads (Roblox and
 	                  the Lune harness both provide it).
 	State:            Ordered list of (object, cleanup method) entries; destroyed flag.
-	Validation:       Add rejects values it cannot clean (and unknown cleanup method names) immediately.
+	Validation:       Add rejects values it cannot clean, unknown cleanup method names and the trove itself immediately.
 	Error handling:   A failing cleanup is logged and the remaining entries are still cleaned.
 	Performance notes: Clean is LIFO and O(n); Remove is O(n).
 
@@ -14,6 +14,8 @@
 	  function -> called;  thread -> task.cancel (if not dead/running);  Instance -> :Destroy();
 	  RBXScriptConnection / Signal Connection -> :Disconnect();  table with Destroy -> :Destroy();
 	  table with Disconnect -> :Disconnect();  Trove -> :Destroy().
+	  An explicit `cleanupMethod` works for tables, Instances and other userdata (e.g. RBXScriptConnection, which is
+	  what `trove:Connect(rbxSignal, fn)` tracks); if tracking fails, Connect disconnects before rethrowing.
 	After trove:Destroy(), anything added is cleaned immediately (guards async setup racing teardown).
 ]]
 
@@ -39,11 +41,17 @@ export type Trove = typeof(setmetatable(
 
 local function detectMethod(object: any, explicit: string?): string
 	if explicit ~= nil then
-		if type(object) ~= "table" and typeof(object) ~= "Instance" then
+		-- Tables, Instances and other userdata (RBXScriptConnection, ...) can carry methods. Roblox userdata throw
+		-- when indexed with an unknown member, so the lookup is pcall'd.
+		local kind = type(object)
+		if kind ~= "table" and kind ~= "userdata" then
 			error(`Trove:Add cleanup method "{explicit}" given for a {typeof(object)}`, 3)
 		end
-		if type((object :: any)[explicit]) ~= "function" then
-			error(`Trove:Add object has no method "{explicit}"`, 3)
+		local ok, member = pcall(function()
+			return (object :: any)[explicit]
+		end)
+		if not ok or type(member) ~= "function" then
+			error(`Trove:Add {typeof(object)} has no method "{explicit}"`, 3)
 		end
 		return explicit
 	end
@@ -85,6 +93,9 @@ function TroveClass.Add<T>(self: Trove, object: T, cleanupMethod: string?): T
 	if object == nil then
 		error("Trove:Add object is nil", 2)
 	end
+	if rawequal(object, self) then
+		error("Trove:Add cannot add a trove to itself", 2)
+	end
 	local method = detectMethod(object, cleanupMethod)
 	local entry = { object = object, method = method }
 	if self._destroyed then
@@ -101,7 +112,14 @@ end
 --- Connects `fn` to a Signal or RBXScriptSignal and tracks the connection.
 function TroveClass.Connect(self: Trove, signal: any, fn: (...any) -> ()): Connection
 	local connection = signal:Connect(fn)
-	TroveClass.Add(self, connection, "Disconnect")
+	local ok, err = pcall(TroveClass.Add, self, connection, "Disconnect")
+	if not ok then
+		-- Never leak a live connection because it could not be tracked.
+		pcall(function()
+			connection:Disconnect()
+		end)
+		error(err, 0)
+	end
 	return connection
 end
 

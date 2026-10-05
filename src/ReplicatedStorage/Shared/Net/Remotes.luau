@@ -4,7 +4,7 @@
 
 	Purpose:          Declares name, kind, direction, rate limit and argument validators for each remote. NetServer
 	                  creates instances from it; NetClient and NetServer refuse names that are not registered.
-	Dependencies:     Types/Net (RemoteSpec), Core/Schema, Core/Freeze, Net/Protocol.
+	Dependencies:     Types/Net (RemoteSpec), Core/Freeze, Net/Protocol, Net/RemoteDefs/*.
 	State:            Frozen registry built at module load.
 	Validation:       Each entry is validated at load (unique name, valid kind/direction, Function remotes are C2S
 	                  only, C2S remotes get Protocol.DEFAULT_RATE when `rate` is omitted, args are validators).
@@ -12,12 +12,12 @@
 	Error handling:   Registry errors are thrown at load (programming mistakes).
 	Performance notes: get(name) is a table lookup.
 
-	Adding a remote: append a `define({...})` call below (keep sections by owning system). C2S remotes MUST declare
-	`args` validators (use `{}` for no arguments) — unvalidated input never reaches handlers.
+	Adding a remote: add a spec to the owning system's file in Net/RemoteDefs/ (Foundation, Battle, Progression, Store,
+	Social, Matchmaking, Settings, Debug). C2S remotes MUST declare `args` validators (use `{}` for no arguments) —
+	unvalidated input never reaches handlers. Names must be unique across all domain files (checked at load).
 ]]
 
 local NetTypes = require("../Types/Net")
-local Schema = require("../Core/Schema")
 local Freeze = require("../Core/Freeze")
 local Protocol = require("./Protocol")
 
@@ -58,7 +58,16 @@ local function validateSpec(spec: RemoteSpec): (boolean, string?)
 	end
 	if spec.rate ~= nil then
 		local rate = spec.rate
-		if type(rate.perSecond) ~= "number" or type(rate.burst) ~= "number" or rate.perSecond < 0 or rate.burst < 1 then
+		local perSecond, burst = rate.perSecond, rate.burst
+		-- NaN passes `< 0` / `< 1` comparisons, so it is rejected explicitly (it would make RateLimiter throw later).
+		if
+			type(perSecond) ~= "number"
+			or type(burst) ~= "number"
+			or perSecond ~= perSecond
+			or burst ~= burst
+			or perSecond < 0
+			or burst < 1
+		then
 			return false, `{spec.name}: rate must have perSecond >= 0 and burst >= 1`
 		end
 	end
@@ -82,47 +91,25 @@ local function define(spec: RemoteSpec)
 end
 
 --------------------------------------------------------------------------------
--- Foundation
+-- Domain definition files (one per owning system; see RemoteDefs/*.luau)
 --------------------------------------------------------------------------------
 
-define({
-	name = "Hello",
-	kind = "Function",
-	direction = "C2S",
-	description = "Client handshake: returns HelloResponse (server role, versions, health, dev flag).",
-	rate = { perSecond = 1, burst = 5 },
-	args = {
-		Schema.struct({
-			clientVersion = Schema.string({ maxLen = 32 }),
-			protocol = Schema.number({ integer = true, min = 0, max = 65535 }),
-		}),
-	},
-})
-
-define({
-	name = "ServerNotice",
-	kind = "Event",
-	direction = "S2C",
-	description = "Server-wide notices (info, warnings, shutdown) as ServerNotice payloads.",
-})
-
-define({
-	name = "DebugCommand",
-	kind = "Function",
-	direction = "C2S",
-	devOnly = true,
-	description = "Developer console command: (command, args?) -> Result<string>. Rejected for non-developers.",
-	rate = { perSecond = 5, burst = 10 },
-	args = {
-		Schema.string({ minLen = 1, maxLen = 64, pattern = "^[%w_%.%-]+$" }),
-		Schema.optional(
-			Schema.array(
-				Schema.oneOf(Schema.string({ maxLen = 200 }), Schema.number(), Schema.boolean),
-				{ maxLen = 16 }
-			)
-		),
-	},
-})
+-- Order is fixed so registry iteration is deterministic. Each file returns a list of RemoteSpec tables.
+local DOMAINS: { { RemoteSpec } } = {
+	require("./RemoteDefs/Foundation"),
+	require("./RemoteDefs/Battle"),
+	require("./RemoteDefs/Progression"),
+	require("./RemoteDefs/Store"),
+	require("./RemoteDefs/Social"),
+	require("./RemoteDefs/Matchmaking"),
+	require("./RemoteDefs/Settings"),
+	require("./RemoteDefs/Debug"),
+}
+for _, specs in DOMAINS do
+	for _, spec in specs do
+		define(spec)
+	end
+end
 
 --------------------------------------------------------------------------------
 -- Public API

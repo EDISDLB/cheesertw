@@ -16,7 +16,9 @@ lune run tests/run.luau -- Config     # run tests directly
 
 Set `HULLDOWN_TOOLS=/path/to/binaries` if the toolchain is not on `PATH` (`rokit install` pins it). `NO_COLOR=1`
 disables colors. Everything must pass before a commit. `tests/Regression/SourceConventions.spec.luau` enforces the
-§3 rules on every file in `src/` (`--!strict`, header block, string requires, no bare `print`, Shared purity).
+§3 rules on every file in `src/` (`--!strict`, header block, string requires — `require` may only be taken as a value
+by the two Mains' `dynamicRequire` line —, no bare `print`, Shared purity, and rule 10: every Shared module that
+defines a `function` has `tests/Unit/<same path>/<Module>.spec.luau`; init modules use `<Folder>/<Folder>.spec.luau`).
 
 ## Adding a server service
 
@@ -57,7 +59,8 @@ return MyService
   handler. Players already present before you connect are not replayed — iterate `ctx.adapters.players:getPlayers()`
   in `Start`.
 * An Init that errors or yields marks the service `Failed` and skips its dependents; HealthService reports it and
-  `Hello` returns `healthy = false`.
+  `Hello` returns `healthy = false`. A `Start` that yields (a long-running loop) is reported `Started` once it has
+  begun; an error thrown later still marks it `Failed`.
 * Developer console commands: `ctx.services.DebugService:registerCommand("name", { description, handler =
   function(player, args) return Result.ok("text") end })` (declare `DebugService` as a dependency).
 
@@ -90,13 +93,17 @@ define({
 Server: `ctx.net:on(name, fn(player, ...))` (C2S events) / `ctx.net:onInvoke(name, fn(player, ...) -> Result)` /
 `ctx.net:fire(name, player, ...)`, `fireAll`, `fireList`. NetServer enforces rate limit -> devOnly gate -> schema ->
 pcall; violations go to the handler installed with `net:setViolationHandler(fn(player, reason, weight, detail))`
-(AntiExploitService). Function remotes always answer a `Result` (`RATE_LIMITED`, `INVALID_ARGS` with a path such as
+(AntiExploitService). A validator passes only by returning exactly `true`; anything else — including a validator that
+throws on hostile input — is an `INVALID_ARGS` strike, never an error across the remote. Custom registries passed
+to `NetServer.new({ registry })` get the same validation as `Net/Remotes` entries. Function remotes always answer a `Result` (`RATE_LIMITED`, `INVALID_ARGS` with a path such as
 `arg1.loadout[3].count: expected integer, got 2.5`, `NOT_ALLOWED`, `NOT_READY` before a handler exists, `INTERNAL` on
 handler errors). Client: `net:fire`, `net:on`, `net:invoke` / `net:invokeWithTimeout` (always returns a Result:
 `TIMEOUT`, `NOT_FOUND`, `INVALID_ARGS` (validated locally first), `INTERNAL`).
 
 Binary payloads: build them with `Net/Codecs/BufferWriter` and read them with `BufferReader` (bounds-checked; wrap
 decoding in `pcall`), send over an `Unreliable` remote with `args = { Schema.buffer({ maxLen = 900 }) }`.
+`readF32/readF64/readVector3` return whatever bits arrive (NaN, inf): decoders of client packets use
+`readFiniteF32(maxAbs?)` / `readFiniteVector3(maxAbs?)`, which raise on non-finite or out-of-range values.
 
 New error codes go in `Net/ErrorCodes.luau` (`NAME = "NAME"` + a default message).
 
@@ -131,7 +138,7 @@ describe("Thing", function()
 	it("works", function()
 		expect(value).toEqual({ a = 1 })    -- .never.<matcher> inverts
 	end)
-	it.skip("later", function() end)       -- it.only / describe.only / describe.skip
+	it.skip("later", function() end)       -- describe.skip; it.only / describe.only for local focusing only
 end)
 ```
 
@@ -141,6 +148,9 @@ Matchers: `toBe`, `toEqual` (deep, readable diff), `toBeCloseTo(n|Vector3|CFrame
 
 * Location: `tests/Unit/<src path>/<Module>.spec.luau` (e.g. `tests/Unit/ReplicatedStorage/Shared/Core/RNG.spec.luau`),
   services in `tests/Integration/ServerScriptService/Server/...`, bug repros in `tests/Regression/`.
+* Focused files (`it.only` / `describe.only`) fail the run because they silently skip the rest of the file; set
+  `HULLDOWN_ALLOW_ONLY=1` while iterating locally, or use the path filter (`-- Signal`) instead.
+* `afterEach` hooks always run, even when a `beforeEach` hook failed (the test is reported failed).
 * Every spec file gets a fresh module cache and a fresh mock `game` (`MockGame`): module state never leaks between
   files. Tests that yield are supported (15 s timeout per test). Logs are captured per file and printed only when the
   file fails; use `LogCapture.start()` / `capture:find("error", "text")` / `capture:stop()` to assert on logs.
@@ -165,14 +175,15 @@ Matchers: `toBe`, `toEqual` (deep, readable diff), `toBeCloseTo(n|Vector3|CFrame
 
 | Module | Additions / exact semantics |
 |---|---|
-| Signal | FIFO synchronous dispatch; handler errors are logged and do not stop other handlers; connect-during-fire runs next Fire; `Signal.is(v)`, `signal:Destroy()` (= DisconnectAll). Handlers must not yield. |
-| Trove | Cleans LIFO; `Remove(obj)` removes **and cleans**; adding to a destroyed trove cleans immediately; threads are cancelled with `task.cancel`. |
+| Signal | FIFO synchronous dispatch; handler errors are logged and do not stop other handlers; connect-during-fire runs next Fire; `Signal.is(v)`, `signal:Destroy()` (= DisconnectAll). Handlers must not yield (a yield suspends the firing thread and every later handler). A `Wait`ing thread cancelled before the Fire is dropped silently. |
+| Trove | Cleans LIFO; `Remove(obj)` removes **and cleans**; adding to a destroyed trove cleans immediately; threads are cancelled with `task.cancel`. Explicit cleanup methods work on tables, Instances and other userdata (`trove:Connect(rbxSignal, fn)` tracks the RBXScriptConnection); a trove cannot be added to itself. |
 | Log | `Log.getLevel()`, `Log.isEnabled(level)`, `Log.setSink(fn?) -> previousSink` (nil restores default). Default level `info` (Main uses `debug` in Studio). |
 | RNG | PCG-XSH-RR 64/32, bit-exact with the C reference. `RNG.new(seed, stream?)` (default stream 54), `rng:getState()`, `RNG.fromState(state)`. `fork(salt)` does not advance the parent. `chance` always consumes one draw. Float transforms (`normal`) depend on libm. |
 | Units | `+ METERS_PER_STUD, GRAVITY_STUDS, kmhToMps, mpsToKmh, studsPerSecToMps, tonnesToKg, kgToTonnes` |
-| TableUtil | `sortedKeys` (numbers, strings, booleans); `map/filter/find` operate on arrays; `diff` emits sets in ascending key order then deletes in descending order; `applyPatches` mutates and returns the target, deep-copies values, errors on malformed patches. |
+| TableUtil | `sortedKeys` (numbers, strings, booleans); `map/filter/find` operate on arrays; `diff` emits sets in ascending key order then deletes in descending order, and raises on cyclic data or on changed keys that are not strings/numbers (patches the client could never apply); `applyPatches` mutates and returns the target, deep-copies values, errors on malformed patches. |
 | MathUtil | `smoothDamp(current, target, velocity, smoothTime, dt, maxSpeed?) -> (value, velocity)`, `wrapDeg` -> (-180, 180], `approachAngleDeg`, `round(n, step?)` (halves away from zero), `expDecay(current, target, rate, dt)`, `sign`, `isFinite`. |
-| Schema | `Schema.boolean` / `Schema.any` are validators (no call). `+ buffer({minLen,maxLen})`, `instance(className?)`, `describe(v)`; `struct(fields, { allowExtra })`; strings must be valid UTF-8 unless `allowInvalidUtf8`; numbers must be finite. `Schema.check(v, value, label?)`. |
+| Schema | `Schema.boolean` / `Schema.any` are validators (no call). `+ buffer({minLen,maxLen})`, `instance(className?)`, `describe(v)`; `struct(fields, { allowExtra })`; strings must be valid UTF-8 unless `allowInvalidUtf8` (length is checked first); numbers must be finite; arrays check `maxLen` before scanning keys. `Schema.check(v, value, label?)`. Always give remote strings/arrays/maps a `maxLen`. |
 | Result | `+ isErr, unwrap, unwrapOr, Result.is(value)` |
 | Clock | `Clock.wall()` (unix seconds, for persisted timestamps); FakeClock `:set(t)`. |
+| RateLimiter | `consume(owner, name, rate, cost?)` — `cost` must be finite and >= 0 (a negative cost would mint tokens); rates must be finite with `perSecond >= 0`, `burst >= 1`. |
 | ServiceLoader | `new({ role?, context?, spawn?, cancel?, wait?, clock?, log?, kind?, failFast? })`, `register`, `registerMany`, `resolveOrder` (Kahn, ties by name), `init`, `start`, `boot`, `stop(budget?) -> { stopped, timedOut, failed, elapsed }`, `getStatus(es)`, `getOrder`, `getServices`, `getLifecycle`, signal `ServiceFailed(name, phase, err)`. |

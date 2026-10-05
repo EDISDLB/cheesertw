@@ -10,8 +10,8 @@
 	State:            Remote instances + handlers per registry entry, rate-limiter buckets, violation handler,
 	                  developer check.
 	Validation:       Registration API rejects unknown names and wrong kind/direction. Incoming calls with too many
-	                  arguments, failing validators, devOnly access by non-developers, rate overruns, or a client
-	                  firing an S2C remote never reach handlers.
+	                  arguments, failing validators (anything but `true`, or a validator that throws), devOnly
+	                  access by non-developers, rate overruns, or a client firing an S2C remote never reach handlers.
 	Error handling:   Violations are reported to the violation handler (AntiExploitService:strike) with a weight.
 	                  Handler errors are logged with traceback; Function handlers then return Err(INTERNAL).
 	                  Function remotes without a handler yet answer Err(NOT_READY).
@@ -120,10 +120,19 @@ local function gate(self: NetServerImpl, endpoint: Endpoint, player: Player, ...
 		return ErrorCodes.INVALID_ARGS, detail
 	end
 	for i, validator in validators do
-		local ok, err = validator((select(i, ...)))
-		if not ok then
-			local first = string.sub(err or "", 1, 1)
-			local detail = if first == "." or first == "[" then `arg{i}{err}` else `arg{i}: {err or "invalid"}`
+		-- A validator that throws on hostile input (custom validators, bugs) must still fail closed with a Result:
+		-- nothing may throw across the remote boundary.
+		local called, ok, err = pcall(validator, (select(i, ...)))
+		if not called then
+			self._log:error("validator for %s arg%d threw: %s", spec.name, i, tostring(ok))
+			local detail = `arg{i}: rejected (validator error)`
+			report(self, player, "INVALID_ARGS", spec.name, detail)
+			return ErrorCodes.INVALID_ARGS, detail
+		end
+		if ok ~= true then
+			local message = if type(err) == "string" then err else "invalid"
+			local first = string.sub(message, 1, 1)
+			local detail = if first == "." or first == "[" then `arg{i}{message}` else `arg{i}: {message}`
 			report(self, player, "INVALID_ARGS", spec.name, detail)
 			return ErrorCodes.INVALID_ARGS, detail
 		end
@@ -316,6 +325,11 @@ function NetServer.new(options: NetServerOptions?): NetServer
 	}, NetServerClass) :: any
 
 	for _, spec in opts.registry or Remotes.all() do
+		-- Custom registries (tests, tools) get the same load-time validation as Net/Remotes entries.
+		local valid, problem = Remotes.validateSpec(spec)
+		if not valid then
+			error(`NetServer.new: {problem}`, 2)
+		end
 		if self._endpoints[spec.name] ~= nil then
 			error(`NetServer.new: duplicate remote "{spec.name}" in registry`, 2)
 		end

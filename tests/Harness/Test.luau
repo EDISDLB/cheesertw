@@ -15,7 +15,7 @@
 			Test.beforeEach(function() ... end)
 			it("works", function() expect(1 + 1).toBe(2) end)
 			it.skip("later", function() end)
-			it.only("focus", function() end)
+			it.only("focus", function() end)   -- focus while iterating only: the runner fails focused files
 		end)
 
 	Matchers (all support `.never`): toBe, toEqual (deep, readable diff), toBeCloseTo(n, eps?), toBeNil, toBeTruthy,
@@ -56,6 +56,8 @@ export type RunResult = {
 	skipped: number,
 	failures: { Failure },
 	tests: { { name: string, status: string, ms: number } },
+	--- True when the file used it.only / describe.only (the runner rejects focused files unless allowed).
+	focused: boolean,
 }
 
 local function newSuite(name: string, parent: Suite?): Suite
@@ -707,7 +709,7 @@ export type RunOptions = { timeout: number? }
 function Test.run(options: RunOptions?): RunResult
 	collecting = false
 	local timeout = if options and options.timeout then options.timeout else 10
-	local result: RunResult = { passed = 0, failed = 0, skipped = 0, failures = {}, tests = {} }
+	local result: RunResult = { passed = 0, failed = 0, skipped = 0, failures = {}, tests = {}, focused = hasOnly }
 
 	local function recordFailure(name: string, info: any)
 		result.failed += 1
@@ -745,10 +747,18 @@ function Test.run(options: RunOptions?): RunResult
 				else
 					local started = os.clock()
 					local ok, err = runIsolated(function()
+						-- A failing beforeEach skips the test body but afterEach hooks still run, so state set up
+						-- by earlier hooks (log sinks, mocks, globals) never leaks into the next test.
+						local testOk, testErr = true, nil
 						for _, hook in hookChain(test.parent, "beforeEach") do
-							hook()
+							testOk, testErr = xpcall(hook, errorHandler)
+							if not testOk then
+								break
+							end
 						end
-						local testOk, testErr = xpcall(test.fn :: Hook, errorHandler)
+						if testOk then
+							testOk, testErr = xpcall(test.fn :: Hook, errorHandler)
+						end
 						local afterErr: any = nil
 						for _, hook in hookChain(test.parent, "afterEach") do
 							local hookOk, hookErr = xpcall(hook, errorHandler)
