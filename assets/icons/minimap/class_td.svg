@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+<title>Minimap marker: Tank Destroyer (white, tint with ImageColor3)</title>
+<path fill="#0A0D10" fill-rule="evenodd" d="M0.5 19.7L23.5 19.7L23.5 16.12L19.03 4.5L4.97 4.5L0.5 16.12Z"/>
+<path fill="#FFFFFF" fill-rule="evenodd" d="M2 18.2L2 16.4L6 6L18 6L22 16.4L22 18.2Z"/>
+</svg>

@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+<title>Tier X</title>
+<defs><linearGradient id="g1" gradientUnits="userSpaceOnUse" x1="0.00" y1="21.00" x2="0.00" y2="43.00"><stop offset="0.000" stop-color="#F3C85D"/><stop offset="1.000" stop-color="#E3B03D"/></linearGradient><linearGradient id="g2" gradientUnits="userSpaceOnUse" x1="0.00" y1="11.50" x2="0.00" y2="17.50"><stop offset="0.000" stop-color="#F3C85D"/><stop offset="1.000" stop-color="#E3B03D"/></linearGradient><linearGradient id="g3" gradientUnits="userSpaceOnUse" x1="0.00" y1="17.00" x2="0.00" y2="47.00"><stop offset="0.000" stop-color="#F3C85D"/><stop offset="1.000" stop-color="#E3B03D"/></linearGradient></defs>
+<path fill="#0A0D10" fill-rule="evenodd" d="M14 18.17L14 17.53L13.77 17.41L4 23.93L4 40.07L13.77 46.59L14 46.47L14 45.83L17.17 49L46.83 49L50 45.83L50 46.47L50.23 46.59L60 40.07L60 23.93L50.23 17.41L50 17.53L50 18.17L46.83 15L42.62 15L38.5 9.5L25.5 9.5L21.38 15L17.17 15Z"/>
+<path fill="#FFF0B0" fill-rule="evenodd" d="M6 25L6 39L7.4 38.25L7.4 25.75L10.6 23.62L12 21ZM52 43L53.4 40.38L53.4 23.62L52 21Z"/>
+<path fill="#F0BD45" fill-rule="evenodd" d="M58 25L52 21L53.4 23.62L56.6 25.75ZM6 39L12 43L10.6 40.38L7.4 38.25Z"/>
+<path fill="#A8741A" fill-rule="evenodd" d="M12 43L12 21L10.6 23.62L10.6 40.38ZM53.4 40.38L52 43L58 39L58 25L56.6 25.75L56.6 38.25Z"/>
+<path fill="url(#g1)" fill-rule="evenodd" d="M53.4 40.38L56.6 38.25L56.6 25.75L53.4 23.62ZM7.4 25.75L7.4 38.25L10.6 40.38L10.6 23.62Z"/>
+<path fill="#FFF0B0" fill-rule="evenodd" d="M26.5 11.5L22 17.5L24.8 16.1L27.2 12.9L36.8 12.9L37.5 11.5Z"/>
+<path fill="#F0BD45" fill-rule="evenodd" d="M36.8 12.9L39.2 16.1L42 17.5L37.5 11.5Z"/>
+<path fill="#A8741A" fill-rule="evenodd" d="M39.2 16.1L24.8 16.1L22 17.5L42 17.5Z"/>
+<path fill="url(#g2)" fill-rule="evenodd" d="M24.8 16.1L39.2 16.1L36.8 12.9L27.2 12.9Z"/>
+<path fill="#FFF0B0" fill-rule="evenodd" d="M11 24L11 28L13 27.25L13 24.83L18.83 19L45.17 19L46 17L18 17ZM13 39.17L13 36.75L17.16 32L14.5 32L11 36L11 40Z"/>
+<path fill="#F0BD45" fill-rule="evenodd" d="M46 17L45.17 19L51 24.83L53 24ZM14.5 32L17.16 32L13 27.25L11 28ZM49.5 32L46.84 32L51 36.75L53 36ZM18 47L18.83 45L13 39.17L11 40Z"/>
+<path fill="#A8741A" fill-rule="evenodd" d="M46.84 32L49.5 32L53 28L53 24L51 24.83L51 27.25ZM18.83 45L18 47L46 47L53 40L53 36L51 36.75L51 39.17L45.17 45Z"/>
+<path fill="url(#g3)" fill-rule="evenodd" d="M18.83 45L45.17 45L51 39.17L51 36.75L46.84 32L51 27.25L51 24.83L45.17 19L18.83 19L13 24.83L13 27.25L17.16 32L13 36.75L13 39.17Z"/>
+<path fill="#FFF0B0" fill-rule="evenodd" d="M26.16 42L31.56 42L32.73 39.46L32 37.87L30.56 41L26.62 41ZM34.44 42L39.84 42L35.7 33L39.84 24L38.38 24L34.7 32L38.84 41L33.98 41ZM31.56 24L31.02 24L32 26.13L32.27 25.54Z"/>
+<path fill="#0A0D10" fill-rule="evenodd" d="M30.56 23L25.16 23L29.3 32L25.16 41L30.56 41L32 37.87L33.44 41L38.84 41L34.7 32L38.84 23L33.44 23L32 26.13Z"/>
+<path fill="#FFF0B0" fill-rule="evenodd" d="M27.6 16L28.6 16L29.1 15.5L29.1 14.5L28.6 14L28.5 14L28.5 14.9L28 15.4L27.1 15.4L27.1 15.5Z"/>
+<path fill="#0A0D10" fill-rule="evenodd" d="M26.5 13.9L27 13.4L28 13.4L28.5 13.9L28.5 14.9L28 15.4L27 15.4L26.5 14.9Z"/>
+<path fill="#FFF0B0" fill-rule="evenodd" d="M36.6 16L37.6 16L38.1 15.5L38.1 14.5L37.6 14L37.5 14L37.5 14.9L37 15.4L36.1 15.4L36.1 15.5Z"/>
+<path fill="#0A0D10" fill-rule="evenodd" d="M35.5 13.9L36 13.4L37 13.4L37.5 13.9L37.5 14.9L37 15.4L36 15.4L35.5 14.9Z"/>
+</svg>

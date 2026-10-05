@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+<title>Minimap marker: Heavy (white, tint with ImageColor3)</title>
+<path fill="#0A0D10" fill-rule="evenodd" d="M1.3 3.98L1.3 14.07L12 23.61L22.7 14.07L22.7 3.98L20.22 1.5L3.78 1.5Z"/>
+<path fill="#FFFFFF" fill-rule="evenodd" d="M2.8 4.6L4.4 3L19.6 3L21.2 4.6L21.2 13.4L12 21.6L2.8 13.4Z"/>
+</svg>

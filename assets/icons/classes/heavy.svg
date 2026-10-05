@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+<title>Vehicle class: Heavy</title>
+<defs><linearGradient id="g1" gradientUnits="userSpaceOnUse" x1="0.00" y1="8.50" x2="0.00" y2="57.50"><stop offset="0.000" stop-color="#E9E0C7"/><stop offset="1.000" stop-color="#D7CCAE"/></linearGradient></defs>
+<path fill="#0A0D10" fill-rule="evenodd" d="M7 11.67L7 37.9L32 60.18L57 37.9L57 11.67L51.83 6.5L12.17 6.5Z"/>
+<path fill="#FFFBF0" fill-rule="evenodd" d="M13 8.5L9 12.5L9 37L11 36.1L11 13.33L13.83 10.5L50.17 10.5L51 8.5Z"/>
+<path fill="#E3D8BC" fill-rule="evenodd" d="M55 12.5L51 8.5L50.17 10.5L53 13.33ZM9 37L32 57.5L32 54.82L11 36.1Z"/>
+<path fill="#A3936D" fill-rule="evenodd" d="M53 36.1L32 54.82L32 57.5L55 37L55 12.5L53 13.33Z"/>
+<path fill="url(#g1)" fill-rule="evenodd" d="M11 13.33L11 36.1L32 54.82L53 36.1L53 13.33L50.17 10.5L13.83 10.5Z"/>
+<path fill="#FFFBF0" fill-rule="evenodd" d="M49 34.86L49 16.5L48 16.5L48 33.86L32 48.12L17 34.75L17 34.86L33 49.12ZM20.2 19.7L44.8 19.7L44.8 18.7L19.2 18.7L19.2 32.43L20.2 33.32Z"/>
+<path fill="#0A0D10" fill-rule="evenodd" d="M16 33.86L32 48.12L48 33.86L48 15.5L16 15.5ZM44.8 18.7L44.8 32.43L32 43.84L19.2 32.43L19.2 18.7Z"/>
+</svg>

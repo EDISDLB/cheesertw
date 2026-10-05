@@ -1,0 +1,7 @@
+# Python dependencies for HULLDOWN offline asset pipelines (tools/art, tools/audio, tools/maps)
+numpy>=1.26
+scipy>=1.11
+soundfile>=0.12
+cairosvg>=2.7
+Pillow>=10.0
+shapely>=2.0

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+<title>Currency: Campaign Tokens</title>
+<defs><linearGradient id="g1" gradientUnits="userSpaceOnUse" x1="0.00" y1="12.21" x2="0.00" y2="44.22"><stop offset="0.000" stop-color="#EF8EAA"/><stop offset="1.000" stop-color="#E2577F"/></linearGradient></defs>
+<path fill="#0A0D10" fill-rule="evenodd" d="M4 30.73L18.43 52.72L22.8 53.86L57.89 45.13L60 42.07L60 33.27L45.57 11.28L41.2 10.14L6.11 18.87L4 21.93Z"/>
+<path fill="#B83E62" fill-rule="evenodd" d="M19.68 50.98L19.68 43.4L6 22.55L6 30.13Z"/>
+<path fill="#8E2446" fill-rule="evenodd" d="M58 41.45L58 33.87L56.67 35.8L56.67 43.37Z"/>
+<path fill="#B83E62" fill-rule="evenodd" d="M56.67 43.37L56.67 35.8L22.81 44.22L22.81 51.79Z"/>
+<path fill="#E2577F" fill-rule="evenodd" d="M22.81 51.79L22.81 44.22L19.68 43.4L19.68 50.98Z"/>
+<path fill="url(#g1)" fill-rule="evenodd" d="M7.33 20.63L6 22.55L19.68 43.4L22.81 44.22L56.67 35.8L58 33.87L44.32 13.02L41.19 12.21Z"/>
+<path fill="#FFD1DF" fill-rule="evenodd" d="M6 22.55L19.68 43.4L22.81 44.22L56.67 35.8L58 33.87L57.56 33.21L56.67 34.5L22.81 42.92L19.68 42.1L6.44 21.92Z"/>
+<path fill="#FFD1DF" fill-rule="evenodd" d="M26.61 37.7L47.11 32.6L45.05 31.99L27.62 36.32ZM32.52 25.38L39.37 21.6L36.73 21.66L31.62 24.48L33.96 28.04L34.35 28.16ZM42.54 16.63L53.18 32.84L52.11 34.38L24.49 41.25L22.36 40.69L22.89 41.5L25.39 42.15L53.01 35.28L54.08 33.74L42.91 16.73ZM14.67 25.03L15.47 23.88L39.53 17.89L41.03 18.28L40.51 17.48L38.63 16.99L14.57 22.98L13.77 24.13L23.49 38.94L23.87 39.04Z"/>
+<path fill="#8E2446" fill-rule="evenodd" d="M27.05 21.47L31.73 28.6L25.71 36.8L46.21 31.7L33.96 28.04L31.62 24.48L38.47 20.7L29.28 20.91ZM53.18 32.84L42.01 15.83L39.51 15.18L11.89 22.05L10.82 23.59L21.99 40.6L24.49 41.25L52.11 34.38ZM50.23 32.29L49.43 33.45L25.37 39.44L23.49 38.94L13.77 24.13L14.57 22.98L38.63 16.99L40.51 17.48Z"/>
+</svg>

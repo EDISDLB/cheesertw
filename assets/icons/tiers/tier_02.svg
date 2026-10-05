@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+<title>Tier II</title>
+<defs><linearGradient id="g1" gradientUnits="userSpaceOnUse" x1="0.00" y1="17.00" x2="0.00" y2="47.00"><stop offset="0.000" stop-color="#AAB6C0"/><stop offset="1.000" stop-color="#8E9BA7"/></linearGradient></defs>
+<path fill="#0A0D10" fill-rule="evenodd" d="M6 23.17L6 40.83L14.17 49L49.83 49L58 40.83L58 23.17L49.83 15L14.17 15Z"/>
+<path fill="#E2E9EF" fill-rule="evenodd" d="M15 17L8 24L8 40L10 39.17L10 24.83L15.83 19L48.17 19L49 17Z"/>
+<path fill="#9AA7B3" fill-rule="evenodd" d="M56 24L49 17L48.17 19L54 24.83ZM8 40L15 47L15.83 45L10 39.17Z"/>
+<path fill="#596673" fill-rule="evenodd" d="M54 39.17L48.17 45L15.83 45L15 47L49 47L56 40L56 24L54 24.83Z"/>
+<path fill="url(#g1)" fill-rule="evenodd" d="M10 24.83L10 39.17L15.83 45L48.17 45L54 39.17L54 24.83L48.17 19L15.83 19Z"/>
+<path fill="#E2E9EF" fill-rule="evenodd" d="M31.29 42L32.01 41.28L32.01 24.72L31.29 24L31.01 24L31.01 40.28L30.29 41L27.69 41L27.69 41.28L28.41 42ZM37.59 42L38.31 41.28L38.31 24.72L37.59 24L37.31 24L37.31 40.28L36.59 41L33.99 41L33.99 41.28L34.71 42Z"/>
+<path fill="#0A0D10" fill-rule="evenodd" d="M26.69 40.28L27.41 41L30.29 41L31.01 40.28L31.01 23.72L30.29 23L27.41 23L26.69 23.72ZM32.99 40.28L33.71 41L36.59 41L37.31 40.28L37.31 23.72L36.59 23L33.71 23L32.99 23.72Z"/>
+</svg>
