@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+<title>Achievement emblem: events</title>
+<defs><linearGradient id="g1" gradientUnits="userSpaceOnUse" x1="0.00" y1="19.75" x2="0.00" y2="40.64"><stop offset="0.000" stop-color="#E9E0C7"/><stop offset="1.000" stop-color="#D7CCAE"/></linearGradient></defs>
+<path fill="#0A0D10" fill-rule="evenodd" d="M22.97 23.97L22.97 42.04L28.18 42.04L28.18 33.2L43.27 33.2L43.47 32.78L38.64 26.98L43.47 21.19L43.27 20.76L28.98 20.76L28.98 20.14L27.2 18.35L23.95 18.35L22.17 20.14L22.17 23.97Z"/>
+<path fill="#FFFBF0" fill-rule="evenodd" d="M23.57 20.72L23.57 22.57L24.47 21.67L24.47 21.09L24.9 20.65L26.25 20.65L26.62 19.75L24.53 19.75ZM26.68 23.06L38.91 23.06L40.84 22.16L27.58 22.16ZM25.27 39.74L25.27 21.67L24.37 22.57L24.37 40.64Z"/>
+<path fill="#E3D8BC" fill-rule="evenodd" d="M27.58 20.72L26.62 19.75L26.25 20.65L26.68 21.09ZM40.84 31.8L36.82 26.98L35.65 26.98L38.91 30.9Z"/>
+<path fill="#A3936D" fill-rule="evenodd" d="M27.58 20.72L26.68 21.09L26.68 23.06L27.58 22.16ZM25.27 21.67L24.47 21.67L23.57 22.57L24.37 22.57ZM38.91 23.06L35.65 26.98L36.82 26.98L40.84 22.16ZM25.88 39.74L25.27 39.74L24.37 40.64L26.78 40.64L26.78 31.8L40.84 31.8L38.91 30.9L25.88 30.9Z"/>
+<path fill="url(#g1)" fill-rule="evenodd" d="M24.47 21.67L25.27 21.67L25.27 39.74L25.88 39.74L25.88 30.9L38.91 30.9L35.65 26.98L38.91 23.06L26.68 23.06L26.68 21.09L26.25 20.65L24.9 20.65L24.47 21.09Z"/>
+</svg>

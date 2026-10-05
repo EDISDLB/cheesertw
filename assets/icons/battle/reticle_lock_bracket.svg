@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+<title>Reticle: lock bracket (white, tint with ImageColor3)</title>
+<path fill="#0A0D10" fill-rule="evenodd" d="M2.5 2.5L2.5 23.5L10 23.5L10 10L23.5 10L23.5 2.5Z"/>
+<path fill="#FFFFFF" fill-rule="evenodd" d="M4 4L22 4L22 8.5L8.5 8.5L8.5 22L4 22Z"/>
+</svg>

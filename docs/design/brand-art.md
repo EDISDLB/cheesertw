@@ -52,6 +52,13 @@ Everything is original. In particular, HULLDOWN never uses:
   (§6.5). Desert rays are short compass wedges on an ochre sun, never a red ray field. Mountain
   heraldry never uses a cross. Northern heraldry is an ice crystal, never a star.
 * **A light bulb or lamp** for the "you are spotted" alert. We use the dusk crest chevron (§8.8).
+* **Another game's HUD and damage-panel art**: its module and crew damage icons, shell icons,
+  medal and mastery designs. Our module glyphs, ammo silhouettes, crew pictograms and mastery
+  badges follow their own rules (§6.8–§6.13).
+* **The red cross** (a protected emblem) for anything medical. First aid is a **bone plus on a
+  green chamfered tile**. No laurel wreaths or ribbon bars copied from real decorations, and no
+  stars as rating or favourite marks (favourite is a bookmark ribbon; the damage stat is a pierced
+  plate, never a star burst).
 
 ---
 
@@ -228,6 +235,31 @@ the universal ink `#0A0D10` for keylines and recesses.
 | `rose` | `#FFD1DF` | `#E2577F` | `#8E2446` | Campaign Tokens |
 | `xp_blue` / `xp_violet` / `xp_teal` | see tokens | | | Vehicle / Free / Crew XP chevrons |
 | `f_*`, `snow` | see tokens | | | Faction enamels |
+| `amber` | `#FFE9A3` | `#F2C230` | `#9C7612` | **Damaged** state (base = `state.warning`), critical-hit gear |
+| `signal` | `#FFB3AC` | `#EF4747` | `#8C1D1D` | **Destroyed / injured** state (base = `state.danger`), extinguisher bottle, kill callout |
+| `verdant` | `#B8F2CF` | `#3FCB7A` | `#1B7343` | Repair, first-aid tile, mission complete (base = `state.success`) |
+| `azure` | `#C3E4FF` | `#4AA8F0` | `#1E5E92` | Info state (base = `state.info`) |
+| `ap` / `apcr` / `heat` / `he` | see tokens | | | Shell paint (bases = `ammo.*`); HESH uses `olive` + an `he` band |
+| `ember` / `cobalt` / `jade` / `scout` | see tokens | | | Equipment category tiles (bases = `equip.*`) |
+| `r_rare` / `r_epic` | see tokens | | | Achievement frame enamels (common = `steel`, legendary = `obsidian` + `gold`) |
+| `glass` | `#E4FAFF` | `#5DB4D6` | `#1D4D63` | Lenses, vision blocks, spirit-level vials |
+| `canvas` | `#E9E2C8` | `#A99B70` | `#5E5434` | Webbing, pouches, case rims |
+
+### 3.9 Ammunition, equipment and grade colours
+
+| Token | Hex | Use |
+|---|---|---|
+| `ammo.ap` | `#F28C38` | AP shell paint, AP tag in the damage log |
+| `ammo.apcr` | `#86CDF5` | APCR penetrator |
+| `ammo.heat` | `#EC4D82` | HEAT shell paint |
+| `ammo.he` | `#FFC23D` | HE shell paint |
+| `ammo.hesh` | `#9AA35E` | HESH (olive body with an HE band) |
+| `ammo.special` | `#F0BD45` | Gold rim and case of special (premium) rounds |
+| `equip.firepower` / `equip.survivability` / `equip.mobility` / `equip.scouting` | `#E0583A` / `#4A86C8` / `#3DAA6E` / `#E9C03A` | Equipment category tiles, slot chips, bonus-slot marker |
+| `grade.improved` / `grade.experimental` | `#C6CED6` / `#FF8A3D` | Equipment grade overlay frames |
+
+Shell colours echo the tracer table (§10.1), so a round, its tracer and its damage-log tag agree.
+Ammo, module-state and category colours are always paired with a shape (§6.8–§6.11).
 
 ---
 
@@ -385,6 +417,14 @@ Within a family, members must differ in *outline*, not only in interior marks or
 | **Physical objects**: Credits, Bullion, Campaign Tokens, consumables, equipment, shells, crates | **Fixed 3/4 "quarter view"** (`tools/art/hdart/proj.py`) | Orthographic camera at yaw 22° and elevation 38°. Objects rest on their largest flat face. The top face takes the lit gradient and one highlight rim on its front edges. Of the visible sides, the most-lit one takes base, any other lit side a half step from base toward shade (so two lit faces never merge into one flat shape), and unlit sides take shade. |
 | **Vehicles** (tech tree, carousel) | Side profile, gun to the right | Matches the brand turret. Tech-tree silhouettes come from the 3D blueprints, with the same keyline and materials. |
 
+Physical objects are built with `tools/art/hdart/solid.py`: extruded polygons and bodies of revolution
+projected through the house camera, back-face culled and painted back to front. Curved surfaces get
+**analytic band shading**: each ring of a lathe is split where the Lambert term crosses the
+highlight / base / half-shade / shade thresholds, so tone edges are smooth lines (a highlight stripe
+about 15–30 % across a cylinder), never facet stair-steps. Shells stand upright on their base. Panels
+that would vanish lying flat (spall liner, spare track section) stand on an edge, tread or face to
+the viewer. Lenses and other glass are drawn as a flat cap with a bevelled `glass` disc and one glint.
+
 ### 6.4 Edge, stroke, shading and corners
 
 * **Light** always comes from the **top-left** (45°).
@@ -418,6 +458,14 @@ Within a family, members must differ in *outline*, not only in interior marks or
 | Ranks | Olive (enlisted) → gunmetal and silver (command) → obsidian and gold (high command) → obsidian, gold and dusk (marshal) | Counted marks: chevrons, then pips, then the brand mark |
 | Currency | Signature colour per currency (§3.6) | Objects in 3/4 view, XP as symbols |
 | States / UI glyphs | Single state colour on ink | Monochrome, no bevel below 24 px |
+| UI / HUD glyphs, minimap markers, reticle, marker frames | White + ink keyline | Tinted at runtime (`ImageColor3`): team colour, `text.*`, `accent.dusk` or `state.*` |
+| Ammunition | Type paint (`ammo.*`) on a gunmetal case | Special rounds: gold case + gold rim (§6.10) |
+| Modules / crew | `steel` / `olive` normal → `amber` damaged → `signal` destroyed or injured | Each state also changes the outline (§6.8) |
+| Consumables | Functional material per item (olive tools, bone medical, signal bottles, dusk fuel) | 3/4 objects; `_large` = two units |
+| Equipment | Natural materials per item; category tiles in `equip.*` | Grade overlays: silver brackets / dusk frame (§6.11) |
+| Hit results | VFX colour language (§10.2): dusk penetration, ice ricochet, steel blocked, amber crit, signal kill | Pre-coloured callouts |
+| Achievements | Rarity enamels (steel, `r_rare`, `r_epic`, obsidian + gold) with bone emblems | Mastery: bronze → silver → gold → obsidian + dusk |
+| Missions | Bone paper, gunmetal clips, khaki maps, one accent | Dusk = time-limited / special, verdant = done |
 
 ### 6.6 Families
 
@@ -456,14 +504,17 @@ built from the stencil paths and engraved (cut-in, ink) into the metal.
 | IX–X | Gold | Narrower plate + crest + side fins |
 | **XI** | **Obsidian with gold inlaid numerals** | Dusk inner rim, tall dusk crest with an engraved ridge mark, dusk keel point, radial dusk glow. It is the only tier with raised (not engraved) numerals and the only one that glows. |
 
-**Ranks** are covered in §7. **Currency** is covered in §3.6.
+**Ranks** are covered in §7. **Currency** is covered in §3.6. Module and crew states, ammunition,
+the special treatment, equipment, UI / HUD glyphs and achievements follow §6.8–§6.13; every icon
+key, file and intended use is listed in the generated [`assets/icons/INDEX.md`](../../assets/icons/INDEX.md).
 
 ### 6.7 New icon checklist
 
 An icon ships only when every box is ticked on the `render_svgs.py` contact sheet:
 
-- [ ] Built in code (`tools/art/hdart/icons.py`) on the 64 grid. `generate_svgs.py --check` passes (viewBox, paths only, < 40 KB).
-- [ ] Silhouette plus keyline inside 4..60. The silhouette is in the live area 6..58.
+- [ ] Built in code (`tools/art/hdart/`) on the 64 grid (24 for minimap markers). `generate_svgs.py --check` passes (viewBox, paths only, < 40 KB, listed in INDEX.md).
+- [ ] Silhouette plus keyline inside 4..60. The silhouette is in the live area 6..58. No keyline
+      mitre (sharp tip) touches the canvas edge.
 - [ ] Recognizable as a solid silhouette at 24 px, and as itself at 32 px, on **both** the dark and
       light panels.
 - [ ] Outline differs from every other member of its family. Interior detail alone doesn't count.
@@ -478,6 +529,115 @@ An icon ships only when every box is ticked on the `render_svgs.py` contact shee
 - [ ] Colour meaning is consistent with §6.5 and doesn't depend on colour alone. Works with each
       CVD scheme where it is team-tinted.
 - [ ] Filename is the content id (`<id>.svg`) and the guide table is updated.
+- [ ] State variants (damaged / destroyed / injured / special / grade) change the **shape**, not
+      only the colour (§6.8–§6.11).
+- [ ] Tintable art is pure white + ink keyline, with "tint" in its title; composited layers
+      (grade overlays, achievement frames and emblems) line up at the same canvas size.
+- [ ] Registered in `tools/art/hdart/<group>.py` with an intended-use line, so it appears in
+      `assets/icons/INDEX.md` (`--check` fails on unlisted or stale files).
+
+### 6.8 Status grammar: module and crew states
+
+Damage-panel glyphs are flat symbols in **one material per state**, and every state also changes
+the **outline**, so the panel reads without colour (CVD-safe):
+
+| State | Material | Shape cue | Files |
+|---|---|---|---|
+| Normal / intact | `steel` | Full silhouette | `modules/<id>.svg` |
+| Damaged | `amber` | A jagged **V-shaped bite chipped out of the outline** where a crack enters from the top-right, running on as a thin crack. The mouth (12.5 px) is wider than the two keylines, so background shows through the notch: about 3 px of open notch at 24 px, visible in a solid silhouette | `modules/<id>_damaged.svg` |
+| Destroyed | `signal` | The silhouette **broken in two** along a jagged line, halves pushed apart by a clear band of background (cut + push = 9 px, about 2 px of gap at 24 px; the symbol is scaled to stay in the live area) | `modules/<id>_destroyed.svg` |
+| Crew normal | `olive` helmet, `bone` tool | Helmet + role tool | `crew/<role>.svg` |
+| Crew injured | `signal` helmet and tool | + **first-aid badge** bottom-right (bone plus on a `verdant` chamfered tile) | `crew/<role>_injured.svg` |
+
+In damaged and destroyed states, glass details turn into dark recesses so the whole glyph reads as
+one state colour. `modules/fire.svg` (dusk flame with an `he` core) and `modules/repair.svg`
+(verdant wrench) are the two process indicators. Crit callouts reuse the module glyph (§10.2).
+
+Module outlines: engine = **piston and crank**, ammo rack = **three shells in a clamp rack**, fuel
+tank = **hooped drum with a drop**, gun = **elevated barrel on a trunnion cradle** (never a key
+shape), turret ring = **internally toothed ring with its pinion**, optics = **front-view vision
+device, two lens barrels on a bridge**, radio = **set + mast + broadcast arcs**, track = **track
+run, front slope to the right** (`track_left` is its mirror). Crew tools: commander = swallowtail
+**pennant**, gunner = **crosshair** (thin ring, long protruding ticks), driver = **steering wheel**
+(heavy rim, three spokes), loader = **shell**, radio operator = **mast and arcs**. The tool is the
+identifier, so it gets the larger share of the canvas (helmet scaled 0.86 toward the bottom-left,
+tool 1.24 toward the top-right) and still reads at 16–24 px.
+
+### 6.9 Ammunition silhouettes
+
+Shells are upright 3/4 objects on one shared scale and base line (their heights compare honestly in
+the ammo bar). The **nose silhouette is the type**, colour only confirms it:
+
+| Type | Silhouette rule | Paint |
+|---|---|---|
+| `ap` | Full calibre, long sharp tangent ogive | `ap` orange body, copper driving band |
+| `apcr` | Short full-calibre **sabot collar**, tapered petals, thin **penetrator needle** with a small ballistic tip (the stepped needle is the cue) | `gunmetal` sabot, `apcr` ice-blue penetrator |
+| `he` | Full calibre, short blunt ogive **cut flat for a protruding fuze** nub | `he` yellow body, `steel` fuze |
+| `heat` | Full calibre, **straight cone shoulder + thin stand-off probe** with a crown | `heat` magenta body, `steel` probe |
+| `hesh` | **Shortest round**, wide blunt **squash dome** | `olive` body, `he` band |
+
+Cases are lacquered `gunmetal` on standard rounds. Never tell two types apart by colour alone.
+
+### 6.10 Special (premium) treatment
+
+Special rounds (`<type>_special`) keep the standard silhouette and add two cues: a **gold case**
+and the **gold rim** (`kit.rim_keyline`): ink keyline, a 1.8 px bevelled gold band, then a 1.3 px
+outer ink line, drawn around a calmed contour (small notches closed, bevel joins, no spikes). The
+rim adds 3.1 px, so every round is drawn inside 9..55 and standard and special swap without jumping.
+The case and the projectile are separate solids with an ink line at the case mouth, so the gold case
+never merges with a yellow HE or orange AP body. The gold rim means "special / premium version" and is not used for anything else.
+
+### 6.11 Equipment: categories and grade overlays
+
+* **Items** are 3/4 objects drawn inside the inner box **10..54**, leaving the 4..8 band to the grade
+  frame.
+* **Categories** (`cat_*`) are flat tiles with the HULLDOWN cut (chamfered top-left and bottom-right)
+  in the category material with a bone glyph: firepower = **reticle**, survivability = **armoured
+  heart** (split by an armour band), mobility = **road wheel with speed lines**, scouting =
+  **binoculars**. Never a shield (the heavy class owns it) or an eye (the light class owns it).
+* **Grades** are overlays composited by the client at the same size: standard = none, improved =
+  `grade_improved.svg` (**silver corner brackets**), experimental = `grade_experimental.svg` (**dusk
+  full chamfered frame with corner bolts**). Brackets vs full frame is the shape cue.
+  `equipment/examples/` holds pre-composited previews.
+* **Large consumables** (`*_large`) are drawn as **two units**, the second behind and to the left.
+
+### 6.12 UI and HUD glyph grammar
+
+* `ui/`, radial commands, minimap markers, reticle pieces and marker frames are **white with an ink
+  keyline** for `ImageColor3` tinting (title contains "tint"; the renderer previews them tinted).
+* One stroke weight, **6 px on the 64 grid** (2.25 px at 24, 1.5 px at 16); 45° chamfers instead of
+  round corners; circles only for true discs; flat caps, mitre joins.
+* Single, open **navigation chevrons** (`chevron_*`) are allowed: they never stack or fill, so they
+  never read as XP or rank chevrons.
+* Fixed concepts: favourite = **bookmark ribbon**, premium account = **dusk sun over the ridge**,
+  platoon leader = **plain three-point circlet with flat tips** (no jewels, no band cog: never the
+  Crown Industries crown), profile = **dog tag**, damage = **pierced plate with cracks**, HP =
+  **angular heart**.
+* Minimap marker shape language (24 grid): **arrow** = self / camera, **rings** = zones (bases,
+  capture points, last-seen ghost, view range), **corner brackets** = mission / mode objective (the
+  only square zone), **pin** = player pings (the cut-out says which). Enemy base = ally base + four
+  target ticks; contested point = clashing heads in the ring. Capture points are four heavy ring
+  segments; the last-seen ghost is a thin ring of eight short dashes around a dot.
+* The ping **pin** is an octagonal head on a narrow spike with a flat-cut tip, never a flat-topped
+  shield with straight sides: that outline belongs to the heavy-class pip, and the two share a
+  minimap. Ping cut-outs: attack = down triangle, defend = battlement, help = bang, position = dot,
+  spotted = the single crest chevron (§8.8), never an eye (the light-class pip owns the eye).
+* Sharp tips are cut flat (about 1.2 px) where their keyline mitre would otherwise leave the canvas;
+  the generator checks keyline bounds for minimap markers and marker frames.
+
+### 6.13 Achievements and mastery
+
+Achievement art is two layers at the same 64 px size: `frame_<rarity>` below, `emblem_<category>`
+above. Every frame has the same dark **well** (r 15.5 at 32,31); emblems are bone symbols inside
+r 13.5. Frames escalate by material and outline like the tier plates: common = steel octagon ring;
+rare = blue enamel + steel rim + lugs; epic = violet enamel + silver rim + wings + crest; legendary =
+obsidian + gold trim + dusk inner rim, wings, a tall ridge crest, a keel and the radial dusk glow.
+**Mastery badges** are original: an olive-drab **gun barrel crossing a medallion** with its ported
+muzzle brake breaking the top-right edge, carrying metal **kill rings** slightly proud of the barrel
+(III = 1 bronze, II = 2 silver, I = 3 gold, Ace = 3 gold on obsidian with a dusk sun and ridge). The
+outline escalates too, so the class reads without colour: III = plain medallion, II = + side lugs,
+I = + lugs and a plinth, Ace = + lugs, a stepped crest plinth and the radial dusk glow. No laurels,
+stars or figures.
 
 ---
 
@@ -590,6 +750,14 @@ There is one primary CTA per screen. Heights are 56 px (primary), 44 px (seconda
 * **Destroyed:** the class glyph at 60 % opacity in `team.destroyed`, with a 1.5 px ink X stroke.
 * **Objectives:** base circles in `team.neutral`. They fill with the capturing team's colour as a
   clockwise sweep, and the ring segments count capture points.
+* **Marker frames** (`assets/icons/markers/`, 128 × 48, white for tinting): a dark backing plate
+  (ink 55 %, HULLDOWN cut) that stays dark under `ImageColor3`, a class slot (x 7..31), a team
+  accent stripe, and an HP slot with a dark inset track (the HP fill is a client Frame). Team styles
+  differ by shape: enemy = a **pointer** under the class slot and cut HP-slot ends, platoon = a
+  **number tab**, self = a **crest notch** (spectator / replay). `target_lock` = four corner brackets
+  with inner ticks.
+* **Pings** use the pin family (`battle/ping_*`); radial commands (`battle/cmd_*`) are white glyphs
+  for the command wheel. Hit results (`battle/hit_*`) are pre-coloured callout symbols.
 
 ### 8.7 Reticles
 
@@ -604,6 +772,19 @@ There is one primary CTA per screen. Heights are 56 px (primary), 44 px (seconda
   `accent.steel` and an impact-time readout in `mono`.
 * **Reload:** an arc on the reticle in `text.secondary`, which turns dusk for the last 0.5 s, plus a
   numeric `mono` timer.
+* **Reticle pieces and tinting** (`assets/icons/battle/reticle_*`): every piece is white with a
+  1.5 px ink outline, so `ImageColor3` sets its colour and the outline keeps it readable on snow
+  and at night. Segment images keep the **full ring canvas** with the segment at the top, so the
+  client only rotates copies about the image centre: `reticle_dispersion_segment` (128 px, 100°
+  + 20° gaps; three copies at 0/120/240°; the number lit is the penetration cue, coloured
+  `state.success` / `state.warning` / `state.danger`, unlit segments at 35 % white),
+  `reticle_reload_arc_segment` (128 px quarter arc; four copies, progress masked with a
+  `UIGradient`; `text.secondary`, dusk for the last 0.5 s), `reticle_center` (always `team.self`
+  white), `reticle_lock_bracket` (32 px top-left corner; rotate per corner; dusk when locked).
+  `damage_direction` (128 px wedge) is tinted `state.danger`, or white for a blocked hit.
+* **View range:** `battle/view_range_ring.svg` (128 px dashed ring) is stretched to the view-range
+  diameter on the minimap, white at 40 % opacity; the camera cone (`camera_direction`, apex at the
+  image centre) is white at about 35 %.
 
 ### 8.8 HUD alerts
 
@@ -611,7 +792,8 @@ There is one primary CTA per screen. Heights are 56 px (primary), 44 px (seconda
   for 2 s. Never a lamp or bulb.
 * **Damage direction:** wedge arcs at the screen edge in `state.danger`, white for blocked hits.
 * **Module or crew damage:** silhouette glyphs in `state.warning` (damaged) or `state.danger`
-  (destroyed), with the same icon grammar as §6.
+  (destroyed), with the same icon grammar as §6 and the crack / break shape cues of §6.8
+  (`assets/icons/modules/`, `assets/icons/crew/`).
 
 ---
 
@@ -695,7 +877,18 @@ show only the muzzle-flash glint `#FFF4D6`, never a full tracer back to the shoo
 | `assets/icons/tiers/tier_01..11.svg` | Tier badges I–XI |
 | `assets/icons/ranks/rank_01..15.svg` | Rank insignia |
 | `assets/icons/currency/*.svg` | `credits`, `bullion`, `vehicle_xp`, `free_xp`, `crew_xp`, `campaign_token` |
-| `tools/art/` | `generate_svgs.py` (source of every SVG), `render_svgs.py` (PNG + contact sheets), `check_palette.py` (contrast and CVD validation). See its README. |
+| `assets/icons/ammo/` | 5 shell types + 4 `_special` (§6.9, §6.10) |
+| `assets/icons/modules/` | 8 modules (+ `track_left` / `track_right`) × normal / damaged / destroyed, `fire`, `repair` (§6.8) |
+| `assets/icons/crew/` | 5 roles + `_injured` (§6.8) |
+| `assets/icons/consumables/` | 10 consumables, 3/4 objects |
+| `assets/icons/equipment/` | 16 items, 4 `cat_*`, 2 `grade_*` overlays, `examples/` (§6.11) |
+| `assets/icons/ui/` | 78 white UI glyphs (§6.12) |
+| `assets/icons/battle/` | minimap markers + pings (24 px), command wheel, hit results, status, reticle pieces |
+| `assets/icons/achievements/` | 4 rarity frames, 8 emblems, 4 mastery badges, `examples/` (§6.13) |
+| `assets/icons/missions/` | 9 mission icons |
+| `assets/icons/markers/` | 4 BillboardGui marker frames + `target_lock` |
+| `assets/icons/INDEX.md` | Generated: every icon key → file → size → tint → intended use |
+| `tools/art/` | `generate_svgs.py` (source of every SVG and of `INDEX.md`), `render_svgs.py` (PNG + contact sheets, paged for big groups), `check_palette.py` (contrast and CVD validation). See its README. |
 
 Workflow: edit the generator → `generate_svgs.py --check` → `render_svgs.py` → review
 `build/png/contact_sheet_*.png` against §6.7 → `check_palette.py` if tokens changed → commit the

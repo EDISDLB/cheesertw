@@ -18,7 +18,7 @@ from shapely.geometry import LineString
 
 from . import geom as G
 from .svgdoc import Doc
-from .tokens import INK, MATERIALS
+from .tokens import INK
 
 KEY = 2.0
 BEV = 2.0
@@ -182,10 +182,11 @@ def fracture(p0, p1, gap=2.6, amp=3.0, n=4):
     return stroke(zigzag(p0, p1, amp, n), gap, cap="square", mitre=6.0)
 
 
-def split(sil, p0, p1, gap=2.8, amp=3.2, n=4, shift=2.0):
+def split(sil, p0, p1, gap=3.0, amp=3.2, n=4, shift=6.0):
     """Break a silhouette in two along a jagged line. Returns [(region, offset), ...] where region is
     the un-shifted piece (use it to clip details) and offset the translation that pushes the pieces
-    apart along the break normal."""
+    apart along the break normal. The default gap + shift (9 px) is more than the two keylines, so a
+    clear band of background (about 2 px at 24 px) separates the halves in the silhouette itself."""
     cut = fracture(p0, p1, gap, amp, n)
     rest = G.diff(sil, cut)
     dx, dy = p1[0] - p0[0], p1[1] - p0[1]
@@ -199,22 +200,49 @@ def split(sil, p0, p1, gap=2.8, amp=3.2, n=4, shift=2.0):
     return [(G.union(a), (nx * shift / 2, ny * shift / 2)), (G.union(b), (-nx * shift / 2, -ny * shift / 2))]
 
 
-def chip(sil, p0, p1, frac=0.5, gap=3.4, amp=2.6, n=3):
-    """A partial crack: a tapered jagged wedge along the first `frac` of the break line, wide at the
-    silhouette edge (p0 should sit just outside it) and closing to a point inside.
-    Returns (cracked silhouette, wedge)."""
-    q = (p0[0] + (p1[0] - p0[0]) * frac, p0[1] + (p1[1] - p0[1]) * frac)
-    zz = zigzag(p0, q, amp, n)
-    dx, dy = q[0] - p0[0], q[1] - p0[1]
+def chip(sil, p0, p1, mouth=12.5, depth=10.5, crack_frac=0.58, crack_w=1.8, amp=2.2):
+    """Damaged-state cue: a V-shaped BITE chipped out of the outline where the line p0 -> p1 enters
+    the silhouette (p0 should sit just outside the top-right edge), continuing as a thin jagged crack.
+
+    The mouth is wider than the two keylines (2 x KEY), so background shows through the notch and the
+    silhouette itself changes: about 3 px of open notch at 24 px, which survives a solid-black
+    silhouette test and colour-blind viewing. The crack runs on to `crack_frac` of the line.
+    Returns (cracked silhouette, removed shape)."""
+    hit = LineString([p0, p1]).intersection(sil)
+    pts = [p0]
+    if not hit.is_empty:
+        parts = getattr(hit, "geoms", [hit])
+        pts = [c for part in parts for c in part.coords]
+    e = min(pts, key=lambda q: (q[0] - p0[0]) ** 2 + (q[1] - p0[1]) ** 2)  # entry point on the outline
+    dx, dy = p1[0] - p0[0], p1[1] - p0[1]
     ln = math.hypot(dx, dy)
-    nx, ny = -dy / ln, dx / ln
+    ux, uy = dx / ln, dy / ln
+    nx, ny = -uy, ux
+    total = math.hypot(p1[0] - e[0], p1[1] - e[1])
+    # notch: jagged V from 3 px outside the edge to `depth` inside it
+    o = (e[0] - ux * 3.0, e[1] - uy * 3.0)
+    tip = (e[0] + ux * depth, e[1] + uy * depth)
+    n = 4
     left, right = [], []
+    for i in range(n + 1):
+        t = i / n
+        c = (o[0] + (tip[0] - o[0]) * t, o[1] + (tip[1] - o[1]) * t)
+        w = (mouth / 2) * (1 - t) ** 1.15 + 0.05
+        j = (0.9 if i % 2 else -0.6) * (1 - t)  # jagged walls, never symmetric
+        left.append((c[0] + nx * (w + j), c[1] + ny * (w + j)))
+        right.append((c[0] - nx * (w - j * 0.7), c[1] - ny * (w - j * 0.7)))
+    notch = G.poly(left + right[::-1]).buffer(0)
+    # crack: thin zig-zag from the notch tip onward
+    q = (e[0] + ux * total * crack_frac, e[1] + uy * total * crack_frac)
+    zz = zigzag(tip, q, amp, 3)
+    cl, cr = [], []
     for i, (x, y) in enumerate(zz):
-        w = gap * (1 - i / (len(zz) - 1)) / 2 + 0.05
-        left.append((x + nx * w, y + ny * w))
-        right.append((x - nx * w, y - ny * w))
-    wedge = G.poly(left + right[::-1]).buffer(0)
-    return G.diff(sil, wedge), wedge
+        w = crack_w * (1 - 0.7 * i / (len(zz) - 1)) / 2
+        cl.append((x + nx * w, y + ny * w))
+        cr.append((x - nx * w, y - ny * w))
+    crack = G.poly(cl + cr[::-1]).buffer(0)
+    cut = G.union(notch, crack)
+    return G.diff(sil, cut), cut
 
 
 def plus(cx, cy, size, w, chamfer=0.0):

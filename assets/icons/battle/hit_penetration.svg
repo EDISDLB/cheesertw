@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+<title>Hit result: penetration</title>
+<defs><linearGradient id="g1" gradientUnits="userSpaceOnUse" x1="0.00" y1="7.00" x2="0.00" y2="57.00"><stop offset="0.000" stop-color="#AAB6C0"/><stop offset="1.000" stop-color="#8E9BA7"/></linearGradient><linearGradient id="g2" gradientUnits="userSpaceOnUse" x1="0.00" y1="22.50" x2="0.00" y2="41.50"><stop offset="0.000" stop-color="#FF8944"/><stop offset="1.000" stop-color="#F27129"/></linearGradient><linearGradient id="g3" gradientUnits="userSpaceOnUse" x1="0.00" y1="26.65" x2="0.00" y2="37.35"><stop offset="0.000" stop-color="#FFCC57"/><stop offset="1.000" stop-color="#EEB334"/></linearGradient></defs>
+<path fill="#0A0D10" fill-rule="evenodd" d="M4 26L4 38L27.27 38L24.75 59L41.77 59L44.29 38L45 38L45 44.98L45.67 45.29L61.06 32L46.52 19.44L48.25 5L31.23 5L28.71 26Z"/>
+<path fill="#E2E9EF" fill-rule="evenodd" d="M33 7L27 57L28.8 55.4L34.42 8.6L44.2 8.6L46 7Z"/>
+<path fill="#596673" fill-rule="evenodd" d="M38.58 55.4L28.8 55.4L27 57L40 57L46 7L44.2 8.6Z"/>
+<path fill="url(#g1)" fill-rule="evenodd" d="M28.8 55.4L38.58 55.4L44.2 8.6L34.42 8.6Z"/>
+<path fill="#0A0D10" fill-rule="evenodd" d="M39.89 23.82L33.11 23.82L30 26.93L28.92 35.98L33.11 40.18L39.89 40.18L43 37.07L44.08 28.02Z"/>
+<path fill="#FFC08F" fill-rule="evenodd" d="M40 28L40 36L41.2 34.8L41.2 29.2L48.2 29.2L48.19 25.09L47 22.5L47 28ZM6 36L7.2 34.8L7.2 29.2L27.8 29.2L29 28L6 28ZM48.19 38.91L48.2 34.8L47 36L47 41.5Z"/>
+<path fill="#FF7A2F" fill-rule="evenodd" d="M48.19 25.09L56.16 32L58 32L47 22.5Z"/>
+<path fill="#B8460F" fill-rule="evenodd" d="M7.2 34.8L6 36L29 36L29 28L27.8 29.2L27.8 34.8ZM47 36L48.2 34.8L41.2 34.8L40 36ZM58 32L56.16 32L48.19 38.91L47 41.5Z"/>
+<path fill="url(#g2)" fill-rule="evenodd" d="M41.2 34.8L48.2 34.8L48.2 38.88L56.16 32L48.2 25.12L48.2 29.2L41.2 29.2ZM7.2 29.2L7.2 34.8L27.8 34.8L27.8 29.2Z"/>
+<path fill="#0A0D10" fill-rule="evenodd" d="M51.47 25.94L50.8 25.21L41.68 30.62L42.92 32L41.68 33.38L50.8 38.79L51.47 38.06L46.95 32Z"/>
+<path fill="#FFEFB5" fill-rule="evenodd" d="M49.95 26.65L42.93 30.81L43.87 30.95L49.45 27.1ZM44 32L42.93 33.19L43.87 33.05L44.81 32Z"/>
+<path fill="#FFC23D" fill-rule="evenodd" d="M42.93 30.81L44 32L44.81 32L43.87 30.95ZM43.87 33.05L42.93 33.19L49.95 37.35L45.96 32L45.21 32L49.45 36.9Z"/>
+<path fill="#A06F0C" fill-rule="evenodd" d="M49.45 27.1L45.21 32L45.96 32L49.95 26.65Z"/>
+<path fill="url(#g3)" fill-rule="evenodd" d="M47.67 28.69L43.87 30.95L44.81 32L43.87 33.05L47.67 35.31L45.21 32Z"/>
+</svg>

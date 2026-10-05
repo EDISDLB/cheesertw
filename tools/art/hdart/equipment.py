@@ -162,28 +162,30 @@ def stabilizer(d):
 
 
 def improved_aiming(d):
-    """Gun-laying drive: gearbox with an elevation handwheel and a crank knob."""
-    box = order(solid.box(-0.85, 0.0, -0.5, 0.75, 1.05, 0.5, "gunmetal", chamfer=0.06), 0)
-    shaft = order(solid.cylinder((-0.05, 0.55, 0.5), (-0.05, 0.55, 0.7), 0.12, "steel", n=16), 1)
-    wheel = order(solid.cylinder((-0.05, 0.55, 0.62), (-0.05, 0.55, 0.78), 0.72, "steel", n=48,
-                                 profile=[(0.0, 0.66), (0.3, 0.72), (0.7, 0.72), (1.0, 0.66)]), 2)
-    knob_base = (-0.05 + 0.5, 0.55 + 0.38, 0.78)
-    knob = order(solid.cylinder(knob_base, (knob_base[0], knob_base[1], 1.12), 0.08, "ember", n=14,
-                                profile=[(0.0, 0.06), (0.25, 0.06), (0.3, 0.09), (1.0, 0.09)]), 5)
-    gear = order(solid.cylinder((0.75, 0.55, 0.0), (0.92, 0.55, 0.0), 0.36, "steel", n=12), -1)
+    """Gunner's telescopic sight: a long sight tube on a mount block, a rubber eyecup at the back,
+    an adjustment turret on top and a flared objective toward the viewer whose glass carries the
+    aiming reticle. Tube + reticle glass keeps it apart from the boxy ventilation unit."""
+    ax = solid._norm((0.48, 0.16, 0.86))
+    c = (0.0, 0.62, 0.0)
+    prof = [(-1.25, 0.25, "obsidian"), (-1.02, 0.25, "obsidian"), (-1.02, 0.19, "gunmetal"), (-0.62, 0.19, "gunmetal"),
+            (-0.62, 0.23, "steel"), (-0.50, 0.23, "steel"), (-0.50, 0.19, "gunmetal"), (0.25, 0.19, "gunmetal"),
+            (0.58, 0.46, "gunmetal"), (0.58, 0.50, "steel"), (0.76, 0.50, "steel"), (0.76, 0.0, "steel")]
+    tube = order(solid.revolve(prof, axis=ax, centre=c, n=48, name="sight"), 2)
+    tp = solid._add(c, solid._mul(ax, -0.18))
+    turret = order(solid.cylinder((tp[0], tp[1] + 0.12, tp[2]), (tp[0], tp[1] + 0.40, tp[2]), 0.15, "steel", n=20), 1)
+    cap = order(solid.cylinder((tp[0], tp[1] + 0.40, tp[2]), (tp[0], tp[1] + 0.47, tp[2]), 0.17, "ember", n=20), 1.5)
+    base = order(solid.box(-0.75, 0.0, -0.32, 0.55, 0.30, 0.32, "gunmetal", chamfer=0.04), -2)
+    post = order(solid.box(-0.42, 0.30, -0.12, 0.22, 0.50, 0.12, "steel"), -1)
 
     def dec(d, f, tags):
-        c = (-0.05, 0.55, 0.78)
-        cap = f(on_axis_plane(G.circle(0, 0, 0.66, n=64), c, (0, 0, 1)))
-        holes = G.union([G.diff(G.arc_band(0, 0, 0.54, 0.2, a + 14, a + 76, n=12), G.EMPTY) for a in (0, 90, 180, 270)])
-        d.engrave(G.inter(f(on_axis_plane(holes, c, (0, 0, 1))), cap), "steel", cap, depth=0.8)
-        hub = f(on_axis_plane(G.circle(0, 0, 0.13, n=20), c, (0, 0, 1)))
-        d.path(hub, MATERIALS["steel"][2])
-        # elevation scale on the gearbox front
-        face = f(front(G.rect(-0.8, 0.05, 0.7, 1.0), 0, 1.05, 0.5))
-        sc = G.union([G.rect(0.42, 0.18 + i * 0.13, 0.62 if i % 2 == 0 else 0.54, 0.22 + i * 0.13) for i in range(6)])
-        d.engrave(G.inter(f(front(sc, 0, 1.05, 0.5)), face), "gunmetal", face, depth=0.6)
-    render(d, [box] + gear + shaft + wheel + knob, [dec])
+        fc = solid._add(c, solid._mul(ax, 0.76))
+        glass_disc(d, f, fc, ax, 0.43)
+        g = f(on_axis_plane(G.circle(0, 0, 0.43, n=64), fc, ax))
+        ret = G.union(G.rect(-0.36, -0.024, -0.09, 0.024), G.rect(0.09, -0.024, 0.36, 0.024),
+                      G.rect(-0.024, 0.09, 0.024, 0.36), G.rect(-0.024, -0.36, 0.024, -0.09),
+                      kit.ring(0, 0, 0.19, 0.045, n=40))
+        d.path(G.inter(f(on_axis_plane(ret, fc, ax)), g), INK, 0.9)
+    render(d, [base, post] + turret + cap + tube, [dec])
 
 
 def ventilation(d):
@@ -328,32 +330,31 @@ def spall_liner(d):
 
 
 def hardening(d):
-    """Hardened armor: a thick bolted steel plate with an enemy shot stuck in it, base toward the
-    viewer, cracks radiating round the impact: the hit did not get through."""
-    W, H, T = 0.95, 1.5, 0.22
-    plate = order(solid.box(-W, 0.0, -T, W, H, T, "steel", chamfer=0.06), 0)
-    bolts = []
-    for x in (-0.78, 0.78):
-        for y in (0.18, 1.32):
-            b = order(solid.cylinder((x, y, T), (x, y, T + 0.07), 0.08, "gunmetal", n=6), 1)
-            bolts += b
-    hit = (0.28, 0.70, T)
-    ax = solid._norm((-1.0, 0.42, 0.62))
-    prof = [(0.0, 0.21, "ap"), (0.28, 0.21, "ap"), (0.28, 0.22, "copper"), (0.40, 0.22, "copper"),
-            (0.40, 0.24, "brass"), (1.08, 0.24, "brass"), (1.08, 0.28, "brass"), (1.18, 0.28, "brass"), (1.18, 0.0, "brass")]
-    shell = order(solid.revolve(prof, axis=ax, centre=hit, n=36, name="stuck"), 5)
+    """Improved hardening: a thick armour slab being work-hardened. Its top is peened with hammer
+    dimples, the cut front edge shows the bright hardened skin over the darker core, and a
+    sledgehammer rests on it, handle toward the viewer. Slab + hammer keeps it apart from the flat,
+    standing spall liner (and from the wrench, which means repair)."""
+    W, H, D = 1.0, 0.36, 0.72
+    slab = order(solid.box(-W, 0.0, -D, W, H, D, "steel", chamfer=0.07), 0)
+    head = order(solid.box(0.02, H, -0.78, 0.52, H + 0.46, 0.30, "gunmetal", chamfer=0.07), 3)
+    faces = [order(solid.box(0.06, H + 0.04, 0.30, 0.48, H + 0.42, 0.36, "steel"), 3.5)]
+    handle = order(solid.cylinder((0.18, H + 0.23, -0.20), (-1.25, H + 0.23, 1.30), 0.10, "khaki", n=16), 2)
+    grip = order(solid.cylinder((-0.95, H + 0.23, 1.00), (-1.32, H + 0.23, 1.38), 0.12, "olive", n=16), 2.5)
 
     def dec(d, f, tags):
-        face = f(front(G.rect(-W + 0.06, 0.06, W - 0.06, H - 0.06), 0, H, T))
-        c = (hit[0], H - hit[1])
-        cracks = G.union([G.R(G.poly([(0.16, -0.035), (0.62 if i % 2 else 0.46, 0.0), (0.16, 0.035)]), a, (0, 0))
-                          for i, a in enumerate((10, 70, 130, 190, 250, 310))])
-        d.engrave(G.inter(f(front(G.T(cracks, *c), 0, H, T)), face), "steel", face, depth=0.8)
-        crater = G.diff(G.circle(*c, 0.27, n=40), G.circle(*c, 0.18, n=40))
-        d.path(G.inter(f(front(crater, 0, H, T)), face), MATERIALS["steel"][2], 0.85)
-        primer = f(on_axis_plane(G.circle(0, 0, 0.08, n=16), solid._add(hit, solid._mul(ax, 1.18)), ax))
-        d.path(primer, MATERIALS["copper"][1])
-    render(d, [plate] + bolts + shell, [dec])
+        topf = tags.get("top")
+        if topf is not None:
+            # shallow peen dimples: shade-toned with a lit lower-right lip (not ink holes)
+            dimples = G.union([G.ngon(x, z, 0.085, 8, rot_deg=22.5) for x, z in
+                               ((-0.72, -0.42), (-0.42, -0.50), (-0.58, -0.14), (-0.82, 0.16), (-0.30, -0.22),
+                                (0.80, -0.42), (0.78, 0.30), (-0.62, 0.45))])
+            g = G.inter(f(top(dimples, 0, 0, H)), topf)
+            d.engrave(g, "steel", topf, depth=0.6, recess=MATERIALS["steel"][2])
+        # hardened skin: a bright band along the top of the front face, a dark seam under it
+        ff = f(front(G.rect(-W + 0.07, 0.0, W - 0.07, H), 0, H, D))
+        d.path(G.inter(f(front(G.rect(-W, 0.0, W, 0.10), 0, H, D)), ff), MATERIALS["steel"][0])
+        d.path(G.inter(f(front(G.rect(-W, 0.10, W, 0.135), 0, H, D)), ff), INK, 0.75)
+    render(d, [slab] + handle + grip + [head] + faces, [dec])
 
 
 def turbocharger(d):

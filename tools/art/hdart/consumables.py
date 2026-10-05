@@ -10,7 +10,7 @@ each in its functional material:
     engine_boost        dusk jerrycan with the pressed X panel and a spout
     combat_ration       olive tin with a bone label, plus a wrapped ration bar
     smoke               grenade canister (pin ring, lever) with a smoke cloud behind it
-    reserve_tracks      three spare track links with guide horns and steel pins
+    reserve_tracks      a spare track section bent in an arch: steel shoes, dark grouser bars, gunmetal pins
 
 `_large` variants follow one rule: two units, the second standing behind and to the left of the
 first, so "large" reads as a shape (a bigger cluster), not only as a colour or a badge.
@@ -278,23 +278,38 @@ def draw_smoke(d):
 
 
 def draw_reserve_tracks(d):
-    """A spare track section standing on end, tread side to the viewer: three steel shoes with dark
-    grouser bars, joined by hinge pins whose ends stick out at both sides (the classic stowed spare
-    track on a hull plate)."""
+    """A spare track section bent over in an arch, hinge pins toward the viewer: chunky steel shoes
+    carrying dark grouser bars on the outside, joined by gunmetal pins. The arch of hinged links
+    (the same running-gear language as the module track glyph) is what makes it a track, never a
+    stack of plates."""
+    R, n, span = 1.1, 6, 164.0
+    step = span / n
+    a0 = 90.0 - span / 2
+    half_w, th = 0.36, 0.17
     ss = []
-    W, T = 0.80, 0.16
-    ys = (0.0, 0.52, 1.04)
-    for i, y in enumerate(ys):
-        shoe = solid.box(-W, y, -T, W, y + 0.46, T, "steel", chamfer=0.03)
-        shoe.order = i * 10
-        bl = solid.box(-W + 0.06, y + 0.13, T, -0.17, y + 0.33, T + 0.14, "gunmetal")
-        br = solid.box(0.17, y + 0.13, T, W - 0.06, y + 0.33, T + 0.14, "gunmetal")
-        bl.order, br.order = i * 10 + 1, i * 10 + 1.5
-        ss += [shoe, bl, br]
-    for i, y in enumerate((0.49, 1.01)):
-        pin = solid.cylinder((-W - 0.14, y, 0.0), (W + 0.14, y, 0.0), 0.075, "gunmetal", n=14)
+
+    def P(r, deg):
+        a = math.radians(deg)
+        return (r * math.cos(a), r * math.sin(a))
+
+    for i in range(n):
+        lo, hi = a0 + i * step + 1.5, a0 + (i + 1) * step - 1.5
+        mid = (lo + hi) / 2
+        prof = [P(R - th, lo), P(R - th, mid), P(R - th, hi), P(R + th, hi), P(R + th, mid), P(R + th, lo)]
+        link = solid.extrude(prof, (0, 0, -half_w), (1, 0, 0), (0, 1, 0), (0, 0, 2 * half_w), "steel", name=f"link{i}")
+        link.order = i * 3
+        ss.append(link)
+        g0, g1 = mid - step * 0.13, mid + step * 0.13
+        gp = [P(R + th - 0.01, g0), P(R + th - 0.01, g1), P(R + th + 0.13, g1 - step * 0.04), P(R + th + 0.13, g0 + step * 0.04)]
+        bar = solid.extrude(gp, (0, 0, -half_w + 0.05), (1, 0, 0), (0, 1, 0), (0, 0, 2 * half_w - 0.10), "gunmetal",
+                            name=f"grouser{i}")
+        bar.order = i * 3 + 1
+        ss.append(bar)
+    for i in range(1, n):
+        x, y = P(R, a0 + i * step)
+        pin = solid.cylinder((x, y, -half_w - 0.08), (x, y, half_w + 0.08), 0.085, "gunmetal", n=14)
         for s_ in pin:
-            s_.order = i * 10 + 5
+            s_.order = 40 + i
         ss += pin
     draw_object(d, ss)
 

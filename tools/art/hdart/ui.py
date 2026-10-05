@@ -273,7 +273,7 @@ def module_view():
 
 
 def rotate():
-    return kit.arc_arrow(32, 33, 19, W, 150, 420, head_len=13, head_half=10)
+    return kit.arc_arrow(30.7, 34.0, 19, W, 150, 420, head_len=13, head_half=10)  # head on the right: shift left
 
 
 def zoom_in():
@@ -324,7 +324,7 @@ def unlocked():
 
 
 def check():
-    return kit.checkmark(32, 33, 44, 8)
+    return kit.checkmark(32, 29.8, 44, 8)  # optically centred (the tick's mass sits low)
 
 
 def close():
@@ -424,13 +424,18 @@ def hp():
 
 
 def damage():
-    """Damage dealt: an armour plate punched through, cracks radiating from a ragged hole."""
+    """Damage dealt: an armour plate punched through. A ragged, roughly round hole (small uneven
+    petals, never a star burst: brand-art.md 1.1) with three cracks of different lengths."""
     plate = G.cbox(8, 8, 56, 56, 8, 3, 8, 3)
-    hole = G.poly([(30, 20), (37, 24), (44, 23), (41, 31), (45, 38), (37, 39), (33, 45), (28, 39), (20, 40), (24, 32),
-                   (20, 25), (27, 26)])
-    cracks = G.union([G.R(G.poly([(13, -1.6), (27, 0), (13, 1.6)]), a, (0, 0)) for a in (-60, 25, 130, 205)])
-    cracks = G.T(cracks, 32.5, 32)
-    return G.diff(plate, hole, cracks)
+    c = (31.0, 31.5)
+    radii = (9.6, 8.4, 9.9, 9.0, 7.9, 9.4, 8.8, 10.0, 8.2, 9.2, 8.6)
+    hole = G.poly([kit.pt(*c, r, -80 + i * 360 / len(radii)) for i, r in enumerate(radii)])
+    cracks = G.union(
+        G.R(G.poly([(8.6, -1.9), (24.5, -0.2), (8.6, 1.9)]), -38, (0, 0)),
+        G.R(G.poly([(8.6, -1.7), (19.0, 0.0), (8.6, 1.7)]), 62, (0, 0)),
+        G.R(G.poly([(8.6, -1.8), (22.5, 0.2), (8.6, 1.8)]), 168, (0, 0)),
+    )
+    return G.diff(plate, hole, G.T(cracks, *c))
 
 
 def xp_bonus():

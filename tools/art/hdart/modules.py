@@ -3,13 +3,15 @@
 Modules are flat-front SYMBOLS (status glyphs, not objects), bevelled in one material per state:
 
     <id>.svg            normal     steel                      (intact / neutral)
-    <id>_damaged.svg    damaged    amber  (state.warning)  + a tapered crack chipped into the outline
+    <id>_damaged.svg    damaged    amber  (state.warning)  + a V bite chipped out of the outline where
+                                                             a crack enters (kit.chip: the notch is wider
+                                                             than two keylines, so it shows at 24 px)
     <id>_destroyed.svg  destroyed  signal (state.danger)   + the silhouette broken in two along a
-                                                             jagged break, halves pushed apart
+                                                             jagged break, halves pushed clearly apart
 
 The crack and the break are shape cues, so the three states read apart without colour. Every module
 owns a unique outline: piston (engine), shell rack (ammo_rack), hooped drum (fuel_tank), breech +
-barrel + muzzle brake (gun), internally toothed ring (turret_ring), Z periscope (optics), set +
+barrel + muzzle brake (gun), internally toothed ring (turret_ring), twin-lens vision device (optics), set +
 mast + broadcast arcs (radio), track run with grousers (track).
 """
 
@@ -171,16 +173,16 @@ def radio():
 def track():
     """Track run in side view, front to the right: a long sloped front run up to the idler and a
     blunt sprocket end, grousers on the ground run. Asymmetric, so it mirrors into left/right."""
-    outer = G.poly([(6, 27), (12, 19), (44, 19), (58, 25), (58, 29), (47, 45), (12, 45), (6, 39)])
+    outer = G.poly([(6, 25), (11, 19), (36, 19), (58, 28), (58, 32), (45, 45), (11, 45), (6, 40)])
     inner = G.shrink(outer, 5.2)
     belt = G.diff(outer, inner)
-    teeth = [G.rect(x, 44.5, x + 3.2, 48.5) for x in range(12, 46, 6)]
-    wheels = G.union([G.circle(x, 32.5, 6.0, n=48) for x in (18.5, 32.5)])
-    idler = G.circle(46.5, 31.0, 4.4, n=40)
+    teeth = [G.rect(x, 44.5, x + 3.2, 48.5) for x in range(11, 44, 6)]
+    wheels = G.union([G.circle(x, 32.5, 6.0, n=48) for x in (17.5, 31.0)])
+    idler = G.circle(43.5, 31.5, 4.4, n=40)
     sil = G.union(belt, teeth, wheels, idler)
     det = [
-        ("engrave", G.union([G.circle(x, 32.5, 2.0, n=24) for x in (18.5, 32.5)] + [G.circle(46.5, 31.0, 1.5, n=20)])),
-        ("engrave", G.union([G.rect(x + 3.9, 40.6, x + 5.1, 45) for x in range(12, 46, 6)])),
+        ("engrave", G.union([G.circle(x, 32.5, 2.0, n=24) for x in (17.5, 31.0)] + [G.circle(43.5, 31.5, 1.5, n=20)])),
+        ("engrave", G.union([G.rect(x + 3.9, 40.6, x + 5.1, 45) for x in range(11, 44, 6)])),
     ]
     return sil, det
 
@@ -203,9 +205,16 @@ CRACK = {
     "fuel_tank": ((52, 8), (12, 58)),
     "gun": ((46, 6), (22, 58)),
     "turret_ring": ((54, 8), (10, 56)),
+    "optics": ((60, 13), (32, 60)),
+    "radio": ((52, 25), (20, 60)),
+    "track": ((38, 14), (24, 52)),
+}
+
+# Destroyed-state break lines that differ from the damaged crack: the break must cut the symbol
+# roughly in half, while the damaged bite only needs a clean entry at the top-right edge.
+BREAK = {
     "optics": ((40, 6), (24, 60)),
     "radio": ((36, 12), (22, 60)),
-    "track": ((38, 14), (24, 52)),
 }
 
 NAMES = {
@@ -229,14 +238,19 @@ def draw_state_symbol(d, sil, det, state, crack, normal_mat="steel", bevel=BEV, 
     if state == "destroyed":
         pieces = kit.split(sil, crack[0], crack[1])
         shifted = G.union([G.T(r, *o) for r, o in pieces])
-        x0, y0, x1, y1 = shifted.bounds
-        if x0 < 6 or y0 < 6 or x1 > 58 or y1 > 58:
-            # the pushed-apart halves need a little more room: scale the whole symbol about its centre
-            k = min(1.0, (58 - 32) / max(32 - x0, x1 - 32, 1e-6), (58 - 32) / max(32 - y0, y1 - 32, 1e-6))
-            sc = lambda g: G.S(g, k, k, origin=(32, 32))  # noqa: E731
+        for _ in range(6):
+            x0, y0, x1, y1 = shifted.bounds
+            if x0 >= 6 and y0 >= 6 and x1 <= 58 and y1 <= 58:
+                break
+            # the pushed-apart halves need more room: scale the whole symbol about the centre of the
+            # pushed-apart bounds (the push itself does not scale, so iterate)
+            cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
+            k = min(1.0, 51.6 / (x1 - x0), 51.6 / (y1 - y0)) * 0.995
+            def sc(g, k=k, cx=cx, cy=cy):
+                return G.T(G.S(g, k, k, origin=(cx, cy)), 32 - cx, 32 - cy)
             sil = sc(sil)
             det = [(kk, sc(g)) for kk, g in det]
-            crack = tuple((32 + (p[0] - 32) * k, 32 + (p[1] - 32) * k) for p in crack)
+            crack = tuple(sc(G.Point(p)).coords[0] for p in crack)
             pieces = kit.split(sil, crack[0], crack[1])
             shifted = G.union([G.T(r, *o) for r, o in pieces])
         kit.check(shifted, "module destroyed", lo=6.0, hi=58.0)
@@ -285,6 +299,8 @@ def draw_module(d, mid: str, state: str):
         fn, crack = _mirror(track), ((26, 14), (40, 52))
     elif mid == "track_right":
         fn, crack = track, CRACK["track"]
+    if state == "destroyed" and mid in BREAK:
+        crack = BREAK[mid]
     sil, det = fn()
     draw_state_symbol(d, sil, det, state, crack)
 

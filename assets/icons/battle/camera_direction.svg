@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+<title>Minimap: camera direction cone (white, tint with ImageColor3)</title>
+<path fill="#0A0D10" fill-rule="evenodd" d="M32 33.75L53.31 3.15L53.23 3L10.77 3L10.69 3.15Z"/>
+<path fill="#FFFFFF" fill-rule="evenodd" d="M32 32L12.5 4L51.5 4Z"/>
+</svg>

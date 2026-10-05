@@ -21,7 +21,6 @@ import math
 
 from shapely import affinity
 
-from . import geom as G
 from . import kit, solid
 from .registry import add, note
 
@@ -103,9 +102,21 @@ def profile(kind: str, case_mat: str):
 
 
 def scene(kind: str, special: bool):
+    """The case and the projectile are separate solids, so the projectile gets its own ink separation
+    line at the case mouth: the gold case of a special round never merges with a yellow (HE) or
+    orange (AP) body."""
     sc = solid.Scene()
     prof = profile(kind, "gold" if special else CASE_STD)
-    sc.add(solid.revolve(prof, n=36, name=kind, theta0=0.0))
+    nc = len(_case(CASE_STD))
+    case = prof[:nc] + [(prof[nc - 1][0], 0.0, prof[nc - 1][2])]
+    proj = prof[nc:]
+    cs = solid.revolve(case, n=36, name=kind + ":case", theta0=0.0)
+    ps = solid.revolve(proj, n=36, name=kind, theta0=0.0)
+    for s_ in cs:
+        s_.order = (s_.order or 0) - 100 if s_.order is not None else -100 + solid.depth(s_.centre)
+    for s_ in ps:
+        s_.sep = 0.8
+    sc.add(cs, ps)
     return sc
 
 

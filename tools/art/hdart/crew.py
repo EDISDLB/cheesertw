@@ -2,7 +2,8 @@
 
 Abstract pictograms, never faces: the padded tanker helmet of the Crew XP currency (olive, ribbed,
 bone goggles) sits lower-left, and the ROLE TOOL rises behind it upper-right, separated by an ink gap.
-The tool is the identifier, so each role owns a distinct outline:
+The tool is the identifier, so it gets the bigger share of the canvas (HELMET_K / TOOL_K) and each
+role owns a distinct outline:
 
     commander       command pennant (swallowtail) on a staff
     gunner          crosshair reticle: thin ring, four long protruding ticks, centre dot
@@ -21,6 +22,9 @@ from . import geom as G
 from . import kit
 from .registry import add, note
 from .tokens import INK
+
+HELMET_K = 0.86  # helmet scale about its bottom-left anchor
+TOOL_K = 1.24  # role-tool scale about its top-right anchor
 
 ROLES = ["commander", "gunner", "driver", "loader", "radio_operator"]
 NAMES = {"commander": "Commander", "gunner": "Gunner", "driver": "Driver", "loader": "Loader",
@@ -78,6 +82,12 @@ def tool(role: str):
 def draw_crew(d, role: str, injured: bool = False):
     helmet, ribs, gog = _helmet()
     tsil, tdet = tool(role)
+    # the role tool is the identifier: give it more of the canvas than the shared helmet, so it still
+    # reads at 16-24 px (helmet anchored bottom-left, tool anchored top-right)
+    hs = lambda g: G.S(g, HELMET_K, HELMET_K, origin=(6.5, 57.5))  # noqa: E731
+    ts = lambda g: G.S(g, TOOL_K, TOOL_K, origin=(58.0, 5.5))  # noqa: E731
+    helmet, ribs, gog = hs(helmet), hs(ribs), hs(gog)
+    tsil, tdet = ts(tsil), ts(tdet)
     _, helmet, ribs, gog, tsil, tdet = kit.shrink_to(G.union(helmet, tsil), helmet, ribs, gog, tsil, tdet)
     kit.check(G.union(helmet, tsil), f"crew {role}")
     hmat = "signal" if injured else "olive"

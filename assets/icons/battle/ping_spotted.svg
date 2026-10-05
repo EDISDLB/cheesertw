@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+<title>Minimap: ping spotted (white, tint with ImageColor3)</title>
+<path fill="#0A0D10" fill-rule="evenodd" d="M8.84 18.29L10.28 23.1L13.72 23.1L15.16 18.29L15.68 18.29L20.89 13.08L20.89 5.72L15.68 0.51L8.32 0.51L3.11 5.72L3.11 13.08L8.32 18.29Z"/>
+<path fill="#FFFFFF" fill-rule="evenodd" d="M19.39 12.46L19.39 6.34L15.06 2.01L8.94 2.01L4.61 6.34L4.61 12.46L8.94 16.79L9.96 16.79L11.4 21.6L12.6 21.6L14.04 16.79L15.06 16.79ZM12.8 5.5L16.6 9.9L16.6 12.5L12.8 8.1L11.2 8.1L7.4 12.5L7.4 9.9L11.2 5.5Z"/>
+</svg>

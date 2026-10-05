@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
 <title>UI: check (white, tint with ImageColor3)</title>
-<path fill="#0A0D10" fill-rule="evenodd" d="M25.05 56.79L59.66 22.19L51.17 13.7L24.87 40.01L12.7 28.38L4.41 37.06Z"/>
-<path fill="#FFFFFF" fill-rule="evenodd" d="M25.02 53.99L56.83 22.19L51.17 16.53L24.9 42.81L12.76 31.21L7.24 36.99Z"/>
+<path fill="#0A0D10" fill-rule="evenodd" d="M25.05 53.59L59.66 18.99L51.17 10.5L24.87 36.81L12.7 25.18L4.41 33.86Z"/>
+<path fill="#FFFFFF" fill-rule="evenodd" d="M25.02 50.79L56.83 18.99L51.17 13.33L24.9 39.61L12.76 28.01L7.24 33.79Z"/>
 </svg>

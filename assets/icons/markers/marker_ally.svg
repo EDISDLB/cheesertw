@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 48" width="128" height="48">
+<title>Vehicle marker frame: ally (white, tint with ImageColor3)</title>
+<path fill="#0A0D10" fill-opacity="0.550" fill-rule="evenodd" d="M4 12L11 5L124 5L124 33L117 40L4 40Z"/>
+<path fill="#0A0D10" fill-opacity="0.750" fill-rule="evenodd" d="M118 29L37 29L37 34L118 34Z"/>
+<path fill="#0A0D10" fill-rule="evenodd" d="M121.6 37.6L121.6 25.4L33.4 25.4L33.4 37.6ZM38.6 30.6L116.4 30.6L116.4 32.4L38.6 32.4ZM33.4 9.8L118.6 9.8L118.6 3.4L33.4 3.4ZM32.6 27.66L32.6 6.4L11.34 6.4L5.4 12.34L5.4 33.6L26.66 33.6ZM25.9 24.44L23.44 26.9L12.1 26.9L12.1 15.56L14.56 13.1L25.9 13.1Z"/>
+<path fill="#FFFFFF" fill-rule="evenodd" d="M35 8.2L117 8.2L117 5L35 5ZM31 27L31 8L12 8L7 13L7 32L26 32ZM27.5 25.1L24.1 28.5L10.5 28.5L10.5 14.9L13.9 11.5L27.5 11.5ZM120 36L120 27L35 27L35 36ZM37 29L118 29L118 34L37 34Z"/>
+</svg>

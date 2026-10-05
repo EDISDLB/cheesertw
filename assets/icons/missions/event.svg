@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+<title>Missions: event</title>
+<defs><linearGradient id="g1" gradientUnits="userSpaceOnUse" x1="0.00" y1="12.00" x2="0.00" y2="57.00"><stop offset="0.000" stop-color="#AAB6C0"/><stop offset="1.000" stop-color="#8E9BA7"/></linearGradient><linearGradient id="g2" gradientUnits="userSpaceOnUse" x1="0.00" y1="7.00" x2="0.00" y2="13.00"><stop offset="0.000" stop-color="#DDB35D"/><stop offset="1.000" stop-color="#C59942"/></linearGradient><linearGradient id="g3" gradientUnits="userSpaceOnUse" x1="0.00" y1="13.00" x2="0.00" y2="36.00"><stop offset="0.000" stop-color="#FF8944"/><stop offset="1.000" stop-color="#F27129"/></linearGradient><linearGradient id="g4" gradientUnits="userSpaceOnUse" x1="0.00" y1="22.60" x2="0.00" y2="26.40"><stop offset="0.000" stop-color="#E9E0C7"/><stop offset="1.000" stop-color="#D7CCAE"/></linearGradient></defs>
+<path fill="#0A0D10" fill-rule="evenodd" d="M25 8.17L21.83 5L15.17 5L12 8.17L12 15L14 15L14 59L23 59L23 38L58.48 38L58.72 37.5L48.54 24.5L58.72 11.5L58.48 11L25 11Z"/>
+<path fill="#E2E9EF" fill-rule="evenodd" d="M16 12L16 57L17.2 55.8L17.2 13.2L19.8 13.2L21 12Z"/>
+<path fill="#596673" fill-rule="evenodd" d="M19.8 55.8L17.2 55.8L16 57L21 57L21 12L19.8 13.2Z"/>
+<path fill="url(#g1)" fill-rule="evenodd" d="M19.8 13.2L17.2 13.2L17.2 55.8L19.8 55.8Z"/>
+<path fill="#FFE6A0" fill-rule="evenodd" d="M16 7L14 9L14 13L15 12L15 9.41L16.41 8L20.59 8L21 7Z"/>
+<path fill="#D3A54A" fill-rule="evenodd" d="M20.59 8L22 9.41L23 9L21 7Z"/>
+<path fill="#86641F" fill-rule="evenodd" d="M22 12L15 12L14 13L23 13L23 9L22 9.41Z"/>
+<path fill="url(#g2)" fill-rule="evenodd" d="M15 9.41L15 12L22 12L22 9.41L20.59 8L16.41 8Z"/>
+<path fill="#FFC08F" fill-rule="evenodd" d="M21 13L21 36L22.6 34.4L22.6 14.6L51.72 14.6L55 13Z"/>
+<path fill="#FF7A2F" fill-rule="evenodd" d="M43.97 24.5L51.72 34.4L55 36L46 24.5Z"/>
+<path fill="#B8460F" fill-rule="evenodd" d="M46 24.5L55 13L51.72 14.6L43.97 24.5ZM21 36L55 36L51.72 34.4L22.6 34.4Z"/>
+<path fill="url(#g3)" fill-rule="evenodd" d="M22.6 14.6L22.6 34.4L51.72 34.4L43.97 24.5L51.72 14.6Z"/>
+<path fill="#0A0D10" fill-opacity="0.550" fill-rule="evenodd" d="M43 23.3L43 26.4L23.2 26.4L23.2 27.1L43.6 27.1L43.6 23.3Z"/>
+<path fill="#FFFBF0" fill-rule="evenodd" d="M22.6 22.6L22.6 26.4L23.2 25.8L23.2 23.2L42.4 23.2L43 22.6Z"/>
+<path fill="#A3936D" fill-rule="evenodd" d="M42.4 25.8L23.2 25.8L22.6 26.4L43 26.4L43 22.6L42.4 23.2Z"/>
+<path fill="url(#g4)" fill-rule="evenodd" d="M42.4 25.8L42.4 23.2L23.2 23.2L23.2 25.8Z"/>
+</svg>
