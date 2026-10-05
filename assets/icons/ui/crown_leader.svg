@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+<title>UI: crown leader (white, tint with ImageColor3)</title>
+<path fill="#0A0D10" fill-rule="evenodd" d="M7 16.5L7 51.83L11.17 56L52.83 56L57 51.83L57 16.5L56.06 16.11L44.31 27.86L32 9.39L19.69 27.86L7.94 16.11Z"/>
+<path fill="#FFFFFF" fill-rule="evenodd" d="M12 54L52 54L55 51L55 42.3L9 42.3L9 51ZM55 20L44 31L32 13L20 31L9 20L9 39.5L55 39.5Z"/>
+</svg>

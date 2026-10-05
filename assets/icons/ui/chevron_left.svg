@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+<title>UI: chevron left (white, tint with ImageColor3)</title>
+<path fill="#0A0D10" fill-rule="evenodd" d="M30.97 32L47.5 17.12L39.47 8.2L13.03 32L39.47 55.8L47.5 46.88Z"/>
+<path fill="#FFFFFF" fill-rule="evenodd" d="M27.98 32L44.68 16.97L39.32 11.03L16.02 32L39.32 52.97L44.68 47.03Z"/>
+</svg>

@@ -30,7 +30,7 @@ from PIL import Image, ImageDraw, ImageFont
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
 sys.path.insert(0, HERE)
-from hdart.tokens import TEAM_CVD, hexrgb  # noqa: E402  (pure data module, no shapely needed)
+from hdart.tokens import TEAM_CVD, UI, hexrgb  # noqa: E402  (pure data module, no shapely needed)
 ICON_SIZES = (64, 128, 256)
 BRAND_SIZES = (64, 128, 256, 512, 1024)
 LEGIBILITY_SIZES = (48, 32, 24, 16)
@@ -45,6 +45,11 @@ SHEET_TITLE_DARK = (233, 223, 198)
 # Preview tints: default ally/enemy/platoon, then the deuteranopia scheme's ally/enemy/platoon.
 TINTS = {f"{scheme}:{role}": hexrgb(TEAM_CVD[scheme][role]) for scheme in ("default", "deuteranopia")
          for role in ("ally", "enemy", "platoon")}
+# White UI / HUD glyphs (title says "tint") preview with typical UI tints instead of team colours.
+UI_TINTS = {t: hexrgb(UI[t]) for t in ("text.secondary", "accent.dusk", "state.success", "state.warning",
+                                        "state.danger", "state.info")}
+TEAM_TINT_GROUPS = {"minimap", "battle", "markers"}
+PAGE = 18  # assets per paged review sheet (6 columns x 3 rows)
 
 
 @dataclass
@@ -54,6 +59,7 @@ class Asset:
     group: str
     width: float
     height: float
+    tint: bool = False  # white art meant for ImageColor3 (the <title> says so)
 
 
 def find_font(size: int):
@@ -67,13 +73,15 @@ def find_font(size: int):
     return ImageFont.load_default()
 
 
-def svg_size(path: str) -> tuple[float, float]:
+def svg_size(path: str) -> tuple[float, float, bool]:
     with open(path, encoding="utf-8") as fh:
-        head = fh.read(600)
+        head = fh.read(800)
     m = re.search(r'viewBox="([-\d.]+)\s+([-\d.]+)\s+([\d.]+)\s+([\d.]+)"', head)
     if not m:
         raise ValueError(f"{path}: missing viewBox")
-    return float(m.group(3)), float(m.group(4))
+    t = re.search(r"<title>(.*?)</title>", head)
+    tint = bool(t and "tint" in t.group(1).lower())
+    return float(m.group(3)), float(m.group(4)), tint
 
 
 def group_of(rel: str) -> str:
@@ -91,8 +99,8 @@ def collect(assets_dir: str) -> list[Asset]:
                 continue
             p = os.path.join(dirpath, fn)
             rel = os.path.relpath(p, assets_dir)[:-4].replace(os.sep, "/")
-            w, h = svg_size(p)
-            out.append(Asset(p, rel, group_of(rel), w, h))
+            w, h, tint = svg_size(p)
+            out.append(Asset(p, rel, group_of(rel), w, h, tint))
     out.sort(key=lambda a: a.rel)
     return out
 
@@ -129,18 +137,31 @@ def write_pngs(assets: list[Asset], out_dir: str) -> int:
 # ---------------------------------------------------------------------------
 # Contact sheets
 # ---------------------------------------------------------------------------
-def _panel_icons(assets: list[Asset], bg, fg, title: str, minimap: bool) -> Image.Image:
-    big = 128
+def _tints_for(a: Asset):
+    if not a.tint:
+        return None
+    return TINTS if a.group in TEAM_TINT_GROUPS else UI_TINTS
+
+
+def _panel_icons(assets: list[Asset], bg, fg, title: str, minimap: bool = False) -> Image.Image:
+    """One panel: each asset at review size (128 px longest edge, 192 for wide assets), then true
+    48/32/24/16 px renders (wide assets: 128/96/64 px wide), then tinted 24 px renders for white
+    tintable art."""
     font = find_font(13)
     tfont = find_font(18)
-    small_w = sum(LEGIBILITY_SIZES) + 6 * (len(LEGIBILITY_SIZES) - 1)
+    any_tint = any(a.tint for a in assets) or minimap
+    wide = any(a.width > a.height * 1.6 for a in assets)
+    big = 192 if wide else 128
+    sizes = (128, 96, 64) if wide else LEGIBILITY_SIZES
+    small_w = sum(sizes) + 6 * (len(sizes) - 1)
+    small_h = max(round(s * min(1.0, a.height / a.width)) for s in sizes for a in assets)
+    big_h = max(round(big * min(1.0, a.height / a.width)) for a in assets)
     cell_w = max(big, small_w) + 24
-    cell_h = big + 12 + max(LEGIBILITY_SIZES) + 12 + 18
-    if minimap:
+    cell_h = big_h + 12 + small_h + 12 + 18
+    if any_tint:
         cell_h += 24 + 8
-    if minimap:
         cell_w = max(cell_w, 6 * 27 + 8 + 24)
-    cols = min(len(assets), 6 if not minimap else 5)
+    cols = min(len(assets), 6 if not wide else 3)
     rows = (len(assets) + cols - 1) // cols
     W = cols * cell_w + 24
     H = rows * cell_h + 50
@@ -151,20 +172,25 @@ def _panel_icons(assets: list[Asset], bg, fg, title: str, minimap: bool) -> Imag
         cx = 12 + (i % cols) * cell_w + 12
         cy = 44 + (i // cols) * cell_h
         im = render(a, big)
-        img.alpha_composite(im, (cx + (cell_w - 24 - im.width) // 2, cy + (big - im.height) // 2))
+        img.alpha_composite(im, (cx + (cell_w - 24 - im.width) // 2, cy + (big_h - im.height) // 2))
         x = cx + (cell_w - 24 - small_w) // 2
-        y = cy + big + 12
-        for s in LEGIBILITY_SIZES:
+        y = cy + big_h + 12
+        for s in sizes:
             sm = render(a, s)
-            img.alpha_composite(sm, (x, y + (max(LEGIBILITY_SIZES) - sm.height)))
+            img.alpha_composite(sm, (x, y + (small_h - sm.height)))
             x += s + 6
-        y += max(LEGIBILITY_SIZES) + 6
-        if minimap:
-            x = cx + (cell_w - 24 - (len(TINTS) * 27 + 8)) // 2
-            for i, rgb in enumerate(TINTS.values()):
-                sm = tint(render(a, 24), rgb)
-                img.alpha_composite(sm, (x, y))
-                x += 27 + (8 if i == 2 else 0)
+        y += small_h + 6
+        tints = TINTS if (minimap and not a.tint) else _tints_for(a)
+        if any_tint:
+            if tints:
+                n = len(tints)
+                x = cx + (cell_w - 24 - (n * 27 + 8)) // 2
+                for j, rgb in enumerate(tints.values()):
+                    sm = tint(render(a, 24 if not wide else 48), rgb)
+                    if wide:
+                        sm = sm.resize((sm.width // 2, sm.height // 2), Image.LANCZOS)
+                    img.alpha_composite(sm, (x, y))
+                    x += 27 + (8 if j == 2 else 0)
             y += 24 + 8
         label = a.rel.split("/")[-1]
         tw = dr.textlength(label, font=font)
@@ -195,12 +221,13 @@ def _panel_brand(assets: list[Asset], bg, fg, title: str) -> Image.Image:
     return img
 
 
-def contact_sheet(group: str, assets: list[Asset], out_dir: str) -> str:
+def contact_sheet(group: str, assets: list[Asset], out_dir: str, suffix: str = "", page_note: str = "") -> str:
     minimap = group == "minimap"
     panels = []
     for bg, fg, tag in ((DARK_BG, DARK_FG, "dark"), (LIGHT_BG, LIGHT_FG, "light")):
-        title = f"HULLDOWN / {group} / on {tag}: review size, true 48/32/24/16 px"
-        title += ", tinted 24 px (default / deutan)" if minimap else ""
+        title = f"HULLDOWN / {group}{page_note} / on {tag}: review size, true px"
+        if any(a.tint for a in assets) or minimap:
+            title += ", tinted 24 px"
         if group == "brand":
             panels.append(_panel_brand(assets, bg, fg, title))
         else:
@@ -215,18 +242,32 @@ def contact_sheet(group: str, assets: list[Asset], out_dir: str) -> str:
         sheet.alpha_composite(band, (0, y))
         sheet.alpha_composite(p, (0, y))
         y += p.height
-    dst = os.path.join(out_dir, f"contact_sheet_{group}.png")
+    dst = os.path.join(out_dir, f"contact_sheet_{group}{suffix}.png")
     sheet.convert("RGB").save(dst)
     return dst
+
+
+def sheets_for(group: str, assets: list[Asset], out_dir: str, page: int = PAGE) -> list[str]:
+    """Full sheet for the group, plus paged sheets (contact_sheet_<group>_pN.png) for big groups so
+    every page can be reviewed at 1:1 on one screen."""
+    out = [contact_sheet(group, assets, out_dir)]
+    if group != "brand" and len(assets) > page:
+        n = (len(assets) + page - 1) // page
+        for i in range(n):
+            chunk = assets[i * page:(i + 1) * page]
+            out.append(contact_sheet(group, chunk, out_dir, suffix=f"_p{i + 1}", page_note=f" (page {i + 1}/{n})"))
+    return out
 
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--assets", default=os.path.join(ROOT, "assets"))
     ap.add_argument("--out", default=os.path.join(ROOT, "build", "png"))
-    ap.add_argument("--only", help="render a single group (brand, factions, classes, minimap, tiers, ranks, currency)")
+    ap.add_argument("--only", help="render a single group (brand, factions, classes, minimap, tiers, ranks, currency, ammo, "
+                         "modules, crew, consumables, equipment, ui, battle, achievements, missions, markers)")
     ap.add_argument("--no-sheets", action="store_true")
     ap.add_argument("--sheets-only", action="store_true")
+    ap.add_argument("--page", type=int, default=PAGE, help="assets per paged review sheet (default %(default)s)")
     args = ap.parse_args(argv)
 
     assets = collect(args.assets)
@@ -244,7 +285,8 @@ def main(argv=None) -> int:
         for a in assets:
             groups.setdefault(a.group, []).append(a)
         for g, lst in groups.items():
-            print("sheet:", os.path.relpath(contact_sheet(g, lst, args.out), ROOT))
+            for pth in sheets_for(g, lst, args.out, args.page):
+                print("sheet:", os.path.relpath(pth, ROOT))
     return 0
 
 

@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+<title>UI: download (white, tint with ImageColor3)</title>
+<path fill="#0A0D10" fill-rule="evenodd" d="M60 60L60 38L50 38L50 50L14 50L14 38L4 38L4 60ZM25.5 4L25.5 24L12.5 24L12.11 24.94L32 44.83L51.89 24.94L51.5 24L38.5 24L38.5 4Z"/>
+<path fill="#FFFFFF" fill-rule="evenodd" d="M27.5 6L27.5 26L16 26L32 42L48 26L36.5 26L36.5 6ZM58 58L58 40L52 40L52 52L12 52L12 40L6 40L6 58Z"/>
+</svg>

@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+<title>UI: garage (white, tint with ImageColor3)</title>
+<path fill="#0A0D10" fill-rule="evenodd" d="M49 28.64L49 58L59 58L59 23.36L32 4.95L5 23.36L5 58L15 58L15 28.64L32 17.05ZM18 31L18 58L46 58L46 31Z"/>
+<path fill="#FFFFFF" fill-rule="evenodd" d="M51 27.59L51 56L57 56L57 24.41L32 7.37L7 24.41L7 56L13 56L13 27.59L32 14.63ZM44 37.2L44 33L20 33L20 37.2ZM44 40.5L20 40.5L20 44.7L44 44.7ZM20 48L20 56L44 56L44 48Z"/>
+</svg>

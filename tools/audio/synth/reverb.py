@@ -5,7 +5,8 @@ discrete early reflections and - for outdoor spaces - discrete, progressively da
 more diffuse echoes.  All IRs are unit-energy so ``wet`` is a predictable send level.
 
 Available spaces (see :data:`SPACES`): ``small_room``, ``tank_interior``, ``hangar``,
-``outdoor_slapback``, ``valley_echo``, ``forest`` (soft diffuse outdoor), ``stone_hall``.
+``outdoor_slapback``, ``valley_echo``, ``forest`` (soft diffuse outdoor), ``stone_hall``, and for
+music ``scoring_stage`` (2.2 s, warm) and ``cathedral`` (4.8 s, dark).
 """
 
 from __future__ import annotations
@@ -99,6 +100,17 @@ def impulse_response(space: str, rng: np.random.Generator, sr: int = SR, stereo:
         early = [(0.013, 0.5), (0.027, 0.42), (0.041, 0.35), (0.058, 0.3)]
         bands = [(20, 400, 2.6), (400, 2000, 2.2), (2000, 8000, 1.4), (8000, 24000, 0.6)]
         return _build(rng, sr, 3.0, early, bands, 1.2, 0.02, predelay=0.008, onset=0.04)
+    if space == "scoring_stage":
+        # large wood-panelled scoring stage: dense, smooth, warm 2.2 s tail with a soft build-up
+        early = [(0.011, 0.42), (0.017, 0.36), (0.023, 0.33), (0.031, 0.3), (0.037, 0.26), (0.046, 0.22),
+                 (0.054, 0.2), (0.063, 0.17)]
+        bands = [(20, 250, 2.5), (250, 1000, 2.2), (1000, 4000, 1.8), (4000, 10000, 1.2), (10000, 24000, 0.6)]
+        return _build(rng, sr, 3.2, early, bands, 1.0, 0.02, predelay=0.014, onset=0.07)
+    if space == "cathedral":
+        # stone nave: long, darker 4.8 s tail with late early reflections
+        early = [(0.029, 0.4), (0.047, 0.36), (0.068, 0.3), (0.089, 0.26), (0.117, 0.22), (0.149, 0.18)]
+        bands = [(20, 250, 5.2), (250, 1000, 4.6), (1000, 4000, 3.4), (4000, 10000, 2.0), (10000, 24000, 0.9)]
+        return _build(rng, sr, 6.5, early, bands, 1.1, 0.03, predelay=0.022, onset=0.12)
     if space == "outdoor_slapback":
         echoes = [(0.085, 0.42, 6000, 0.006), (0.142, 0.3, 4200, 0.012), (0.214, 0.22, 3000, 0.02), (0.331, 0.14, 2000, 0.035)]
         bands = [(20, 500, 1.3), (500, 2000, 0.9), (2000, 24000, 0.45)]
@@ -117,7 +129,8 @@ def impulse_response(space: str, rng: np.random.Generator, sr: int = SR, stereo:
     raise ValueError(f"unknown space {space!r}")
 
 
-SPACES = ("small_room", "tank_interior", "hangar", "stone_hall", "outdoor_slapback", "valley_echo", "forest")
+SPACES = ("small_room", "tank_interior", "hangar", "stone_hall", "outdoor_slapback", "valley_echo", "forest",
+          "scoring_stage", "cathedral")
 
 
 def convolve(x: np.ndarray, ir: np.ndarray, wet: float = 0.3, dry: float = 1.0, predelay: float = 0.0,

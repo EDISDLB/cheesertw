@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+<title>UI: menu (white, tint with ImageColor3)</title>
+<path fill="#0A0D10" fill-rule="evenodd" d="M8 11L8 21.5L56 21.5L56 11ZM8 37.25L56 37.25L56 26.75L8 26.75ZM8 53L56 53L56 42.5L8 42.5Z"/>
+<path fill="#FFFFFF" fill-rule="evenodd" d="M10 13L10 19.5L54 19.5L54 13ZM10 35.25L54 35.25L54 28.75L10 28.75ZM10 51L54 51L54 44.5L10 44.5Z"/>
+</svg>

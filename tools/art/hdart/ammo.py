@@ -28,7 +28,8 @@ from .registry import add, note
 TYPES = ["ap", "apcr", "he", "heat", "hesh"]
 NAMES = {"ap": "AP (armor-piercing)", "apcr": "APCR (sub-calibre composite)", "he": "HE (high-explosive)",
          "heat": "HEAT (shaped charge)", "hesh": "HESH (squash head)"}
-CASE_TOP = 1.55
+CASE_TOP = 1.25
+CASE_STD = "gunmetal"
 
 
 def _ogive(s0, length, r0, r_end=0.0, steps=14):
@@ -51,9 +52,14 @@ def _ogive(s0, length, r0, r_end=0.0, steps=14):
 def _case(mat):
     """Cartridge case: rim, extractor groove, slightly tapered body, mouth. Returns profile points."""
     return [
-        (0.00, 1.20, mat), (0.15, 1.20, mat), (0.15, 1.05, mat), (0.26, 1.05, mat), (0.26, 1.15, mat),
-        (CASE_TOP, 1.10, mat),
+        (0.00, 1.16, mat), (0.12, 1.16, mat), (0.12, 0.98, mat), (0.21, 0.98, mat), (0.21, 1.08, mat),
+        (CASE_TOP, 1.05, mat),
     ]
+
+
+def _band(s):
+    """Copper driving band just above the case mouth."""
+    return [(s, 1.0, "copper"), (s, 1.03, "copper"), (s + 0.19, 1.03, "copper"), (s + 0.19, 1.0, "copper")]
 
 
 def profile(kind: str, case_mat: str):
@@ -61,37 +67,36 @@ def profile(kind: str, case_mat: str):
     s = CASE_TOP
     if kind == "ap":
         paint = "ap"
-        p += [(s, 1.0, "copper"), (s + 0.22, 1.0, "copper"), (s + 0.22, 1.0, paint), (s + 0.80, 1.0, paint)]
-        p += [(ss, rr, paint) for ss, rr in _ogive(s + 0.80, 2.45, 1.0)]
+        p += _band(s) + [(s + 0.19, 1.0, paint), (s + 1.05, 1.0, paint)]
+        p += [(ss, rr, paint) for ss, rr in _ogive(s + 1.05, 2.55, 1.0, steps=16)]
     elif kind == "apcr":
         sab = "gunmetal"
-        p += [(s, 1.0, sab), (s + 0.55, 1.0, sab), (s + 0.55, 1.03, "copper"), (s + 0.72, 1.03, "copper"),
-              (s + 0.72, 0.98, sab), (s + 1.05, 0.62, sab), (s + 1.05, 0.42, "apcr"), (s + 2.85, 0.42, "apcr")]
-        p += [(ss, rr, "apcr") for ss, rr in _ogive(s + 2.85, 0.75, 0.42, steps=8)]
+        p += [(s, 1.0, sab), (s + 0.12, 1.0, sab)] + _band(s + 0.12)[1:3] + [(s + 0.31, 1.0, sab), (s + 0.62, 1.0, sab),
+              (s + 0.98, 0.56, sab), (s + 0.98, 0.43, "apcr"), (s + 3.05, 0.43, "apcr")]
+        p += [(ss, rr, "apcr") for ss, rr in _ogive(s + 3.05, 0.78, 0.43, steps=8)]
     elif kind == "he":
         paint = "he"
-        p += [(s, 1.0, "copper"), (s + 0.22, 1.0, "copper"), (s + 0.22, 1.0, paint), (s + 0.65, 1.0, paint)]
-        og = _ogive(s + 0.65, 1.75, 1.0, r_end=0.46)
+        p += _band(s) + [(s + 0.19, 1.0, paint), (s + 1.0, 1.0, paint)]
+        og = _ogive(s + 1.0, 2.2, 1.0, r_end=0.31, steps=14)
         p += [(ss, rr, paint) for ss, rr in og]
         top = og[-1][0]
-        # fuze: steel body, ring, short cone, flat nub
-        p += [(top, 0.40, "steel"), (top + 0.42, 0.40, "steel"), (top + 0.42, 0.33, "steel"), (top + 0.66, 0.20, "steel")]
+        # point-detonating fuze: steel body, then a short cone to a flat nub
+        p += [(top, 0.29, "steel"), (top + 0.30, 0.29, "steel"), (top + 0.52, 0.13, "steel")]
     elif kind == "heat":
         paint = "heat"
-        p += [(s, 1.0, "copper"), (s + 0.22, 1.0, "copper"), (s + 0.22, 1.0, paint), (s + 0.70, 1.0, paint),
-              (s + 1.55, 0.30, paint), (s + 1.55, 0.17, "steel"), (s + 2.85, 0.17, "steel"), (s + 2.85, 0.30, "steel"),
-              (s + 3.08, 0.30, "steel"), (s + 3.20, 0.16, "steel")]
+        p += _band(s) + [(s + 0.19, 1.0, paint), (s + 0.80, 1.0, paint), (s + 1.85, 0.33, paint),
+                          (s + 1.85, 0.17, "steel"), (s + 3.35, 0.17, "steel"), (s + 3.35, 0.31, "steel"),
+                          (s + 3.55, 0.31, "steel"), (s + 3.70, 0.12, "steel")]
     elif kind == "hesh":
-        p += [(s, 1.0, "copper"), (s + 0.22, 1.0, "copper"), (s + 0.22, 1.0, "olive"), (s + 0.55, 1.0, "olive"),
-              (s + 0.55, 1.0, "he"), (s + 0.80, 1.0, "he"), (s + 0.80, 1.0, "olive")]
-        L = 1.05
-        for i in range(1, 13):
-            x = L * i / 12
-            r = math.sqrt(max(1 - (x / L) ** 2, 0.0)) * 1.0
-            p.append((s + 0.80 + x, max(r, 0.0), "olive"))
+        p += _band(s) + [(s + 0.19, 1.0, "olive"), (s + 0.55, 1.0, "olive"), (s + 0.55, 1.0, "he"),
+                          (s + 0.78, 1.0, "he"), (s + 0.78, 1.0, "olive"), (s + 0.98, 1.0, "olive")]
+        L = 1.15
+        for i in range(1, 15):
+            x = L * i / 14
+            r = math.sqrt(max(1 - (x / L) ** 2, 0.0))
+            p.append((s + 0.98 + x, max(r, 0.0), "olive"))
     else:
         raise KeyError(kind)
-    # close the tip (r=0) if the profile ends open
     if p[-1][1] > 1e-6:
         p.append((p[-1][0], 0.0, p[-1][2]))
     return p
@@ -99,8 +104,8 @@ def profile(kind: str, case_mat: str):
 
 def scene(kind: str, special: bool):
     sc = solid.Scene()
-    prof = profile(kind, "gold" if special else "steel")
-    sc.add(solid.revolve(prof, n=48, name=kind, theta0=0.0))
+    prof = profile(kind, "gold" if special else CASE_STD)
+    sc.add(solid.revolve(prof, n=36, name=kind, theta0=0.0))
     return sc
 
 

@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+<title>UI: gift (white, tint with ImageColor3)</title>
+<path fill="#0A0D10" fill-rule="evenodd" d="M9 31L9 59L31.5 59L31.5 23L32.5 23L32.5 59L55 59L55 31L58 31L58 19L47.83 19L52.83 14L45.06 6.23L32 18.28L18.94 6.23L11.17 14L16.17 19L6 19L6 31Z"/>
+<path fill="#FFFFFF" fill-rule="evenodd" d="M21 21L8 21L8 29L29.5 29L29.5 21L32 21L19 9L14 14ZM32 21L34.5 21L34.5 29L56 29L56 21L43 21L50 14L45 9ZM11 31.4L11 57L29.5 57L29.5 31.4ZM34.5 57L53 57L53 31.4L34.5 31.4Z"/>
+</svg>

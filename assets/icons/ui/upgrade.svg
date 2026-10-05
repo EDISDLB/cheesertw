@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+<title>UI: upgrade (white, tint with ImageColor3)</title>
+<path fill="#0A0D10" fill-rule="evenodd" d="M10 48L10 59L54 59L54 48L39.5 48L39.5 26L54.52 26L54.96 24.86L32 4.32L9.04 24.86L9.48 26L24.5 26L24.5 48Z"/>
+<path fill="#FFFFFF" fill-rule="evenodd" d="M32 7L13 24L26.5 24L26.5 46L37.5 46L37.5 24L51 24ZM12 50L12 57L52 57L52 50Z"/>
+</svg>

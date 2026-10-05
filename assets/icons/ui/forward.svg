@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+<title>UI: forward (white, tint with ImageColor3)</title>
+<path fill="#0A0D10" fill-rule="evenodd" d="M8 26.5L8 37.5L35 37.5L35 50.49L35.71 50.81L57.02 32L35.71 13.19L35 13.51L35 26.5Z"/>
+<path fill="#FFFFFF" fill-rule="evenodd" d="M10 28.5L10 35.5L37 35.5L37 47L54 32L37 17L37 28.5Z"/>
+</svg>

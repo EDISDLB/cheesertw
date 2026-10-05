@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+<title>UI: error (white, tint with ImageColor3)</title>
+<path fill="#0A0D10" fill-rule="evenodd" d="M21.03 5.52L5.52 21.03L5.52 42.97L21.03 58.48L42.97 58.48L58.48 42.97L58.48 21.03L42.97 5.52ZM30.72 17L33.28 17L32.31 34L31.69 34ZM33 43L33 46L31 46L31 43Z"/>
+<path fill="#FFFFFF" fill-rule="evenodd" d="M21.86 7.52L7.52 21.86L7.52 42.14L21.86 56.48L42.14 56.48L56.48 42.14L56.48 21.86L42.14 7.52ZM28.6 15L35.4 15L34.2 36L29.8 36ZM35 41L35 48L29 48L29 41Z"/>
+</svg>

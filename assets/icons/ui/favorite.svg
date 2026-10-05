@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+<title>UI: favorite (white, tint with ImageColor3)</title>
+<path fill="#0A0D10" fill-rule="evenodd" d="M13 60.47L13.46 60.7L32 46.52L50.54 60.7L51 60.47L51 5L13 5ZM41 15L41 41.1L32 34.06L23 41.1L23 15Z"/>
+<path fill="#FFFFFF" fill-rule="evenodd" d="M15 57L32 44L49 57L49 7L15 7ZM43 13L43 45.2L32 36.6L21 45.2L21 13Z"/>
+</svg>

@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+<title>UI: compare (white, tint with ImageColor3)</title>
+<path fill="#0A0D10" fill-rule="evenodd" d="M7 26L41 26L41 34.48L41.61 34.76L58.12 21L41.61 7.24L41 7.52L41 16L7 16ZM5.88 43L22.39 56.76L23 56.48L23 48L57 48L57 38L23 38L23 29.52L22.39 29.24Z"/>
+<path fill="#FFFFFF" fill-rule="evenodd" d="M9 24L43 24L43 31L55 21L43 11L43 18L9 18ZM9 43L21 53L21 46L55 46L55 40L21 40L21 33Z"/>
+</svg>

@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+<title>UI: research (white, tint with ImageColor3)</title>
+<path fill="#0A0D10" fill-rule="evenodd" d="M45 14.5L45 7.67L42.33 5L21.67 5L19 7.67L19 14.5L24 14.5L24 24.45L9 49.45L9 58L55 58L55 49.45L40 24.45L40 14.5ZM38.55 40.5L25.45 40.5L32 29.58Z"/>
+<path fill="#FFFFFF" fill-rule="evenodd" d="M43 12.5L43 8.5L41.5 7L22.5 7L21 8.5L21 12.5L26 12.5L26 25L11 50L11 56L53 56L53 50L38 25L38 12.5ZM32.5 17.5L32.5 26.52L46.89 50.5L17.11 50.5L31.5 26.52L31.5 17.5ZM24.83 42.5L21.53 48L42.47 48L39.17 42.5Z"/>
+</svg>

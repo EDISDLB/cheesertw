@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+<title>Equipment category: Survivability</title>
+<defs><linearGradient id="g1" gradientUnits="userSpaceOnUse" x1="0.00" y1="7.00" x2="0.00" y2="57.00"><stop offset="0.000" stop-color="#6298D2"/><stop offset="1.000" stop-color="#427BB9"/></linearGradient><linearGradient id="g2" gradientUnits="userSpaceOnUse" x1="0.00" y1="15.64" x2="0.00" y2="48.36"><stop offset="0.000" stop-color="#E9E0C7"/><stop offset="1.000" stop-color="#D7CCAE"/></linearGradient></defs>
+<path fill="#0A0D10" fill-rule="evenodd" d="M5 17.17L5 54.83L9.17 59L46.83 59L59 46.83L59 9.17L54.83 5L17.17 5Z"/>
+<path fill="#B9D6F5" fill-rule="evenodd" d="M18 7L7 18L7 54L9 53.17L9 18.83L18.83 9L53.17 9L54 7Z"/>
+<path fill="#4A86C8" fill-rule="evenodd" d="M57 10L54 7L53.17 9L55 10.83ZM7 54L10 57L10.83 55L9 53.17Z"/>
+<path fill="#1F4775" fill-rule="evenodd" d="M55 45.17L45.17 55L10.83 55L10 57L46 57L57 46L57 10L55 10.83Z"/>
+<path fill="url(#g1)" fill-rule="evenodd" d="M9 18.83L9 53.17L10.83 55L45.17 55L55 45.17L55 10.83L53.17 9L18.83 9Z"/>
+<path fill="#0A0D10" fill-opacity="0.550" fill-rule="evenodd" d="M33.1 49.66L49.87 32.89L47.47 32.89L32 48.36L16.53 32.89L16.33 32.89ZM15.1 29.62L51.1 29.62L51.1 23.48L50 22.22L50 28.32L15.1 28.32Z"/>
+<path fill="#FFFBF0" fill-rule="evenodd" d="M14 22.18L14 28.32L15 27.32L15 22.56L20.18 16.64L25.86 16.64L26.27 15.64L19.73 15.64ZM32 21.36L32 22.78L38.14 16.64L43.82 16.64L44.27 15.64L37.73 15.64ZM17.25 32.43L46.75 32.43L48.77 31.59L15.23 31.59Z"/>
+<path fill="#E3D8BC" fill-rule="evenodd" d="M50 22.18L44.27 15.64L43.82 16.64L49 22.56ZM26.27 15.64L25.86 16.64L32 22.78L32 21.36ZM32 48.36L32 46.95L17.25 32.43L15.23 31.59Z"/>
+<path fill="#A3936D" fill-rule="evenodd" d="M49 22.56L49 27.32L15 27.32L14 28.32L50 28.32L50 22.18ZM48.77 31.59L46.75 32.43L32 46.95L32 48.36Z"/>
+<path fill="url(#g2)" fill-rule="evenodd" d="M43.82 16.64L38.14 16.64L32 22.78L25.86 16.64L20.18 16.64L15 22.56L15 27.32L49 27.32L49 22.56ZM46.36 32.59L17.64 32.59L32 46.95Z"/>
+</svg>

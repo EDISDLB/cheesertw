@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+<title>UI: filter (white, tint with ImageColor3)</title>
+<path fill="#0A0D10" fill-rule="evenodd" d="M6 8L6 14.83L25 33.83L25 59.46L25.06 59.5L39 51.13L39 33.83L58 14.83L58 8Z"/>
+<path fill="#FFFFFF" fill-rule="evenodd" d="M8 10L56 10L56 14L37 33L37 50L27 56L27 33L8 14Z"/>
+</svg>

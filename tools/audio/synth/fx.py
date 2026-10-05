@@ -102,7 +102,7 @@ def envelope_follower(x: np.ndarray, attack: float, release: float, sr: int = SR
     return np.sqrt(env) if rms else env
 
 
-def compressor(
+def compressor_gain(
     x: np.ndarray,
     threshold_db: float = -18.0,
     ratio: float = 4.0,
@@ -112,7 +112,10 @@ def compressor(
     makeup_db: float = 0.0,
     sr: int = SR,
 ) -> np.ndarray:
-    """Feed-forward soft-knee compressor."""
+    """Per-sample linear gain of a feed-forward soft-knee compressor detecting on ``x``.
+
+    Returning the gain (instead of the processed signal) lets several stems share one detector
+    (linked compression of music stems that must still sum to the mastered mix)."""
     env = envelope_follower(x, attack, release, sr)
     lvl = 20.0 * np.log10(np.maximum(env, 1e-9))
     over = lvl - threshold_db
@@ -125,12 +128,28 @@ def compressor(
             (1.0 - 1.0 / ratio) * (over + knee_db / 2) ** 2 / (2 * max(knee_db, 1e-6)),
         ),
     )
-    g = 10.0 ** ((makeup_db - gr) / 20.0)
+    return 10.0 ** ((makeup_db - gr) / 20.0)
+
+
+def compressor(
+    x: np.ndarray,
+    threshold_db: float = -18.0,
+    ratio: float = 4.0,
+    attack: float = 0.005,
+    release: float = 0.12,
+    knee_db: float = 6.0,
+    makeup_db: float = 0.0,
+    sr: int = SR,
+) -> np.ndarray:
+    """Feed-forward soft-knee compressor."""
+    g = compressor_gain(x, threshold_db, ratio, attack, release, knee_db, makeup_db, sr)
     return x * (g if x.ndim == 1 else g[:, None])
 
 
-def limiter(x: np.ndarray, ceiling_db: float = -1.0, lookahead: float = 0.002, release: float = 0.06, sr: int = SR) -> np.ndarray:
-    """Look-ahead brick-wall limiter. Guarantees ``|y| <= ceiling`` (sample peak)."""
+def limiter_gain(x: np.ndarray, ceiling_db: float = -1.0, lookahead: float = 0.002, release: float = 0.06,
+                 sr: int = SR) -> np.ndarray:
+    """Per-sample gain of the look-ahead brick-wall limiter (``x * g`` stays under the ceiling).
+    ``x`` may be a detector signal (e.g. the max of several stems) rather than the audio itself."""
     ceiling = 10.0 ** (ceiling_db / 20.0)
     peak = np.max(np.abs(x), axis=1) if x.ndim == 2 else np.abs(x)
     need = np.minimum(1.0, ceiling / np.maximum(peak, 1e-12))
@@ -141,7 +160,13 @@ def limiter(x: np.ndarray, ceiling_db: float = -1.0, lookahead: float = 0.002, r
     # slow release: a lagging one-pole copy; taking the minimum keeps attacks fast, releases slow
     a = np.exp(-1.0 / max(release * sr, 1.0))
     rel = lfilter([1 - a], [1, -a], smooth_g, zi=[a * smooth_g[0]])[0] if x.shape[0] else smooth_g
-    g = np.minimum(np.minimum(smooth_g, rel), need)
+    return np.minimum(np.minimum(smooth_g, rel), need)
+
+
+def limiter(x: np.ndarray, ceiling_db: float = -1.0, lookahead: float = 0.002, release: float = 0.06, sr: int = SR) -> np.ndarray:
+    """Look-ahead brick-wall limiter. Guarantees ``|y| <= ceiling`` (sample peak)."""
+    ceiling = 10.0 ** (ceiling_db / 20.0)
+    g = limiter_gain(x, ceiling_db, lookahead, release, sr)
     y = x * (g if x.ndim == 1 else g[:, None])
     return np.clip(y, -ceiling, ceiling)
 

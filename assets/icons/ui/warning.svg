@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+<title>UI: warning (white, tint with ImageColor3)</title>
+<path fill="#0A0D10" fill-rule="evenodd" d="M6.44 56L57.56 56L60.02 51.76L34.46 7.26L29.54 7.26L3.98 51.76ZM30.76 24L33.24 24L32.34 36L31.66 36ZM33 44L33 46L31 46L31 44Z"/>
+<path fill="#FFFFFF" fill-rule="evenodd" d="M7.59 54L56.41 54L57.71 51.75L33.3 9.26L30.7 9.26L6.29 51.75ZM28.6 22L35.4 22L34.2 38L29.8 38ZM35 42L35 48L29 48L29 42Z"/>
+</svg>

@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+<title>UI: repair (white, tint with ImageColor3)</title>
+<path fill="#0A0D10" fill-rule="evenodd" d="M33.68 21.92L3.17 52.42L11.58 60.83L42.08 30.32L52.29 30.32L60 22.61L60 11.71L57.62 9.33L49.04 17.91L46.09 14.96L54.67 6.38L52.29 4L41.39 4L33.68 11.71Z"/>
+<path fill="#FFFFFF" fill-rule="evenodd" d="M42.22 6L35.68 12.54L35.68 21.78L42.22 28.32L51.46 28.32L58 21.78L58 12.54L57.62 12.16L49.04 20.74L43.26 14.96L51.84 6.38L51.46 6ZM35.78 22.64L6 52.42L11.58 58L41.36 28.22Z"/>
+</svg>

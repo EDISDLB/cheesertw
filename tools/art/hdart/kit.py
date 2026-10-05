@@ -86,8 +86,12 @@ def glyph_cut(d: Doc, g, cut, color: str = WHITE, key: float = KEY, gap: float =
 def rim_keyline(d: Doc, sil, mat: str = "gold", rim: float = 1.8, outer: float = 1.3, key: float = KEY):
     """Special (premium) treatment: ink keyline, a bevelled metal rim, then an outer ink line.
     Adds rim + outer px around the normal keyline, so the silhouette must sit that much further in."""
-    d.keyline(sil, key + rim + outer)
-    d.plate(G.grow(sil, key + rim), mat, bevel=rim * 0.6, face_grad=False)
+    # close small notches first so the rim runs as one calm contour, and use bevel joins (no spikes)
+    calm = sil.buffer(2.5, join_style=1, quad_segs=3).buffer(-2.5, join_style=1, quad_segs=3)
+    calm = G.union(calm, sil).simplify(0.08)
+    d.path(calm.buffer(key + rim + outer, join_style=3), INK)
+    d.plate(calm.buffer(key + rim, join_style=3), mat, bevel=rim * 0.6, face_grad=False)
+    d.path(calm.buffer(key, join_style=3), INK)
     d.keyline(sil, key)
 
 
@@ -178,23 +182,39 @@ def fracture(p0, p1, gap=2.6, amp=3.0, n=4):
     return stroke(zigzag(p0, p1, amp, n), gap, cap="square", mitre=6.0)
 
 
-def split(sil, p0, p1, gap=2.8, amp=3.2, n=4, shift=1.2):
-    """Break a silhouette in two along a jagged line and push the halves apart by `shift`.
-    Returns (piece_a, piece_b, offset_a, offset_b) where offsets are the translations applied."""
+def split(sil, p0, p1, gap=2.8, amp=3.2, n=4, shift=2.0):
+    """Break a silhouette in two along a jagged line. Returns [(region, offset), ...] where region is
+    the un-shifted piece (use it to clip details) and offset the translation that pushes the pieces
+    apart along the break normal."""
     cut = fracture(p0, p1, gap, amp, n)
     rest = G.diff(sil, cut)
-    pieces = G.polys(rest)
     dx, dy = p1[0] - p0[0], p1[1] - p0[1]
     ln = math.hypot(dx, dy)
     nx, ny = -dy / ln, dx / ln  # normal to the break
     a, b = [], []
-    for pc in pieces:
+    for pc in G.polys(rest):
         c = pc.centroid
         side = (c.x - p0[0]) * nx + (c.y - p0[1]) * ny
         (a if side > 0 else b).append(pc)
-    oa = (nx * shift / 2, ny * shift / 2)
-    ob = (-nx * shift / 2, -ny * shift / 2)
-    return G.T(G.union(a), *oa), G.T(G.union(b), *ob), oa, ob
+    return [(G.union(a), (nx * shift / 2, ny * shift / 2)), (G.union(b), (-nx * shift / 2, -ny * shift / 2))]
+
+
+def chip(sil, p0, p1, frac=0.5, gap=3.4, amp=2.6, n=3):
+    """A partial crack: a tapered jagged wedge along the first `frac` of the break line, wide at the
+    silhouette edge (p0 should sit just outside it) and closing to a point inside.
+    Returns (cracked silhouette, wedge)."""
+    q = (p0[0] + (p1[0] - p0[0]) * frac, p0[1] + (p1[1] - p0[1]) * frac)
+    zz = zigzag(p0, q, amp, n)
+    dx, dy = q[0] - p0[0], q[1] - p0[1]
+    ln = math.hypot(dx, dy)
+    nx, ny = -dy / ln, dx / ln
+    left, right = [], []
+    for i, (x, y) in enumerate(zz):
+        w = gap * (1 - i / (len(zz) - 1)) / 2 + 0.05
+        left.append((x + nx * w, y + ny * w))
+        right.append((x - nx * w, y - ny * w))
+    wedge = G.poly(left + right[::-1]).buffer(0)
+    return G.diff(sil, wedge), wedge
 
 
 def plus(cx, cy, size, w, chamfer=0.0):
