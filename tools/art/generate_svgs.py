@@ -20,7 +20,12 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
 from hdart import brand, icons, tokens  # noqa: E402
+from hdart import registry  # noqa: E402
 from hdart.svgdoc import Doc  # noqa: E402
+
+# Group modules register their icons on import (order = INDEX.md order).
+GROUP_MODULES = ["ammo", "modules", "crew", "consumables", "equipment", "ui", "battle", "achievements",
+                 "missions", "markers"]
 
 ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
 ASSETS = os.path.join(ROOT, "assets")
@@ -101,12 +106,32 @@ def build() -> list[tuple[str, int]]:
         p = out("icons", "currency", f"{cid}.svg")
         rec(p, d.save(p))
 
+    # registered gameplay / UI groups ----------------------------------------
+    for ic in load_registry():
+        title = ic.title + (registry.TINT_NOTE if ic.tint else "")
+        d = Doc(ic.w, ic.h, title)
+        ic.draw(d)
+        p = os.path.join(ASSETS, *ic.rel.split("/"))
+        rec(p, d.save(p))
+
     # tokens -------------------------------------------------------------------
     tp = out("brand", "tokens.json")
     with open(tp, "w", encoding="utf-8") as fh:
         json.dump(tokens.as_json(), fh, indent=2)
         fh.write("\n")
     return written
+
+
+def load_registry():
+    import importlib
+
+    for m in GROUP_MODULES:
+        try:
+            importlib.import_module(f"hdart.{m}")
+        except ModuleNotFoundError as e:
+            if e.name != f"hdart.{m}":
+                raise
+    return registry.REGISTRY
 
 
 FORBIDDEN = re.compile(r"<(text|tspan|image|use|foreignObject|script|style)\b|xlink:href|href=|url\((?!#)", re.I)

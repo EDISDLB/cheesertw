@@ -3,6 +3,7 @@
 	"lint": { "*": true, "LocalShadow": false, "ImportUnused": true },
 	"lintErrors": false,
 	"aliases": {
-		"game": "./src"
+		"game": "./src",
+		"tests": "./tests"
 	}
 }

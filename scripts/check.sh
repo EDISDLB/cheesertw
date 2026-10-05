@@ -11,10 +11,23 @@ FIX=0; ONLY=""; FILTER=""
 while [[ $# -gt 0 ]]; do
 	case "$1" in
 		--fix) FIX=1 ;;
-		--only) ONLY="$2"; shift ;;
+		--only)
+			ONLY="${2:-}"; shift
+			case "$ONLY" in
+				fmt|lint|types|test|build) ;;
+				*) echo "check.sh: --only expects fmt|lint|types|test|build (got '${ONLY}')" >&2; exit 2 ;;
+			esac
+			;;
 		--) shift; FILTER="${*:-}"; break ;;
+		*) echo "check.sh: unknown argument '$1' (usage: [--fix] [--only fmt|lint|types|test|build] [-- test-filter])" >&2; exit 2 ;;
 	esac
 	shift
+done
+
+for tool in stylua selene rojo luau-lsp lune; do
+	if ! command -v "$tool" >/dev/null 2>&1; then
+		echo "check.sh: '$tool' not found on PATH (set HULLDOWN_TOOLS or run 'rokit install')" >&2
+	fi
 done
 
 FAILED=()
@@ -30,11 +43,15 @@ fmt() {
 }
 lint() { selene src tests; }
 types() {
+	if [[ ! -f "$DEFS" ]]; then echo "    Roblox definitions not found at $DEFS (set HULLDOWN_ROBLOX_DEFS)"; return 1; fi
 	rojo sourcemap default.project.json -o sourcemap.json >/dev/null || return 1
-	local out
-	out=$(luau-lsp analyze --platform=roblox --sourcemap=sourcemap.json --definitions="$DEFS" \
-		--ignore="**/node_modules/**" src 2>&1 | grep -vE '^\[(INFO|WARN)\]')
-	if [[ -n "$out" ]]; then echo "$out"; local n; n=$(echo "$out" | grep -cE '(TypeError|SyntaxError|Lint)'); echo "    $n diagnostics"; return 1; fi
+	local raw status out
+	raw=$(luau-lsp analyze --platform=roblox --sourcemap=sourcemap.json --definitions="$DEFS" \
+		--ignore="**/node_modules/**" src 2>&1)
+	status=$?
+	out=$(echo "$raw" | grep -vE '^\[(INFO|WARN)\]')
+	if [[ -n "$out" ]]; then echo "$out"; local n; n=$(echo "$out" | grep -cE '\): [A-Za-z]+:'); echo "    $n diagnostics"; return 1; fi
+	if [[ $status -ne 0 ]]; then echo "    luau-lsp exited with status $status"; return 1; fi
 }
 tests() { lune run tests/run.luau -- $FILTER; }
 build() { mkdir -p build && rojo build default.project.json -o build/Hulldown.rbxl >/dev/null; }

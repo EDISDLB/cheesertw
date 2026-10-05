@@ -1,0 +1,117 @@
+--!strict
+--[[
+	Types — the single import point for cross-module types (ARCHITECTURE §4).
+
+	Purpose:          `local Types = require("@game/ReplicatedStorage/Shared/Types")` then `Types.World`, `Types.Result<T>`.
+	Dependencies:     Types/Core, World, Adapters, Net, Service, Content, Battle, Profile (all type-only).
+	State:            None.
+	Validation:       N/A.
+	Error handling:   N/A.
+	Performance notes: Erased at runtime; the module value is an empty frozen table.
+
+	Adding a type: declare it in the domain module (Types/<Domain>.luau) and re-export it below. Domain modules must
+	only require other Types modules (never implementation modules) so no require cycle can form.
+]]
+
+local Core = require("@self/Core")
+local World = require("@self/World")
+local Adapters = require("@self/Adapters")
+local Net = require("@self/Net")
+local Service = require("@self/Service")
+local Content = require("@self/Content")
+local Battle = require("@self/Battle")
+local Profile = require("@self/Profile")
+
+-- Core
+export type Ok<T> = Core.Ok<T>
+export type Err = Core.Err
+export type Result<T> = Core.Result<T>
+export type PathKey = Core.PathKey
+export type PatchOp = Core.PatchOp
+export type Patch = Core.Patch
+export type Clock = Core.Clock
+export type FakeClock = Core.FakeClock
+export type LogLevel = Core.LogLevel
+export type LogSink = Core.LogSink
+export type Logger = Core.Logger
+export type Connection = Core.Connection
+export type Signal<T...> = Core.Signal<T...>
+export type Validator = Core.Validator
+
+-- World
+export type RaycastMode = World.RaycastMode
+export type WorldHit = World.WorldHit
+export type SightResult = World.SightResult
+export type World = World.World
+
+-- Adapters
+export type DataStoreKeyInfo = Adapters.DataStoreKeyInfo
+export type DataStoreVersionInfo = Adapters.DataStoreVersionInfo
+export type DataStoreRequestKind = Adapters.DataStoreRequestKind
+export type DataStoreTransform = Adapters.DataStoreTransform
+export type DataStoreAdapter = Adapters.DataStoreAdapter
+export type SortKey = Adapters.SortKey
+export type SortDirection = Adapters.SortDirection
+export type SortedMapBound = Adapters.SortedMapBound
+export type SortedMapItem = Adapters.SortedMapItem
+export type HashMapItem = Adapters.HashMapItem
+export type MemorySortedMap = Adapters.MemorySortedMap
+export type MemoryHashMap = Adapters.MemoryHashMap
+export type MemoryStoreAdapter = Adapters.MemoryStoreAdapter
+export type MessagingAdapter = Adapters.MessagingAdapter
+export type ReservedServer = Adapters.ReservedServer
+export type TeleportSpec = Adapters.TeleportSpec
+export type TeleportAdapter = Adapters.TeleportAdapter
+export type ReceiptInfo = Adapters.ReceiptInfo
+export type PurchaseDecision = Adapters.PurchaseDecision
+export type ProductInfoKind = Adapters.ProductInfoKind
+export type MarketplaceAdapter = Adapters.MarketplaceAdapter
+export type PlayersAdapter = Adapters.PlayersAdapter
+export type Adapters = Adapters.Adapters
+
+-- Net
+export type RemoteKind = Net.RemoteKind
+export type RemoteDirection = Net.RemoteDirection
+export type RateSpec = Net.RateSpec
+export type RemoteSpec = Net.RemoteSpec
+export type ViolationReason = Net.ViolationReason
+export type ViolationHandler = Net.ViolationHandler
+export type EventHandler = Net.EventHandler
+export type InvokeHandler = Net.InvokeHandler
+export type NetServer = Net.NetServer
+export type NetClient = Net.NetClient
+export type HelloRequest = Net.HelloRequest
+export type HelloResponse = Net.HelloResponse
+export type ServerNoticeKind = Net.ServerNoticeKind
+export type ServerNotice = Net.ServerNotice
+
+-- Service
+export type ServerRole = Service.ServerRole
+export type LifecyclePhase = Service.LifecyclePhase
+export type ServiceStatus = Service.ServiceStatus
+export type ServiceStatusInfo = Service.ServiceStatusInfo
+export type Lifecycle = Service.Lifecycle
+export type ServerInfo = Service.ServerInfo
+export type ServiceContext = Service.ServiceContext
+export type ControllerContext = Service.ControllerContext
+export type ServiceModule = Service.ServiceModule
+
+-- Content (placeholder, content team)
+export type ContentId = Content.ContentId
+export type FactionId = Content.FactionId
+export type VehicleId = Content.VehicleId
+export type VehicleClass = Content.VehicleClass
+export type Tier = Content.Tier
+
+-- Battle (placeholder, combat team)
+export type BattleId = Battle.BattleId
+export type EntityId = Battle.EntityId
+export type TeamId = Battle.TeamId
+export type BattleMode = Battle.BattleMode
+
+-- Profile (placeholder, services team)
+export type UserId = Profile.UserId
+export type ProfileVersion = Profile.ProfileVersion
+export type Currency = Profile.Currency
+
+return table.freeze({})

@@ -1,0 +1,75 @@
+local Test = require("@tests/Harness/Test")
+local describe, it, expect = Test.describe, Test.it, Test.expect
+
+local BufferReader = require("@game/ReplicatedStorage/Shared/Net/Codecs/BufferReader")
+local BufferWriter = require("@game/ReplicatedStorage/Shared/Net/Codecs/BufferWriter")
+
+local function bytes(...: number): buffer
+	local list = { ... }
+	local b = buffer.create(#list)
+	for i, v in list do
+		buffer.writeu8(b, i - 1, v)
+	end
+	return b
+end
+
+describe("BufferReader bounds and malformed input", function()
+	it("errors when reading past the end", function()
+		local r = BufferReader.new(bytes(1, 2, 3))
+		expect(r:readU16()).toBe(0x0201)
+		expect(function()
+			r:readU16()
+		end).toThrow("needs 2 bytes at offset 2 but only 1 remain")
+		expect(r:readU8()).toBe(3)
+		expect(function()
+			r:readU8()
+		end).toThrow("readU8 needs 1 bytes")
+	end)
+
+	it("rejects over-long and oversized varints", function()
+		expect(function()
+			BufferReader.new(bytes(0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x01)):readVarUInt()
+		end).toThrow("longer than 8 bytes")
+		expect(function()
+			BufferReader.new(bytes(0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x7F)):readVarUInt()
+		end).toThrow("exceeds 2^53")
+		expect(function()
+			BufferReader.new(bytes(0x80)):readVarUInt()
+		end).toThrow("needs 1 bytes")
+	end)
+
+	it("guards string lengths", function()
+		local w = BufferWriter.new()
+		w:writeString("hello")
+		expect(function()
+			BufferReader.new(w:toBuffer()):readString(4)
+		end).toThrow("exceeds max 4")
+		expect(function()
+			BufferReader.new(bytes(10, 65, 66)):readString()
+		end).toThrow("readString needs 10 bytes")
+	end)
+
+	it("rejects invalid booleans", function()
+		expect(function()
+			BufferReader.new(bytes(2)):readBool()
+		end).toThrow("invalid boolean byte 2")
+	end)
+
+	it("reads windows of a buffer", function()
+		local b = bytes(9, 9, 1, 2, 9)
+		local r = BufferReader.new(b, 2, 2)
+		expect(r:offset()).toBe(2)
+		expect(r:readU8()).toBe(1)
+		expect(r:readU8()).toBe(2)
+		expect(r:isAtEnd()).toBe(true)
+		expect(function()
+			r:readU8()
+		end).toThrow("readU8")
+		expect(function()
+			BufferReader.new(b, 4, 5)
+		end).toThrow("invalid range")
+		expect(function()
+			BufferReader.new("x" :: any)
+		end).toThrow("expects a buffer")
+	end)
+end)

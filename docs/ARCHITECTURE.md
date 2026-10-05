@@ -40,7 +40,8 @@ src/
   ReplicatedStorage/
     Shared/                     pure, deterministic, engine-agnostic logic + data (server AND client)
       Core/                     Signal, Trove, Log, RNG, Units, Freeze, TableUtil, MathUtil, Schema, Result, Clock
-      Types.luau                ALL cross-module data types (single source of truth)
+      Types/                    ALL cross-module data types (single source of truth): init.luau re-exports
+                                Core, World, Adapters, Net, Service, Content, Battle, Profile domain modules
       Config/                   balance + content data (see §9)
       Net/                      remote registry, binary codecs, protocol constants
       Combat/                   ArmorGeometry, Ballistics, Penetration, Dispersion, DamageModel, HE, Fire
@@ -95,7 +96,9 @@ After results, players are teleported back to the Hub (Dev: returned to the gara
 2. **Requires are strings only.** Cross-container: `require("@game/ReplicatedStorage/Shared/Core/Signal")`.
    Same subtree: relative `require("./Sibling")`, `require("../Folder/Module")`. Children of an `init.luau`
    module: `require("@self/Child")`. Remember: inside `Folder/init.luau`, `./X` means a **sibling of Folder**.
-   Never use instance requires, `_G`, `shared`, or `getfenv`.
+   Never use instance requires, `_G`, `shared`, or `getfenv`. The single exception is plug-in discovery in
+   `Server/Main.server.luau` and `Client/Main.luau` (children of `Services/` / `Controllers/` are required through a
+   local `dynamicRequire` alias). `tests/Regression/SourceConventions.spec.luau` enforces rules 1, 2, 3, 7 and 9.
 3. **Shared modules are pure**: no `game:GetService`, no `workspace`, no `task.wait`/`task.spawn`, no `os.clock()`/`tick()`.
    Time comes in as a `now: number` argument or an injected `Clock`. World queries come in through the `World`
    interface (`Types.World`). Randomness comes from `Core/RNG` (seeded, deterministic). This keeps them testable in Lune.
@@ -170,9 +173,13 @@ Units.mpsToStudsPerSec(mps)  Units.degToRad(d)  Units.radToDeg(r)  Units.GRAVITY
 --                  type Clock = { now: (self) -> number }
 ```
 
-`Shared/Types.luau` exports every cross-module type (content definitions, profile, battle entities, net packets, World
-interface, adapters). Modules import types with `local Types = require("@game/ReplicatedStorage/Shared/Types")` and
-`type VehicleDefinition = Types.VehicleDefinition`.
+`Shared/Types` (folder: `init.luau` + one module per domain) exports every cross-module type (content definitions,
+profile, battle entities, net packets, World interface, adapters). Modules import types with
+`local Types = require("@game/ReplicatedStorage/Shared/Types")` and `type VehicleDefinition = Types.VehicleDefinition`.
+Domain modules only require other `Types/*` modules, so they can never form require cycles with implementations.
+Additive helpers beyond the list above (e.g. `RNG.new(seed, stream?)`, `rng:getState()`, `Signal.is`,
+`TableUtil.sortedKeys`, `MathUtil.approachAngleDeg`, `Schema.buffer/instance`, `Result.unwrap`, `Clock.wall`) are
+documented in `docs/systems/foundation.md`.
 
 ---
 
@@ -192,7 +199,10 @@ function MyService:Start() end                            -- begin work; may spa
 function MyService:Stop() end                             -- optional; called on BindToClose (reverse order)
 return MyService
 ```
-`ServiceContext = { role, services: {[string]: any}, net: NetServer, config: Config, log: Logger, clock: Clock, adapters: Adapters, isStudio: boolean }`.
+`ServiceContext = { role, services: {[string]: any}, net: NetServer, config: Config, log: Logger, clock: Clock, adapters: Adapters, isStudio: boolean, server: ServerInfo, lifecycle: Lifecycle }`
+(`log` is scoped to the service name; `server` = PlaceId/JobId/PrivateServerId; `lifecycle` = read-only loader view
+used by HealthService). An Init that errors or yields marks the service `Failed` and skips its dependents (degraded
+boot, surfaced by HealthService); missing dependencies and cycles abort the boot.
 `ServerScriptService/Server/Main.server.luau` discovers `Services/*` modules, filters by role, topologically sorts by
 `Dependencies` (cycle = boot error), calls `Init` in order, then `Start` in order (each in its own thread, errors logged
 and surfaced to the `HealthService`). `game:BindToClose` → `Stop` in reverse order with a 25 s budget.
@@ -413,7 +423,9 @@ third-party game assets anywhere.
 ## 13. Testing standard
 
 * `lune run tests/run.luau [-- filter]` runs all `*.spec.luau` files with a custom loader that resolves string
-  requires (`@game`, relative, `@self`) and injects Roblox datatypes (from `@lune/roblox`) plus mocks (`game`, services).
+  requires (`@game`, `@tests`, relative, `@self`) and injects Roblox datatypes (from `@lune/roblox`) plus mocks (`game`,
+  services, `Instance.new` -> MockInstance with loopback remotes). Specs mirror src paths:
+  `tests/Unit/ReplicatedStorage/Shared/Core/Signal.spec.luau`, `tests/Integration/ServerScriptService/Server/...`.
 * Required coverage: every Shared module (unit), every server service with logic beyond plumbing (integration with
   mocks), headless end-to-end battle (bots on `HeightmapWorld` → results → rewards → profile → research), data QA
   (join/leave/rejoin/shutdown/DataStore failure/duplicate reward/purchase/corrupted data), matchmaker QA

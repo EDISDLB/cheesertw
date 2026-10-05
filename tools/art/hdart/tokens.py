@@ -65,6 +65,22 @@ UI = {
     "currency.free_xp": "#B08CFF",
     "currency.crew_xp": "#3FD0BE",
     "currency.campaign_token": "#EC6A93",
+    # Ammunition type colours (shell paint, ammo-slot accents, damage-log tags). Each type also has a
+    # unique nose silhouette, so colour is never the only cue (brand-art.md §6.8).
+    "ammo.ap": "#F28C38",
+    "ammo.apcr": "#86CDF5",
+    "ammo.heat": "#EC4D82",
+    "ammo.he": "#FFC23D",
+    "ammo.hesh": "#9AA35E",
+    "ammo.special": "#F0BD45",  # gold rim of special (premium) rounds
+    # Equipment categories (slot chips, category tabs). Paired with the category glyph.
+    "equip.firepower": "#E0583A",
+    "equip.survivability": "#4A86C8",
+    "equip.mobility": "#3DAA6E",
+    "equip.scouting": "#E9C03A",
+    # Equipment grades (overlay frames). Standard has no frame.
+    "grade.improved": "#C6CED6",
+    "grade.experimental": "#FF8A3D",
 }
 
 # Colour-blind safe alternates for the four team roles. Selected per user setting; shapes and
@@ -123,6 +139,27 @@ MATERIALS = {
     "f_mountain": ("#86C49A", "#3C7650", "#1E412A"),
     "f_northern": ("#B5DBF7", "#4F8FCB", "#24527F"),
     "snow": ("#FFFFFF", "#EEF4F8", "#AFC0CE"),
+    # State materials (module / crew status, hit results). Bases are the state.* UI tokens.
+    "amber": ("#FFE9A3", "#F2C230", "#9C7612"),  # state.warning: damaged
+    "signal": ("#FFB3AC", "#EF4747", "#8C1D1D"),  # state.danger: destroyed / injured / fire bottle
+    "verdant": ("#B8F2CF", "#3FCB7A", "#1B7343"),  # state.success: repair, heal, ready
+    "azure": ("#C3E4FF", "#4AA8F0", "#1E5E92"),  # state.info
+    # Ammunition paint (bases are the ammo.* UI tokens).
+    "ap": ("#FFDDB0", "#F28C38", "#9A4A17"),
+    "apcr": ("#E6F7FF", "#86CDF5", "#2D6E9C"),
+    "heat": ("#FFC9DA", "#EC4D82", "#8A1D47"),
+    "he": ("#FFEFB5", "#FFC23D", "#A06F0C"),
+    # Equipment categories (bases are the equip.* UI tokens; scouting uses amber-gold).
+    "ember": ("#FFB9A0", "#E0583A", "#7F2617"),
+    "cobalt": ("#B9D6F5", "#4A86C8", "#1F4775"),
+    "jade": ("#B4EBC9", "#3DAA6E", "#1B5E3A"),
+    "scout": ("#FFF0B8", "#E9C03A", "#8F7014"),
+    # Rarity enamels for medal frames (common uses steel, legendary uses gold).
+    "r_rare": ("#BFE0FF", "#3E9BFF", "#1A4F94"),
+    "r_epic": ("#E3D2FF", "#A970FF", "#5A2FA8"),
+    # Utility surfaces.
+    "glass": ("#E4FAFF", "#5DB4D6", "#1D4D63"),  # lenses, vision blocks
+    "canvas": ("#E9E2C8", "#A99B70", "#5E5434"),  # webbing, nets, pouches
 }
 
 
