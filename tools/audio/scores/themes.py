@@ -94,7 +94,7 @@ def main_theme() -> Cue:
     parts = [
         strings("basses", "basses", basses, -22.0, reverb=0.18, gate=0.97),
         strings("celli", "celli", celli, -23.5, reverb=0.2, gate=0.97),
-        strings("celli_intro", "celli", celli_intro, -27.0, art="tremolo", reverb=0.3),
+        strings("celli_intro", "celli", celli_intro, -29.0, art="tremolo", reverb=0.3),
         strings("pad_violas", "violas", pad_lo, -23.0, reverb=0.3, gate=1.02),
         strings("violins_halo", "violins", halo, -28.0, reverb=0.4, gate=1.02, params={"bright": 0.8}),
         strings("violins_bridge", "violins", vln_c + vln_coda, -20.5, reverb=0.35),
@@ -104,7 +104,7 @@ def main_theme() -> Cue:
         brass("trumpets", "trumpet", trp_b + coda_trp, -20.0, reverb=0.32),
         brass("low_brass", "trombone", low_brass, -24.0, reverb=0.3),
         brass("tuba", "tuba", tuba, -25.0, reverb=0.25),
-        P("choir_oo", "choir", choir_intro, -26.0, params={"vowel": "oo"}, reverb=0.45),
+        P("choir_oo", "choir", choir_intro, -28.0, params={"vowel": "oo"}, reverb=0.45),
         P("choir_ah", "choir", choir_c, -23.0, params={"vowel": "ah"}, reverb=0.45),
         P("timpani", "timpani", timp, -23.0, reverb=0.3, pan=-0.15, rr=6),
         P("snare", "snare", snare_n, -27.0, params={"kind": "military"}, reverb=0.22, pan=0.1),
@@ -257,7 +257,7 @@ def loading_theme() -> Cue:
         brass("horn_call", "horn", horn_call, -25.0, reverb=0.45, params={"players": 2}),
         brass("trombones", "trombone", trb_motif + menace + hit17, -21.0, reverb=0.3),
         P("timpani", "timpani", timp, -23.0, reverb=0.3, pan=-0.1, rr=6),
-        P("taiko", "taiko", taiko, -23.0, reverb=0.3, params={"f0": 60.0}),
+        P("taiko", "taiko", taiko, -23.0, reverb=0.3, params={"f0": 55.0}),
         P("snare_roll", "snare", snare, -29.0, params={"kind": "field"}, reverb=0.25, pan=0.15, rr=8),
         P("cym_swell", "cymbal", swell, -28.0, params={"kind": "swell"}, reverb=0.3, rr=0),
         P("crash", "cymbal", crash, -28.0, params={"kind": "crash"}, reverb=0.25),
@@ -280,11 +280,11 @@ def results_theme() -> Cue:
     whole = p1 + p2
     piano = arp(whole, 60, [0, 1, 2, 3, 2, 1, 2, 3], 0.5, vel=0.4, dur=0.5, pedal=1.2)
     pad = chords(whole, 55, 3, vel=0.4, legato=1.02)
-    halo = chords(p1, 74, 2, vel=0.3)
+    halo = chords(p1 + p2[4:], 74, 2, vel=0.3)  # sounding across the loop point (bars 13-16 -> 1-8)
     basses = bass(whole, 2, "hold", vel=0.4)
     horn = motif(B(9), "D4", vel=0.45)
     flute = seq("A5:3/2 G5:1/2 F5:1 D5:1 | F5:2 E5:2", B(13), vel=0.45, bar=4)
-    bells = [Note(B(1), 2, 74, 0.35), Note(B(9), 2, 69, 0.3)]
+    bells = [Note(B(9), 2, 69, 0.3)]
     timp = pitched(hits("o", B(9), vel=0.35), "D2")
     parts = [
         P("piano", "piano", piano, -21.0, reverb=0.32, pan=-0.1, rr=3),

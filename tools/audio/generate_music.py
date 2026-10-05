@@ -60,6 +60,7 @@ BANK_MAX_S = 120.0
 BANK_LEAD_S = 0.05
 BANK_GAP_S = 0.5
 ROTATE_SEARCH_S = 0.02
+STINGER_LEAD_S = 0.01  # silent lead-in before beat 1 of a stinger (clean decoder start)
 
 # --------------------------------------------------------------------------- music director data
 # The client MusicDirector reads these tables from the catalogue; docs/design/audio.md section 11
@@ -188,26 +189,32 @@ def master(cue: music.Cue, stems: dict[str, np.ndarray]) -> tuple[dict[str, np.n
         above = np.nonzero(mag > thr_a)[0]
         end = min(total.shape[0], int(above[-1]) + n_of(0.05)) if above.size else total.shape[0]
         end = max(end, cue.n_body + n_of(0.5))
-        stems = {k: fade(zero_mean(v[:end]), 0.002, 0.25) for k, v in stems.items()}
-        info["gridOffsetSamples"] = 0
+        lead = np.zeros((n_of(STINGER_LEAD_S), 2))
+        stems = {k: np.concatenate([lead, fade(zero_mean(v[:end]), 0.002, 0.25)], axis=0) for k, v in stems.items()}
+        info["gridOffsetSamples"] = n_of(STINGER_LEAD_S)
     return stems, info
 
 
 def common_rotation(stems: dict[str, np.ndarray]) -> tuple[dict[str, np.ndarray], int]:
-    """Rotate all stems by one offset ``k`` (0..20 ms) so the file starts on the quietest common
-    point just before the downbeat; bar 1 then begins at sample ``k``. Rotation of a periodic loop
-    is lossless, so seams and stem alignment are untouched."""
+    """Rotate all stems by one offset ``k`` (0..20 ms) so the file starts on the quietest, smoothest
+    common point just before the downbeat; bar 1 then begins at sample ``k``. Each stem (and the
+    full mix) is scored relative to its own RMS and 99th-percentile sample step, so a quiet stem
+    is held to the same standard as a loud one. Rotation of a periodic loop is lossless, so seams
+    and stem alignment are untouched."""
     arrs = list(stems.values())
+    arrs = arrs + ([sum(arrs)] if len(arrs) > 1 else [])
     n = arrs[0].shape[0]
-    total = sum(arrs)
     k_max = n_of(ROTATE_SEARCH_S)
-    best_k, best_s = 0, 1e9
-    for k in range(0, k_max + 1):
-        i = (n - k) % n
-        j = (i - 1) % n
-        s = max(float(np.max(np.abs(a[i]))) + 0.5 * float(np.max(np.abs(a[i] - a[j]))) for a in arrs + [total])
-        if s < best_s:
-            best_k, best_s = k, s
+    ks = np.arange(0, k_max + 1)
+    i = (n - ks) % n
+    j = (i - 1) % n
+    score = np.zeros(ks.size)
+    for a in arrs:
+        rms = float(np.sqrt(np.mean(a**2))) + 1e-9
+        step = float(np.percentile(np.abs(np.diff(a, axis=0)), 99)) + 1e-12
+        sc = np.max(np.abs(a[i]), axis=1) / rms + 2.0 * np.max(np.abs(a[i] - a[j]), axis=1) / step
+        score = np.maximum(score, sc)
+    best_k = int(ks[int(np.argmin(score))])
     return {name: np.roll(x, best_k, axis=0) for name, x in stems.items()}, best_k
 
 
@@ -246,12 +253,12 @@ def render_job(name: str, out_dir: str) -> list[dict]:
     stems, info = master(cue, stems)
     decoded, trim = encode_group(cue, stems, out_dir)
     os.makedirs(MASTERS, exist_ok=True)
-    statements = music.motif_statements(cue)
-    insts = sorted({p.inst for p in cue.parts})
     entries = []
     for stem, dec in decoded.items():
         key = out_name(cue, stem)
         io.write_flac(os.path.join(MASTERS, f"{key}.flac"), stems[stem] * 10 ** (trim / 20.0))
+        statements = music.motif_statements(cue, stem if len(cue.stems) > 1 else None)
+        insts = sorted({p.inst for p in cue.parts if len(cue.stems) == 1 or p.stem == stem})
         e = catalog_entry(cue, stem, key, dec, info, trim, statements, insts)
         e["_seconds"] = {"render": round(t_render, 1), "total": round(time.time() - t0, 1)}
         entries.append(e)
@@ -264,7 +271,7 @@ def catalog_entry(cue, stem, key, dec, info, trim, statements, insts) -> dict:
     e = {
         "file": f"{key}.ogg",
         "title": cue.title if len(cue.stems) == 1 else f"{cue.title} - {stem}",
-        "description": cue.description,
+        "description": cue.meta.get("stemDescriptions", {}).get(stem, cue.description),
         "state": cue.state,
         "kind": cue.kind,
         "durationS": round(dec.shape[0] / SR, 6),
@@ -300,7 +307,9 @@ def catalog_entry(cue, stem, key, dec, info, trim, statements, insts) -> dict:
         }
         e["suggested"].update({"fadeInS": 2.0, "fadeOutS": 2.0, "quantize": "bar"})
     else:
-        e["stinger"] = {"bodyEndS": round(cue.n_body / SR, 6), "tailS": round(dec.shape[0] / SR - cue.n_body / SR, 3)}
+        lead = info["gridOffsetSamples"]
+        e["stinger"] = {"leadS": round(lead / SR, 6), "bodyEndS": round((lead + cue.n_body) / SR, 6),
+                        "tailS": round((dec.shape[0] - lead - cue.n_body) / SR, 3)}
         e["suggested"].update({"fadeInS": 0.0, "fadeOutS": 0.5})
     if len(cue.stems) > 1:
         e["group"] = cue.group
@@ -360,7 +369,8 @@ def write_catalog(path: str, entries: dict, banks: dict) -> None:
     for k, e in entries.items():
         if e.get("group"):
             g = groups.setdefault(e["group"], {"stems": [], "bpm": e["bpm"], "key": e["key"], "samples": e["samples"],
-                                               "gridOffsetSamples": e["loop"]["gridOffsetSamples"], "bars": e["bars"]})
+                                               "gridOffsetSamples": e["loop"]["gridOffsetSamples"], "bars": e["bars"],
+                                               "barS": e["barS"], "targetLufsAllLayers": e["master"]["targetLufs"]})
             g["stems"].append(k)
     for g in groups.values():
         g["stems"].sort(key=lambda k: entries[k]["layer"])

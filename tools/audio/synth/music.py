@@ -29,7 +29,7 @@ from fractions import Fraction
 import numpy as np
 
 from . import filters, instruments, mix, reverb
-from .core import SR, make_rng, n_of, to_stereo
+from .core import SR, make_rng, n_of
 
 # --------------------------------------------------------------------------- pitch & theory
 
@@ -400,16 +400,20 @@ class Cue:
         return int(round(self.bars * self.beats_per_bar * self.spb))
 
 
-def motif_statements(cue: Cue) -> list[dict]:
-    """Statements of the HULLDOWN motif: contiguous runs of notes tagged ``motif*`` per part."""
+def motif_statements(cue: Cue, stem: str | None = None) -> list[dict]:
+    """Statements of the HULLDOWN motif: contiguous runs of notes tagged ``motif*`` per part
+    (only parts of ``stem`` when given)."""
     out = []
     for p in cue.parts:
+        if stem is not None and p.stem != stem:
+            continue
         tagged = sorted((n for n in p.notes if n.tag.startswith("motif")), key=lambda n: n.beat)
         end, tag = None, None
         for n in tagged:
             if end is None or n.beat > end + 1e-6 or n.tag != tag:
                 out.append({"part": p.name, "form": n.tag, "bar": int(n.beat // cue.beats_per_bar) + 1,
-                            "beat": round(n.beat % cue.beats_per_bar, 3) + 1})
+                            "beat": round(n.beat % cue.beats_per_bar, 3) + 1,
+                            "tonicPc": None if n.pitch is None else int(round(n.pitch)) % 12})
             end = max(end or 0.0, n.beat + n.dur) if n.tag == tag else n.beat + n.dur
             tag = n.tag
     return sorted(out, key=lambda d: (d["bar"], d["beat"], d["part"]))
@@ -466,6 +470,9 @@ def render_part(part: Part, cue: Cue, n_buf: int, loop: bool) -> np.ndarray:
         if y is None:
             rng = make_rng("hulldown-music", cue.key, part.name, *ckey)
             f0 = None if note.pitch is None else hz(note.pitch)
+            if "f0" in params:  # fixed tuning (Hz) given as a part/note parameter
+                f0 = float(params.pop("f0")) if f0 is None else f0
+                params.pop("f0", None)
             y = instruments.play(part.inst, rng, f0, dur_s, vel, SR, **params)
             if y.ndim == 1:
                 y = mix.pan(y, part.pan) / np.sqrt(2.0)
@@ -490,8 +497,9 @@ def part_loudness(x: np.ndarray) -> float:
     return mix.loudness_integrated(x)
 
 
-def render_cue(cue: Cue, log=None) -> dict[str, np.ndarray]:
+def render_cue(cue: Cue, log=None, parts_out: dict | None = None) -> dict[str, np.ndarray]:
     """Render a cue to its stems (dict stem -> stereo float array), before mastering.
+    ``parts_out`` (optional dict) receives each part's dry, level-normalised buffer for analysis.
 
     Loops: every stem has exactly ``cue.n_body`` samples and is periodic. Stingers: the body plus
     ``cue.tail_s`` of ring-out."""
@@ -512,6 +520,8 @@ def render_cue(cue: Cue, log=None) -> dict[str, np.ndarray]:
         if cur > -69.0:
             x = mix.gain_db(x, part.level - cur)
         levels[part.name] = round(cur, 1)
+        if parts_out is not None:
+            parts_out[part.name] = x
         dry[part.stem] += x
         if part.reverb:
             send[part.stem] += x * part.reverb
@@ -531,5 +541,5 @@ def render_cue(cue: Cue, log=None) -> dict[str, np.ndarray]:
 __all__ = [
     "Note", "Part", "Cue", "seq", "hits", "prog", "chords", "bass", "arp", "ostinato", "roll", "shift", "transpose",
     "repeat", "scale_vel", "ramp", "window", "voicing", "midi", "hz", "name_of", "parse_chord", "chord_pcs",
-    "scale_pcs", "SCALES", "render_cue", "render_part", "motif_statements", "to_stereo",
+    "scale_pcs", "SCALES", "render_cue", "render_part", "motif_statements",
 ]

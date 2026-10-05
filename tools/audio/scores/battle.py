@@ -14,7 +14,7 @@ Stems (one cue, three outputs, mastered together so base+mid+high is the full mi
 
 from __future__ import annotations
 
-from synth.music import Cue, Note, chords, hits, ostinato, prog, ramp, roll, scale_vel, seq, shift
+from synth.music import Cue, Note, chords, hits, ostinato, parse_chord, prog, ramp, roll, scale_vel, seq
 
 from .common import B, P, brass, head, motif, pitched, strings, with_params
 
@@ -40,7 +40,6 @@ def battle() -> Cue:
     acc8 = [0.3, -0.05, -0.05, 0.3, -0.05, -0.05, 0.25, -0.05]
     pulse_c = scale_vel(ostinato(whole, ["r"] * 8, octave=3, step=0.5, vel=0.62, accents=acc8, slash=True), 1.0, sec_dyn)
     pulse_b = scale_vel(ostinato(whole, ["r"] * 8, octave=2, step=0.5, vel=0.6, accents=acc8, slash=True), 1.0, sec_dyn)
-    pulse_b = [n for n in pulse_b]
     for n in pulse_c:
         if n.pitch >= 60:
             n.pitch -= 12
@@ -49,8 +48,6 @@ def battle() -> Cue:
             n.pitch -= 12
     sub = []
     for beat, dur, sym in whole:
-        from synth.music import parse_chord
-
         root, _, sb = parse_chord(sym)
         pc = sb if sb is not None else root
         m = 24 + pc if pc >= 5 else 36 + pc  # F1..B1 or C2..E2
@@ -145,7 +142,7 @@ def battle() -> Cue:
         strings("pulse_celli", "celli", pulse_c, -22.0, art="spiccato", stem="base", reverb=0.15),
         strings("pulse_basses", "basses", pulse_b, -23.0, art="spiccato", stem="base", reverb=0.12),
         P("sub", "sub_bass", sub, -26.0, stem="base", reverb=0.0, params={"attack": 0.05, "release": 0.4}),
-        P("taiko", "taiko", taiko, -21.0, stem="base", reverb=0.25, params={"f0": 58.0}, rr=6),
+        P("taiko", "taiko", taiko, -21.0, stem="base", reverb=0.25, params={"f0": 55.0}, rr=6),
         P("toms", "tom", toms, -25.0, stem="base", reverb=0.25, pan=-0.2),
         P("timpani", "timpani", timp, -24.0, stem="base", reverb=0.3, pan=-0.15),
         # mid
@@ -170,7 +167,16 @@ def battle() -> Cue:
                description="Battle stems for dynamic intensity: base (low pulse/percussion), mid (ostinato + harmony), "
                            "high (full drums, brass with the motif, choir). Same tempo, key and length; sample-aligned.",
                state="BATTLE", group="battle", stems=("base", "mid", "high"), volume=0.8,
-               meta={"sections": {"A": 1, "B": 9, "A2": 17, "C": 25, "D": 33}})
+               meta={"sections": {"A": 1, "B": 9, "A2": 17, "C": 25, "D": 33},
+                     "stemDescriptions": {
+                         "base": "Battle layer 1 (always on): celli/basses 8th-note pulse with 3+3+2 accents, sub, taiko "
+                                 "groove, timpani on section downbeats, tom fills into each section.",
+                         "mid": "Battle layer 2 (medium intensity): violas 16th ostinato, violins 8ths in later sections, horn "
+                                "and celli harmony, trombone 3+3+2 stabs.",
+                         "high": "Battle layer 3 (high intensity): military snare, bass drum, crashes and swells, taiko "
+                                 "fills, brass with the motif (calls, countermelody, full statements, relative-major "
+                                 "anthem, Phrygian menace), violins doubling, choir.",
+                     }})
 
 
 def battle_endgame() -> Cue:
@@ -192,8 +198,6 @@ def battle_endgame() -> Cue:
                        art="tremolo")
     sub = []
     for beat, dur, sym in whole:
-        from synth.music import parse_chord
-
         root, _, sb = parse_chord(sym)
         pc = sb if sb is not None else root
         sub.append(Note(beat, dur, (24 + pc) if pc >= 5 else (36 + pc), 0.6))
@@ -238,7 +242,7 @@ def battle_endgame() -> Cue:
         strings("violins_trem", "violins", trem, -26.0, reverb=0.35),
         P("sub", "sub_bass", sub, -26.0, reverb=0.0, params={"attack": 0.05, "release": 0.4}),
         P("ticks", "clock_tick", ticks, -27.0, reverb=0.12, pan=0.3),
-        P("taiko", "taiko", taiko, -20.5, reverb=0.25, params={"f0": 58.0}, rr=6),
+        P("taiko", "taiko", taiko, -20.5, reverb=0.25, params={"f0": 55.0}, rr=6),
         P("timpani", "timpani", timp, -23.0, reverb=0.3, pan=-0.15, rr=6),
         P("snare", "snare", snare, -24.0, params={"kind": "military"}, reverb=0.2, pan=0.1, rr=8),
         P("crash", "cymbal", crash, -25.5, params={"kind": "crash"}, reverb=0.2),

@@ -2,7 +2,9 @@
 
 Because the pipeline is validated without listening, this module provides the numbers
 (peak, loudness, DC, seam quality, spectral shape) and pictures (log-frequency
-spectrograms with waveform strips) used by ``validate_audio.py`` and ``review_audio.py``.
+spectrograms with waveform strips) used by ``validate_audio.py`` and ``review_audio.py``, plus
+music analysis (chroma and key estimate, onset envelope, tempo, beat-grid phase, semitone
+"pitchgram" images) used by ``validate_music.py``.
 """
 
 from __future__ import annotations
@@ -195,7 +197,164 @@ def render_panels(items, path: str, sr: int = SR, width: int = 900, spec_h: int 
     canvas.save(path)
 
 
+# --------------------------------------------------------------------------- music analysis
+_KK_MAJOR = np.array([6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88])
+_KK_MINOR = np.array([6.33, 2.68, 3.52, 5.38, 2.60, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17])
+PC_NAMES = ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"]
+
+
+def chroma(x: np.ndarray, sr: int = SR, fmin: float = 55.0, fmax: float = 2000.0, nperseg: int | None = None) -> np.ndarray:
+    """Pitch-class profile (12,) of a signal: STFT energy folded onto equal-tempered pitch classes.
+
+    Each bin is weighted by its distance from the nearest semitone centre (1 at the centre, 0 at
+    +-0.5 semitone), and the FFT is long enough that semitones at ``fmin`` span several bins, so low
+    notes are not smeared into their neighbours. Frames are log-compressed so sustained bass does
+    not dominate."""
+    m = to_mono(x)
+    if nperseg is None:
+        # >= 3 bins per semitone at fmin (semitone width ~ 0.0595 * f)
+        nperseg = int(2 ** np.ceil(np.log2(3.0 * sr / (0.0595 * fmin))))
+        nperseg = min(nperseg, 1 << 16, max(1024, 1 << int(np.floor(np.log2(max(m.size, 1024))))))
+    f, _, Z = stft(m, sr, nperseg=nperseg, noverlap=nperseg * 3 // 4)
+    p = np.abs(Z) ** 2
+    sel = (f >= fmin) & (f <= fmax)
+    midi = 69 + 12 * np.log2(f[sel] / 440.0)
+    near = np.round(midi)
+    w = np.clip(1.0 - 2.0 * np.abs(midi - near), 0.0, 1.0)
+    pcs = np.mod(near, 12).astype(int)
+    frames = np.log1p(p[sel] / (np.max(p[sel]) * 1e-4 + 1e-30)) * w[:, None]
+    out = np.zeros(12)
+    for k in range(12):
+        out[k] = frames[pcs == k].sum()
+    return out / max(out.sum(), 1e-12)
+
+
+def estimate_key(ch: np.ndarray) -> dict:
+    """Krumhansl-Kessler key estimate from a chroma vector: best tonic/mode and all scores."""
+    scores = {}
+    for t in range(12):
+        for mode, prof in (("major", _KK_MAJOR), ("minor", _KK_MINOR)):
+            scores[f"{PC_NAMES[t]} {mode}"] = float(np.corrcoef(ch, np.roll(prof, t))[0, 1])
+    best = max(scores, key=scores.get)
+    return {"key": best, "r": round(scores[best], 3), "scores": {k: round(v, 3) for k, v in scores.items()}}
+
+
+def onset_envelope(x: np.ndarray, sr: int = SR, hop: int = 240, nperseg: int = 1024) -> np.ndarray:
+    """Spectral-flux onset strength (half-wave rectified log-magnitude increase), one value per hop."""
+    m = to_mono(x)
+    _, _, Z = stft(m, sr, nperseg=nperseg, noverlap=nperseg - hop, boundary=None, padded=False)
+    mag = np.log1p(1000.0 * np.abs(Z))
+    flux = np.maximum(np.diff(mag, axis=1), 0.0).sum(axis=0)
+    flux = np.concatenate([[0.0], flux])
+    flux -= np.convolve(flux, np.ones(41) / 41, mode="same")
+    return np.maximum(flux, 0.0)
+
+
+def estimate_tempo(env: np.ndarray, sr: int = SR, hop: int = 240, lo: float = 50.0, hi: float = 200.0) -> float:
+    """Tempo (BPM) from the autocorrelation of an onset envelope."""
+    e = env - env.mean()
+    ac = np.correlate(e, e, mode="full")[e.size - 1 :]
+    lags = np.arange(ac.size) * hop / sr
+    sel = (lags >= 60.0 / hi) & (lags <= 60.0 / lo)
+    i = np.argmax(ac[sel])
+    return float(60.0 / lags[sel][i])
+
+
+def grid_phase(env: np.ndarray, period_samples: float, hop: int = 240, nperseg: int = 1024) -> tuple[float, float]:
+    """Phase (in samples, 0..period) at which onset energy concentrates when folded on a beat grid
+    of ``period_samples``, plus a concentration score (0 = uniform, 1 = all onsets in one bin).
+    Envelope value ``i`` (from :func:`onset_envelope`) is timed at the centre between frames
+    ``i-1`` and ``i``: ``i*hop + nperseg/2 - hop/2``."""
+    pos = (np.arange(env.size) * hop + nperseg / 2 - hop / 2) % period_samples
+    bins = max(8, int(round(period_samples / hop)))
+    hist = np.bincount(np.minimum((pos / period_samples * bins).astype(int), bins - 1), weights=env, minlength=bins)
+    k = int(np.argmax(hist))
+    conc = float(hist[k] / max(hist.sum(), 1e-12))
+    return (k + 0.5) * period_samples / bins, conc
+
+
+def pitchgram_image(x: np.ndarray, sr: int = SR, width: int = 900, lo_midi: int = 36, hi_midi: int = 96,
+                    row_h: int = 4, db_range: float = 60.0, duration: float | None = None):
+    """Spectrogram on a semitone axis (one row per MIDI note) for checking melodies and harmony."""
+    from PIL import Image
+
+    m = to_mono(x)
+    if duration is not None:
+        n = int(duration * sr)
+        m = np.concatenate([m, np.zeros(max(0, n - m.size))])[:n]
+    nper = 8192
+    hop = max(64, int(m.size / width))
+    f, _, Z = stft(m, sr, nperseg=nper, noverlap=max(0, nper - hop), boundary="zeros")
+    mag = np.abs(Z)
+    rows = []
+    for note in range(hi_midi, lo_midi - 1, -1):
+        f_lo = 440.0 * 2 ** ((note - 0.5 - 69) / 12.0)
+        f_hi = 440.0 * 2 ** ((note + 0.5 - 69) / 12.0)
+        sel = (f >= f_lo) & (f < f_hi)
+        if not np.any(sel):
+            sel = np.array([np.argmin(np.abs(f - 440.0 * 2 ** ((note - 69) / 12.0)))])
+            rows.append(mag[sel].max(axis=0))
+        else:
+            rows.append(mag[sel].max(axis=0))
+    img = 20 * np.log10(np.array(rows) + 1e-9)
+    img = (img - (img.max() - db_range)) / db_range
+    cols = np.linspace(0, img.shape[1] - 1, width).astype(int)
+    img = np.repeat(img[:, cols], row_h, axis=0)
+    return Image.fromarray(_colormap(img), "RGB")
+
+
+def render_pitch_panels(items, path: str, sr: int = SR, width: int = 1100, lo_midi: int = 36, hi_midi: int = 96,
+                        row_h: int = 4, title: str | None = None) -> None:
+    """``[(label, signal, beats_or_None), ...]`` -> semitone spectrograms with note-name gridlines
+    (D and A rows highlighted: the motif's tonic and dominant) and optional beat ticks
+    (``beats`` = (first_beat_s, beat_s))."""
+    from PIL import Image, ImageDraw, ImageFont
+
+    try:
+        font = ImageFont.load_default(size=14)
+        small = ImageFont.load_default(size=10)
+    except TypeError:
+        font = small = ImageFont.load_default()
+    names = ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"]
+    rows = hi_midi - lo_midi + 1
+    ph = rows * row_h
+    axis_w = 40
+    head = 30 if title else 0
+    panel_h = 22 + ph + 16
+    W = width + axis_w + 20
+    H = head + panel_h * len(items) + 10
+    canvas = Image.new("RGB", (W, H), (10, 10, 14))
+    d = ImageDraw.Draw(canvas)
+    if title:
+        d.text((10, 6), title, fill=(240, 240, 240), font=font)
+    for k, (label, sig, beats) in enumerate(items):
+        y0 = head + k * panel_h
+        dur = sig.shape[0] / sr
+        d.text((10, y0 + 3), f"{label}   {dur:.2f}s", fill=(235, 235, 235), font=font)
+        img = pitchgram_image(sig, sr, width, lo_midi, hi_midi, row_h)
+        sy = y0 + 22
+        canvas.paste(img, (axis_w, sy))
+        for note in range(lo_midi, hi_midi + 1):
+            pc = note % 12
+            yy = sy + (hi_midi - note) * row_h + row_h // 2
+            if pc in (2, 9):
+                d.line([(axis_w - 6, yy), (axis_w - 1, yy)], fill=(255, 210, 120) if pc == 2 else (150, 200, 255))
+                d.text((2, yy - 6), f"{names[pc]}{note // 12 - 1}", fill=(255, 210, 120) if pc == 2 else (150, 200, 255),
+                       font=small)
+        if beats:
+            first, beat_s = beats
+            t = first
+            i = 0
+            while t <= dur:
+                xx = axis_w + int(t / max(dur, 1e-9) * (width - 1))
+                d.line([(xx, sy + ph), (xx, sy + ph + (6 if i % 4 == 0 else 3))], fill=(200, 200, 200))
+                t += beat_s
+                i += 1
+    canvas.save(path)
+
+
 __all__ = [
     "measure", "spectral_features", "log_mel_profile", "envelope_profile", "spectrogram_image", "render_panels",
-    "seam_metrics", "loudness_integrated", "loudness_momentary_max",
+    "seam_metrics", "loudness_integrated", "loudness_momentary_max", "chroma", "estimate_key", "onset_envelope",
+    "estimate_tempo", "grid_phase", "pitchgram_image", "render_pitch_panels",
 ]

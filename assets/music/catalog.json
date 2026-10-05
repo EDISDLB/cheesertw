@@ -1,0 +1,1873 @@
+{
+  "schema": "hulldown.music.catalog/1",
+  "generator": "tools/audio/generate_music.py",
+  "root": "assets/music",
+  "format": "ogg/vorbis",
+  "sampleRate": 48000,
+  "channels": 2,
+  "bus": "Music",
+  "motif": {
+    "name": "HULLDOWN call",
+    "notation": "D4:3/4 D4:1/4 A4:1 Bb4:3/2 G4:1/2 | A4:4",
+    "degrees": "1 1 5 b6 4 5 (D minor)",
+    "description": "Dotted bugle pickup on the tonic, heroic rising fifth, somber minor sixth sighing back to the fifth through the fourth, open ending on the dominant."
+  },
+  "notes": {
+    "loop": "Loops are seamless over the whole file. Bar 1 beat 1 is at loop.gridOffsetSamples; bar n starts at gridOffsetSamples + (n-1)*barS*sampleRate (wrapping). Stems of a group share length and grid.",
+    "stinger": "One-shots. stinger.bodyEndS is the end of the last bar (start the next cue there); the rest is ring-out.",
+    "volume": "suggested.volume is the AudioPlayer volume; the Music bus fader is separate (director.busFader).",
+    "banks": "Upload the loops and the banks (not the individual stingers): play a stinger from its bank with PlaybackRegion = NumberRange.new(bankRegion.startS, bankRegion.endS)."
+  },
+  "director": {
+    "states": {
+      "MENU": {
+        "cue": "main_theme"
+      },
+      "GARAGE": {
+        "cue": "garage_theme"
+      },
+      "LOADING": {
+        "stinger": "map_<mapId>",
+        "then": "loading_theme"
+      },
+      "BATTLE": {
+        "stems": [
+          "battle_base",
+          "battle_mid",
+          "battle_high"
+        ]
+      },
+      "BATTLE_ENDGAME": {
+        "cue": "battle_endgame"
+      },
+      "RESULT_STINGER": {
+        "victory": "victory",
+        "defeat": "defeat",
+        "draw": "draw"
+      },
+      "RESULTS": {
+        "cue": "results_theme"
+      }
+    },
+    "transitions": [
+      {
+        "from": "BOOT",
+        "to": "MENU",
+        "fadeInS": 2.0,
+        "quantize": "none"
+      },
+      {
+        "from": "MENU",
+        "to": "GARAGE",
+        "crossfadeS": 3.0,
+        "quantize": "none"
+      },
+      {
+        "from": "GARAGE",
+        "to": "LOADING",
+        "fadeOutS": 1.5,
+        "quantize": "none",
+        "note": "map stinger starts at once; loading_theme starts at the stinger's bodyEndS with a 1.5 s overlap"
+      },
+      {
+        "from": "LOADING",
+        "to": "BATTLE",
+        "fadeOutS": 0.6,
+        "quantize": "countdownGo",
+        "note": "all three stems start together, scheduled so bar 1 lands on GO; base fades in over 1 bar"
+      },
+      {
+        "from": "BATTLE",
+        "to": "BATTLE_ENDGAME",
+        "crossfadeS": 2.0,
+        "quantize": "bar",
+        "note": "same tempo and grid: endgame starts on the next bar line at the same bar position modulo its length"
+      },
+      {
+        "from": "BATTLE|BATTLE_ENDGAME",
+        "to": "RESULT_STINGER",
+        "fadeOutS": 0.5,
+        "quantize": "beat"
+      },
+      {
+        "from": "RESULT_STINGER",
+        "to": "RESULTS",
+        "crossfadeS": 3.0,
+        "quantize": "stingerBodyEnd"
+      },
+      {
+        "from": "RESULTS",
+        "to": "GARAGE",
+        "crossfadeS": 3.0,
+        "quantize": "none"
+      },
+      {
+        "from": "*",
+        "to": "MENU",
+        "crossfadeS": 2.0,
+        "quantize": "none"
+      }
+    ],
+    "intensity": {
+      "inputs": {
+        "combat": {
+          "weight": 0.35,
+          "desc": "shots fired/received by own tank or within 150 m in the last 10 s, /6, capped at 1"
+        },
+        "threat": {
+          "weight": 0.25,
+          "desc": "spotted enemies within 300 m, /3, capped at 1"
+        },
+        "ownDamage": {
+          "weight": 0.2,
+          "desc": "1 - ownHP/maxHP"
+        },
+        "closeness": {
+          "weight": 0.1,
+          "desc": "1 - |teamHpShare - 0.5| * 2 (a close fight is tense)"
+        },
+        "time": {
+          "weight": 0.1,
+          "desc": "elapsed / battle length"
+        }
+      },
+      "smoothing": {
+        "riseS": 1.5,
+        "fallS": 8.0
+      },
+      "layers": {
+        "battle_base": {
+          "always": true,
+          "volume": 1.0
+        },
+        "battle_mid": {
+          "on": 0.3,
+          "off": 0.2,
+          "fadeInS": 4.0,
+          "fadeOutS": 8.0,
+          "quantize": "bar"
+        },
+        "battle_high": {
+          "on": 0.6,
+          "off": 0.45,
+          "fadeInS": 2.0,
+          "fadeOutS": 8.0,
+          "quantize": "bar"
+        }
+      },
+      "minHoldBars": 4,
+      "spectating": {
+        "volumeDb": -6.0,
+        "lowpassHz": 2000.0
+      }
+    },
+    "endgame": {
+      "timeLeftS": 120,
+      "aliveTotalMax": 6,
+      "teamAliveMax": 2,
+      "hpShareDiff": 0.4,
+      "exit": "never"
+    },
+    "ducking": [
+      {
+        "trigger": "Voice bus active",
+        "depthDb": -6.0,
+        "attackS": 0.02,
+        "releaseS": 0.4
+      },
+      {
+        "trigger": "own gun fired",
+        "depthDb": -4.0,
+        "attackS": 0.005,
+        "holdS": 0.15,
+        "releaseS": 0.5
+      },
+      {
+        "trigger": "armor_hit_taken_*",
+        "depthDb": -6.0,
+        "attackS": 0.005,
+        "holdS": 0.3,
+        "releaseS": 0.8
+      },
+      {
+        "trigger": "explosion within 60 m",
+        "depthDb": -6.0,
+        "attackS": 0.005,
+        "holdS": 0.5,
+        "releaseS": 1.2
+      },
+      {
+        "trigger": "cue_sixth_sense",
+        "depthDb": -4.0,
+        "attackS": 0.01,
+        "holdS": 1.0,
+        "releaseS": 0.6
+      },
+      {
+        "trigger": "garage fanfares (ui_vehicle_unlocked, ...)",
+        "depthDb": -5.0,
+        "attackS": 0.02,
+        "releaseS": 0.6
+      },
+      {
+        "trigger": "low-HP heartbeat",
+        "depthDb": -3.0,
+        "attackS": 0.2,
+        "releaseS": 1.0
+      }
+    ],
+    "busFader": {
+      "menu": 0.6,
+      "garage": 0.5,
+      "battle": 0.45
+    }
+  },
+  "groups": {
+    "battle": {
+      "stems": [
+        "battle_base",
+        "battle_mid",
+        "battle_high"
+      ],
+      "bpm": 120,
+      "key": "D minor",
+      "samples": 3840000,
+      "gridOffsetSamples": 203,
+      "bars": 40,
+      "barS": 2.0,
+      "targetLufsAllLayers": -17.0
+    }
+  },
+  "banks": {
+    "music_stingers_1": {
+      "file": "banks/music_stingers_1.ogg",
+      "durationS": 105.626,
+      "channels": 2,
+      "contents": [
+        "victory",
+        "defeat",
+        "draw",
+        "map_dust_basin",
+        "map_frozen_front"
+      ],
+      "peakDb": -3.54
+    },
+    "music_stingers_2": {
+      "file": "banks/music_stingers_2.ogg",
+      "durationS": 101.401,
+      "channels": 2,
+      "contents": [
+        "map_harbor_district",
+        "map_iron_valley",
+        "map_mountain_pass",
+        "map_old_fortress",
+        "map_open_plains",
+        "map_river_town"
+      ],
+      "peakDb": -2.34
+    }
+  },
+  "cues": {
+    "battle_base": {
+      "file": "battle_base.ogg",
+      "title": "Battle (stems) - base",
+      "description": "Battle layer 1 (always on): celli/basses 8th-note pulse with 3+3+2 accents, sub, taiko groove, timpani on section downbeats, tom fills into each section.",
+      "state": "BATTLE",
+      "kind": "loop",
+      "durationS": 80.0,
+      "samples": 3840000,
+      "channels": 2,
+      "bpm": 120,
+      "meter": "4/4",
+      "beatsPerBar": 4,
+      "bars": 40,
+      "beatS": 0.5,
+      "barS": 2.0,
+      "samplesPerBeat": 24000.0,
+      "key": "D minor",
+      "suggested": {
+        "volume": 0.8,
+        "fadeInS": 2.0,
+        "fadeOutS": 2.0,
+        "quantize": "bar"
+      },
+      "loudnessLufs": -22.35,
+      "peakDb": -1.69,
+      "truePeakDb": -1.69,
+      "master": {
+        "glueMaxGrDb": 2.53,
+        "limiterMaxGrDb": 0.87,
+        "gridOffsetSamples": 203,
+        "encodeTrimDb": 0.0,
+        "targetLufs": -17.0
+      },
+      "motif": [],
+      "instruments": [
+        "strings",
+        "sub_bass",
+        "taiko",
+        "timpani",
+        "tom"
+      ],
+      "loop": {
+        "startS": 0.0,
+        "endS": 80.0,
+        "gridOffsetSamples": 203,
+        "gridOffsetS": 0.004229,
+        "seamless": true,
+        "seam": {
+          "jumpRatio": 0.201,
+          "hfBurstDb": -9.82,
+          "firstSampleAbs": 0.04091
+        }
+      },
+      "group": "battle",
+      "stem": "base",
+      "layer": 0,
+      "sectionsBar": {
+        "A": 1,
+        "B": 9,
+        "A2": 17,
+        "C": 25,
+        "D": 33
+      }
+    },
+    "battle_endgame": {
+      "file": "battle_endgame.ogg",
+      "title": "Battle Endgame",
+      "description": "Endgame (last 2 minutes or few tanks left): 16th-note lament-bass drive (D-C-Bb-A), ticking clock, timpani ostinato, Phrygian D/Eb menace, the motif augmented in the trumpets over full choir. Same tempo/key/grid as the battle stems.",
+      "state": "BATTLE_ENDGAME",
+      "kind": "loop",
+      "durationS": 64.0,
+      "samples": 3072000,
+      "channels": 2,
+      "bpm": 120,
+      "meter": "4/4",
+      "beatsPerBar": 4,
+      "bars": 32,
+      "beatS": 0.5,
+      "barS": 2.0,
+      "samplesPerBeat": 24000.0,
+      "key": "D minor",
+      "suggested": {
+        "volume": 0.85,
+        "fadeInS": 2.0,
+        "fadeOutS": 2.0,
+        "quantize": "bar"
+      },
+      "loudnessLufs": -17.04,
+      "peakDb": -1.52,
+      "truePeakDb": -1.51,
+      "master": {
+        "glueMaxGrDb": 2.81,
+        "limiterMaxGrDb": 0.02,
+        "gridOffsetSamples": 882,
+        "encodeTrimDb": 0.0,
+        "targetLufs": -17.0
+      },
+      "motif": [
+        {
+          "part": "horns",
+          "form": "motif",
+          "bar": 9,
+          "beat": 1.0,
+          "tonicPc": 2
+        },
+        {
+          "part": "horns",
+          "form": "motif",
+          "bar": 13,
+          "beat": 1.0,
+          "tonicPc": 2
+        },
+        {
+          "part": "low_brass",
+          "form": "motif_head",
+          "bar": 17,
+          "beat": 1.0,
+          "tonicPc": 2
+        },
+        {
+          "part": "low_brass",
+          "form": "motif_head",
+          "bar": 18,
+          "beat": 1.0,
+          "tonicPc": 3
+        },
+        {
+          "part": "low_brass",
+          "form": "motif_head",
+          "bar": 19,
+          "beat": 1.0,
+          "tonicPc": 2
+        },
+        {
+          "part": "low_brass",
+          "form": "motif_head",
+          "bar": 20,
+          "beat": 1.0,
+          "tonicPc": 3
+        },
+        {
+          "part": "horns",
+          "form": "motif_aug",
+          "bar": 25,
+          "beat": 1.0,
+          "tonicPc": 2
+        },
+        {
+          "part": "trumpets",
+          "form": "motif_aug",
+          "bar": 25,
+          "beat": 1.0,
+          "tonicPc": 2
+        },
+        {
+          "part": "horns",
+          "form": "motif",
+          "bar": 29,
+          "beat": 1.0,
+          "tonicPc": 2
+        },
+        {
+          "part": "trumpets",
+          "form": "motif",
+          "bar": 29,
+          "beat": 1.0,
+          "tonicPc": 2
+        }
+      ],
+      "instruments": [
+        "brass",
+        "choir",
+        "clock_tick",
+        "cymbal",
+        "snare",
+        "strings",
+        "sub_bass",
+        "taiko",
+        "timpani"
+      ],
+      "loop": {
+        "startS": 0.0,
+        "endS": 64.0,
+        "gridOffsetSamples": 882,
+        "gridOffsetS": 0.018375,
+        "seamless": true,
+        "seam": {
+          "jumpRatio": 0.144,
+          "hfBurstDb": 4.43,
+          "firstSampleAbs": 0.03357
+        }
+      },
+      "sectionsBar": {
+        "lament": 1,
+        "motif": 9,
+        "menace": 17,
+        "climax": 25
+      }
+    },
+    "battle_high": {
+      "file": "battle_high.ogg",
+      "title": "Battle (stems) - high",
+      "description": "Battle layer 3 (high intensity): military snare, bass drum, crashes and swells, taiko fills, brass with the motif (calls, countermelody, full statements, relative-major anthem, Phrygian menace), violins doubling, choir.",
+      "state": "BATTLE",
+      "kind": "loop",
+      "durationS": 80.0,
+      "samples": 3840000,
+      "channels": 2,
+      "bpm": 120,
+      "meter": "4/4",
+      "beatsPerBar": 4,
+      "bars": 40,
+      "beatS": 0.5,
+      "barS": 2.0,
+      "samplesPerBeat": 24000.0,
+      "key": "D minor",
+      "suggested": {
+        "volume": 0.8,
+        "fadeInS": 2.0,
+        "fadeOutS": 2.0,
+        "quantize": "bar"
+      },
+      "loudnessLufs": -20.67,
+      "peakDb": -8.76,
+      "truePeakDb": -8.72,
+      "master": {
+        "glueMaxGrDb": 2.53,
+        "limiterMaxGrDb": 0.87,
+        "gridOffsetSamples": 203,
+        "encodeTrimDb": 0.0,
+        "targetLufs": -17.0
+      },
+      "motif": [
+        {
+          "part": "horns",
+          "form": "motif_head",
+          "bar": 1,
+          "beat": 1.0,
+          "tonicPc": 2
+        },
+        {
+          "part": "trumpets",
+          "form": "motif_head",
+          "bar": 1,
+          "beat": 1.0,
+          "tonicPc": 2
+        },
+        {
+          "part": "horns",
+          "form": "motif_head",
+          "bar": 3,
+          "beat": 1.0,
+          "tonicPc": 7
+        },
+        {
+          "part": "trumpets",
+          "form": "motif_head",
+          "bar": 3,
+          "beat": 1.0,
+          "tonicPc": 7
+        },
+        {
+          "part": "horns",
+          "form": "motif_head",
+          "bar": 5,
+          "beat": 1.0,
+          "tonicPc": 2
+        },
+        {
+          "part": "trumpets",
+          "form": "motif_head",
+          "bar": 5,
+          "beat": 1.0,
+          "tonicPc": 2
+        },
+        {
+          "part": "horns",
+          "form": "motif_head",
+          "bar": 7,
+          "beat": 1.0,
+          "tonicPc": 7
+        },
+        {
+          "part": "trumpets",
+          "form": "motif_head",
+          "bar": 7,
+          "beat": 1.0,
+          "tonicPc": 7
+        },
+        {
+          "part": "horns",
+          "form": "motif",
+          "bar": 17,
+          "beat": 1.0,
+          "tonicPc": 2
+        },
+        {
+          "part": "trumpets",
+          "form": "motif",
+          "bar": 17,
+          "beat": 1.0,
+          "tonicPc": 2
+        },
+        {
+          "part": "horns",
+          "form": "motif",
+          "bar": 21,
+          "beat": 1.0,
+          "tonicPc": 2
+        },
+        {
+          "part": "trumpets",
+          "form": "motif",
+          "bar": 21,
+          "beat": 1.0,
+          "tonicPc": 2
+        },
+        {
+          "part": "horns",
+          "form": "motif_relmajor",
+          "bar": 25,
+          "beat": 1.0,
+          "tonicPc": 5
+        },
+        {
+          "part": "trumpets",
+          "form": "motif_relmajor",
+          "bar": 25,
+          "beat": 1.0,
+          "tonicPc": 5
+        },
+        {
+          "part": "horns",
+          "form": "motif_transposed",
+          "bar": 27,
+          "beat": 1.0,
+          "tonicPc": 7
+        },
+        {
+          "part": "trumpets",
+          "form": "motif_transposed",
+          "bar": 27,
+          "beat": 1.0,
+          "tonicPc": 7
+        },
+        {
+          "part": "low_brass",
+          "form": "motif_head",
+          "bar": 33,
+          "beat": 1.0,
+          "tonicPc": 2
+        },
+        {
+          "part": "low_brass",
+          "form": "motif_head",
+          "bar": 34,
+          "beat": 1.0,
+          "tonicPc": 3
+        },
+        {
+          "part": "low_brass",
+          "form": "motif_head",
+          "bar": 35,
+          "beat": 1.0,
+          "tonicPc": 2
+        },
+        {
+          "part": "low_brass",
+          "form": "motif_head",
+          "bar": 36,
+          "beat": 1.0,
+          "tonicPc": 3
+        },
+        {
+          "part": "horns",
+          "form": "motif",
+          "bar": 37,
+          "beat": 1.0,
+          "tonicPc": 2
+        },
+        {
+          "part": "trumpets",
+          "form": "motif",
+          "bar": 37,
+          "beat": 1.0,
+          "tonicPc": 2
+        }
+      ],
+      "instruments": [
+        "bass_drum",
+        "brass",
+        "choir",
+        "cymbal",
+        "snare",
+        "strings",
+        "taiko"
+      ],
+      "loop": {
+        "startS": 0.0,
+        "endS": 80.0,
+        "gridOffsetSamples": 203,
+        "gridOffsetS": 0.004229,
+        "seamless": true,
+        "seam": {
+          "jumpRatio": 0.096,
+          "hfBurstDb": 1.97,
+          "firstSampleAbs": 0.0133
+        }
+      },
+      "group": "battle",
+      "stem": "high",
+      "layer": 2,
+      "sectionsBar": {
+        "A": 1,
+        "B": 9,
+        "A2": 17,
+        "C": 25,
+        "D": 33
+      }
+    },
+    "battle_mid": {
+      "file": "battle_mid.ogg",
+      "title": "Battle (stems) - mid",
+      "description": "Battle layer 2 (medium intensity): violas 16th ostinato, violins 8ths in later sections, horn and celli harmony, trombone 3+3+2 stabs.",
+      "state": "BATTLE",
+      "kind": "loop",
+      "durationS": 80.0,
+      "samples": 3840000,
+      "channels": 2,
+      "bpm": 120,
+      "meter": "4/4",
+      "beatsPerBar": 4,
+      "bars": 40,
+      "beatS": 0.5,
+      "barS": 2.0,
+      "samplesPerBeat": 24000.0,
+      "key": "D minor",
+      "suggested": {
+        "volume": 0.8,
+        "fadeInS": 2.0,
+        "fadeOutS": 2.0,
+        "quantize": "bar"
+      },
+      "loudnessLufs": -22.73,
+      "peakDb": -9.24,
+      "truePeakDb": -9.21,
+      "master": {
+        "glueMaxGrDb": 2.53,
+        "limiterMaxGrDb": 0.87,
+        "gridOffsetSamples": 203,
+        "encodeTrimDb": 0.0,
+        "targetLufs": -17.0
+      },
+      "motif": [],
+      "instruments": [
+        "brass",
+        "strings"
+      ],
+      "loop": {
+        "startS": 0.0,
+        "endS": 80.0,
+        "gridOffsetSamples": 203,
+        "gridOffsetS": 0.004229,
+        "seamless": true,
+        "seam": {
+          "jumpRatio": 0.002,
+          "hfBurstDb": -6.88,
+          "firstSampleAbs": 0.01711
+        }
+      },
+      "group": "battle",
+      "stem": "mid",
+      "layer": 1,
+      "sectionsBar": {
+        "A": 1,
+        "B": 9,
+        "A2": 17,
+        "C": 25,
+        "D": 33
+      }
+    },
+    "defeat": {
+      "file": "defeat.ogg",
+      "title": "Defeat",
+      "description": "Defeat: a lone horn states the motif and sighs downward; it tries the call again but stalls on Bb-A over a muffled timpani, a distant bell and a dark choir; ends on D minor.",
+      "state": "RESULT_STINGER",
+      "kind": "stinger",
+      "durationS": 26.678146,
+      "samples": 1280551,
+      "channels": 2,
+      "bpm": 60,
+      "meter": "4/4",
+      "beatsPerBar": 4,
+      "bars": 6,
+      "beatS": 1.0,
+      "barS": 4.0,
+      "samplesPerBeat": 48000.0,
+      "key": "D minor",
+      "suggested": {
+        "volume": 0.85,
+        "fadeInS": 0.0,
+        "fadeOutS": 0.5
+      },
+      "loudnessLufs": -18.02,
+      "peakDb": -9.26,
+      "truePeakDb": -9.26,
+      "master": {
+        "glueMaxGrDb": 0.64,
+        "limiterMaxGrDb": -0.0,
+        "gridOffsetSamples": 480,
+        "encodeTrimDb": 0.0,
+        "targetLufs": -18.0
+      },
+      "motif": [
+        {
+          "part": "horn",
+          "form": "motif_lament",
+          "bar": 1,
+          "beat": 1.0,
+          "tonicPc": 2
+        },
+        {
+          "part": "horn",
+          "form": "motif_head",
+          "bar": 4,
+          "beat": 1.0,
+          "tonicPc": 2
+        }
+      ],
+      "instruments": [
+        "bell",
+        "brass",
+        "choir",
+        "strings",
+        "timpani"
+      ],
+      "stinger": {
+        "leadS": 0.01,
+        "bodyEndS": 24.01,
+        "tailS": 2.668
+      },
+      "bankRegion": {
+        "bank": "banks/music_stingers_1.ogg",
+        "startS": 27.447437,
+        "endS": 54.125583
+      }
+    },
+    "draw": {
+      "file": "draw.ogg",
+      "title": "Draw",
+      "description": "Draw: the motif in the horns over suspended harmony (sus2/sus4) on a D pedal, a soft echo of the call, ending on a bare D-A fifth - neither major nor minor.",
+      "state": "RESULT_STINGER",
+      "kind": "stinger",
+      "durationS": 16.736563,
+      "samples": 803355,
+      "channels": 2,
+      "bpm": 72,
+      "meter": "4/4",
+      "beatsPerBar": 4,
+      "bars": 4,
+      "beatS": 0.833333,
+      "barS": 3.333333,
+      "samplesPerBeat": 40000.0,
+      "key": "D (open, sus)",
+      "suggested": {
+        "volume": 0.8,
+        "fadeInS": 0.0,
+        "fadeOutS": 0.5
+      },
+      "loudnessLufs": -18.51,
+      "peakDb": -10.16,
+      "truePeakDb": -10.15,
+      "master": {
+        "glueMaxGrDb": 0.53,
+        "limiterMaxGrDb": -0.0,
+        "gridOffsetSamples": 480,
+        "encodeTrimDb": 0.0,
+        "targetLufs": -18.5
+      },
+      "motif": [
+        {
+          "part": "horn",
+          "form": "motif",
+          "bar": 1,
+          "beat": 1.0,
+          "tonicPc": 2
+        },
+        {
+          "part": "echo",
+          "form": "motif_head",
+          "bar": 3,
+          "beat": 1.0,
+          "tonicPc": 2
+        }
+      ],
+      "instruments": [
+        "brass",
+        "strings",
+        "timpani"
+      ],
+      "stinger": {
+        "leadS": 0.01,
+        "bodyEndS": 13.343333,
+        "tailS": 3.393
+      },
+      "bankRegion": {
+        "bank": "banks/music_stingers_1.ogg",
+        "startS": 54.625583,
+        "endS": 71.362146
+      }
+    },
+    "garage_theme": {
+      "file": "garage_theme.ogg",
+      "title": "Garage",
+      "description": "Garage/hangar. Calm military theme: piano arpeggios over an i-VI-III-VII vamp, a solo horn with the motif, a lyrical string section, brushed march snare, celesta and flute quoting the motif, and a fuller final statement that returns to the piano intro.",
+      "state": "GARAGE",
+      "kind": "loop",
+      "durationS": 132.0,
+      "samples": 6336000,
+      "channels": 2,
+      "bpm": 80,
+      "meter": "4/4",
+      "beatsPerBar": 4,
+      "bars": 44,
+      "beatS": 0.75,
+      "barS": 3.0,
+      "samplesPerBeat": 36000.0,
+      "key": "D minor",
+      "suggested": {
+        "volume": 0.6,
+        "fadeInS": 2.0,
+        "fadeOutS": 2.0,
+        "quantize": "bar"
+      },
+      "loudnessLufs": -20.01,
+      "peakDb": -8.57,
+      "truePeakDb": -8.55,
+      "master": {
+        "glueMaxGrDb": 1.52,
+        "limiterMaxGrDb": -0.0,
+        "gridOffsetSamples": 742,
+        "encodeTrimDb": 0.0,
+        "targetLufs": -20.0
+      },
+      "motif": [
+        {
+          "part": "horn",
+          "form": "motif",
+          "bar": 5,
+          "beat": 1.0,
+          "tonicPc": 2
+        },
+        {
+          "part": "horn",
+          "form": "motif",
+          "bar": 21,
+          "beat": 1.0,
+          "tonicPc": 2
+        },
+        {
+          "part": "celesta",
+          "form": "motif",
+          "bar": 29,
+          "beat": 1.0,
+          "tonicPc": 2
+        },
+        {
+          "part": "flute",
+          "form": "motif",
+          "bar": 33,
+          "beat": 1.0,
+          "tonicPc": 2
+        },
+        {
+          "part": "horn",
+          "form": "motif",
+          "bar": 37,
+          "beat": 1.0,
+          "tonicPc": 2
+        },
+        {
+          "part": "violins",
+          "form": "motif",
+          "bar": 37,
+          "beat": 1.0,
+          "tonicPc": 2
+        }
+      ],
+      "instruments": [
+        "bell",
+        "brass",
+        "flute",
+        "piano",
+        "pluck",
+        "snare",
+        "strings",
+        "timpani"
+      ],
+      "loop": {
+        "startS": 0.0,
+        "endS": 132.0,
+        "gridOffsetSamples": 742,
+        "gridOffsetS": 0.015458,
+        "seamless": true,
+        "seam": {
+          "jumpRatio": 0.052,
+          "hfBurstDb": -4.22,
+          "firstSampleAbs": 0.00212
+        }
+      },
+      "sectionsBar": {
+        "intro": 1,
+        "A1": 5,
+        "B": 13,
+        "A2": 21,
+        "C": 29,
+        "A3": 37
+      }
+    },
+    "loading_theme": {
+      "file": "loading_theme.ogg",
+      "title": "Loading",
+      "description": "Battle loading screen. Tension build: ticking pulse, D pedal and an endless Shepard-Risset riser; a motif ostinato in the celli, the horn call, trombone motif, then a menacing D/Eb Phrygian section, a hit at bar 17 and a rebuild into the loop point.",
+      "state": "LOADING",
+      "kind": "loop",
+      "durationS": 50.0,
+      "samples": 2400000,
+      "channels": 2,
+      "bpm": 96,
+      "meter": "4/4",
+      "beatsPerBar": 4,
+      "bars": 20,
+      "beatS": 0.625,
+      "barS": 2.5,
+      "samplesPerBeat": 30000.0,
+      "key": "D minor",
+      "suggested": {
+        "volume": 0.7,
+        "fadeInS": 2.0,
+        "fadeOutS": 2.0,
+        "quantize": "bar"
+      },
+      "loudnessLufs": -19.05,
+      "peakDb": -1.52,
+      "truePeakDb": -1.52,
+      "master": {
+        "glueMaxGrDb": 4.24,
+        "limiterMaxGrDb": 0.26,
+        "gridOffsetSamples": 12,
+        "encodeTrimDb": 0.0,
+        "targetLufs": -19.0
+      },
+      "motif": [
+        {
+          "part": "horn_call",
+          "form": "motif_head",
+          "bar": 7,
+          "beat": 1.0,
+          "tonicPc": 2
+        },
+        {
+          "part": "trombones",
+          "form": "motif",
+          "bar": 9,
+          "beat": 1.0,
+          "tonicPc": 2
+        },
+        {
+          "part": "trombones",
+          "form": "motif_head",
+          "bar": 13,
+          "beat": 1.0,
+          "tonicPc": 2
+        },
+        {
+          "part": "trombones",
+          "form": "motif_head",
+          "bar": 14,
+          "beat": 1.0,
+          "tonicPc": 3
+        },
+        {
+          "part": "trombones",
+          "form": "motif_head",
+          "bar": 15,
+          "beat": 1.0,
+          "tonicPc": 2
+        },
+        {
+          "part": "trombones",
+          "form": "motif_head",
+          "bar": 16,
+          "beat": 1.0,
+          "tonicPc": 3
+        }
+      ],
+      "instruments": [
+        "brass",
+        "choir",
+        "clock_tick",
+        "cymbal",
+        "shepard",
+        "snare",
+        "strings",
+        "sub_bass",
+        "taiko",
+        "timpani"
+      ],
+      "loop": {
+        "startS": 0.0,
+        "endS": 50.0,
+        "gridOffsetSamples": 12,
+        "gridOffsetS": 0.00025,
+        "seamless": true,
+        "seam": {
+          "jumpRatio": 0.062,
+          "hfBurstDb": 8.96,
+          "firstSampleAbs": 0.02464
+        }
+      },
+      "sectionsBar": {
+        "pedal": 1,
+        "ostinato": 5,
+        "motif": 9,
+        "menace": 13,
+        "hit": 17
+      }
+    },
+    "main_theme": {
+      "file": "main_theme.ogg",
+      "title": "HULLDOWN Main Theme",
+      "description": "Login/main menu. Cinematic: distant horn call over a D pedal, horn statement of the motif, full brass and military snare restatement, lyrical relative-major bridge with the motif augmented in the horns, tutti coda that winds back into the intro.",
+      "state": "MENU",
+      "kind": "loop",
+      "durationS": 106.666667,
+      "samples": 5120000,
+      "channels": 2,
+      "bpm": 72,
+      "meter": "4/4",
+      "beatsPerBar": 4,
+      "bars": 32,
+      "beatS": 0.833333,
+      "barS": 3.333333,
+      "samplesPerBeat": 40000.0,
+      "key": "D minor",
+      "suggested": {
+        "volume": 0.8,
+        "fadeInS": 2.0,
+        "fadeOutS": 2.0,
+        "quantize": "bar"
+      },
+      "loudnessLufs": -18.04,
+      "peakDb": -5.81,
+      "truePeakDb": -5.79,
+      "master": {
+        "glueMaxGrDb": 2.47,
+        "limiterMaxGrDb": -0.0,
+        "gridOffsetSamples": 591,
+        "encodeTrimDb": 0.0,
+        "targetLufs": -18.0
+      },
+      "motif": [
+        {
+          "part": "horn_solo",
+          "form": "motif_head",
+          "bar": 3,
+          "beat": 1.0,
+          "tonicPc": 2
+        },
+        {
+          "part": "horn_solo",
+          "form": "motif",
+          "bar": 5,
+          "beat": 1.0,
+          "tonicPc": 2
+        },
+        {
+          "part": "horns",
+          "form": "motif",
+          "bar": 13,
+          "beat": 1.0,
+          "tonicPc": 2
+        },
+        {
+          "part": "trumpets",
+          "form": "motif",
+          "bar": 13,
+          "beat": 1.0,
+          "tonicPc": 2
+        },
+        {
+          "part": "horns",
+          "form": "motif_aug",
+          "bar": 25,
+          "beat": 1.0,
+          "tonicPc": 2
+        },
+        {
+          "part": "horns",
+          "form": "motif",
+          "bar": 29,
+          "beat": 1.0,
+          "tonicPc": 2
+        },
+        {
+          "part": "trumpets",
+          "form": "motif",
+          "bar": 29,
+          "beat": 1.0,
+          "tonicPc": 2
+        }
+      ],
+      "instruments": [
+        "bass_drum",
+        "bell",
+        "brass",
+        "choir",
+        "cymbal",
+        "pluck",
+        "snare",
+        "strings",
+        "timpani"
+      ],
+      "loop": {
+        "startS": 0.0,
+        "endS": 106.666667,
+        "gridOffsetSamples": 591,
+        "gridOffsetS": 0.012313,
+        "seamless": true,
+        "seam": {
+          "jumpRatio": 0.002,
+          "hfBurstDb": -25.24,
+          "firstSampleAbs": 0.00787
+        }
+      },
+      "sectionsBar": {
+        "intro": 1,
+        "A": 5,
+        "B": 13,
+        "C": 21,
+        "coda": 29
+      }
+    },
+    "map_dust_basin": {
+      "file": "map_dust_basin.ogg",
+      "title": "Dust Basin",
+      "description": "Desert basin: the motif on an oud (with tremolo on the held A) over a maqsum frame-drum rhythm, a duduk drone and a Hijaz answer resolving Eb-D.",
+      "state": "LOADING_MAP_STINGER",
+      "kind": "stinger",
+      "durationS": 15.420979,
+      "samples": 740207,
+      "channels": 2,
+      "bpm": 90,
+      "meter": "4/4",
+      "beatsPerBar": 4,
+      "bars": 5,
+      "beatS": 0.666667,
+      "barS": 2.666667,
+      "samplesPerBeat": 32000.0,
+      "key": "D Phrygian dominant",
+      "suggested": {
+        "volume": 0.8,
+        "fadeInS": 0.0,
+        "fadeOutS": 0.5
+      },
+      "loudnessLufs": -17.98,
+      "peakDb": -3.62,
+      "truePeakDb": -3.62,
+      "master": {
+        "glueMaxGrDb": 1.52,
+        "limiterMaxGrDb": -0.0,
+        "gridOffsetSamples": 480,
+        "encodeTrimDb": 0.0,
+        "targetLufs": -18.0
+      },
+      "motif": [
+        {
+          "part": "oud",
+          "form": "motif",
+          "bar": 1,
+          "beat": 1.0,
+          "tonicPc": 2
+        }
+      ],
+      "instruments": [
+        "frame_drum",
+        "pluck",
+        "reed",
+        "strings"
+      ],
+      "stinger": {
+        "leadS": 0.01,
+        "bodyEndS": 13.343333,
+        "tailS": 2.078
+      },
+      "map": "dust_basin",
+      "biome": "desert",
+      "bankRegion": {
+        "bank": "banks/music_stingers_1.ogg",
+        "startS": 71.862146,
+        "endS": 87.283125
+      }
+    },
+    "map_frozen_front": {
+      "file": "map_frozen_front.ogg",
+      "title": "Frozen Front",
+      "description": "Winter front: the motif high on celesta doubled by glass bells, an airy choir and string harmonics in a long cold reverb, a breathy end-blown flute answer.",
+      "state": "LOADING_MAP_STINGER",
+      "kind": "stinger",
+      "durationS": 17.343333,
+      "samples": 832480,
+      "channels": 2,
+      "bpm": 72,
+      "meter": "4/4",
+      "beatsPerBar": 4,
+      "bars": 4,
+      "beatS": 0.833333,
+      "barS": 3.333333,
+      "samplesPerBeat": 40000.0,
+      "key": "D minor (add9)",
+      "suggested": {
+        "volume": 0.8,
+        "fadeInS": 0.0,
+        "fadeOutS": 0.5
+      },
+      "loudnessLufs": -17.97,
+      "peakDb": -9.93,
+      "truePeakDb": -9.92,
+      "master": {
+        "glueMaxGrDb": 0.48,
+        "limiterMaxGrDb": -0.0,
+        "gridOffsetSamples": 480,
+        "encodeTrimDb": 0.0,
+        "targetLufs": -18.0
+      },
+      "motif": [
+        {
+          "part": "celesta",
+          "form": "motif",
+          "bar": 1,
+          "beat": 1.0,
+          "tonicPc": 2
+        },
+        {
+          "part": "glass",
+          "form": "motif",
+          "bar": 1,
+          "beat": 1.0,
+          "tonicPc": 2
+        }
+      ],
+      "instruments": [
+        "bell",
+        "choir",
+        "flute",
+        "pad",
+        "strings"
+      ],
+      "stinger": {
+        "leadS": 0.01,
+        "bodyEndS": 13.343333,
+        "tailS": 4.0
+      },
+      "map": "frozen_front",
+      "biome": "winter",
+      "bankRegion": {
+        "bank": "banks/music_stingers_1.ogg",
+        "startS": 87.783125,
+        "endS": 105.126458
+      }
+    },
+    "map_harbor_district": {
+      "file": "map_harbor_district.ogg",
+      "title": "Harbor District",
+      "description": "Harbor: a 6/8 sway in D Dorian - the motif on accordion over pizzicato bass and accordion comping, a low tuba 'foghorn' swell and a buoy bell.",
+      "state": "LOADING_MAP_STINGER",
+      "kind": "stinger",
+      "durationS": 14.587375,
+      "samples": 700194,
+      "channels": 2,
+      "bpm": 120,
+      "meter": "6/8",
+      "beatsPerBar": 3,
+      "bars": 8,
+      "beatS": 0.5,
+      "barS": 1.5,
+      "samplesPerBeat": 24000.0,
+      "key": "D Dorian",
+      "suggested": {
+        "volume": 0.8,
+        "fadeInS": 0.0,
+        "fadeOutS": 0.5
+      },
+      "loudnessLufs": -17.99,
+      "peakDb": -5.19,
+      "truePeakDb": -5.18,
+      "master": {
+        "glueMaxGrDb": 0.82,
+        "limiterMaxGrDb": -0.0,
+        "gridOffsetSamples": 480,
+        "encodeTrimDb": 0.0,
+        "targetLufs": -18.0
+      },
+      "motif": [
+        {
+          "part": "accordion",
+          "form": "motif_dorian",
+          "bar": 1,
+          "beat": 1,
+          "tonicPc": 2
+        }
+      ],
+      "instruments": [
+        "bell",
+        "brass",
+        "frame_drum",
+        "pluck",
+        "reed"
+      ],
+      "stinger": {
+        "leadS": 0.01,
+        "bodyEndS": 12.01,
+        "tailS": 2.577
+      },
+      "map": "harbor_district",
+      "biome": "harbor",
+      "bankRegion": {
+        "bank": "banks/music_stingers_2.ogg",
+        "startS": 0.05,
+        "endS": 14.637375
+      }
+    },
+    "map_iron_valley": {
+      "file": "map_iron_valley.ogg",
+      "title": "Iron Valley",
+      "description": "Industrial valley: anvils on a 3+3+2 grid, the motif in trombones and tuba over a celli pulse, a Phrygian Eb call in the horns, and a tutti D-minor hit.",
+      "state": "LOADING_MAP_STINGER",
+      "kind": "stinger",
+      "durationS": 13.889938,
+      "samples": 666717,
+      "channels": 2,
+      "bpm": 100,
+      "meter": "4/4",
+      "beatsPerBar": 4,
+      "bars": 5,
+      "beatS": 0.6,
+      "barS": 2.4,
+      "samplesPerBeat": 28800.0,
+      "key": "D minor (Phrygian)",
+      "suggested": {
+        "volume": 0.8,
+        "fadeInS": 0.0,
+        "fadeOutS": 0.5
+      },
+      "loudnessLufs": -18.06,
+      "peakDb": -2.24,
+      "truePeakDb": -2.23,
+      "master": {
+        "glueMaxGrDb": 2.61,
+        "limiterMaxGrDb": -0.0,
+        "gridOffsetSamples": 480,
+        "encodeTrimDb": 0.0,
+        "targetLufs": -18.0
+      },
+      "motif": [
+        {
+          "part": "low_brass",
+          "form": "motif",
+          "bar": 1,
+          "beat": 1.0,
+          "tonicPc": 2
+        },
+        {
+          "part": "horns",
+          "form": "motif_head",
+          "bar": 3,
+          "beat": 1.0,
+          "tonicPc": 3
+        }
+      ],
+      "instruments": [
+        "anvil",
+        "brass",
+        "cymbal",
+        "strings",
+        "taiko",
+        "timpani"
+      ],
+      "stinger": {
+        "leadS": 0.01,
+        "bodyEndS": 12.01,
+        "tailS": 1.88
+      },
+      "map": "iron_valley",
+      "biome": "temperate_valley_industrial",
+      "bankRegion": {
+        "bank": "banks/music_stingers_2.ogg",
+        "startS": 15.137375,
+        "endS": 29.027313
+      }
+    },
+    "map_mountain_pass": {
+      "file": "map_mountain_pass.ogg",
+      "title": "Mountain Pass",
+      "description": "Mountain pass: an alphorn call on natural harmonics (with the flat 7th partial) echoing off the valley walls, answered by flute and violins with the motif in Lydian (G#).",
+      "state": "LOADING_MAP_STINGER",
+      "kind": "stinger",
+      "durationS": 19.01,
+      "samples": 912480,
+      "channels": 2,
+      "bpm": 60,
+      "meter": "4/4",
+      "beatsPerBar": 4,
+      "bars": 4,
+      "beatS": 1.0,
+      "barS": 4.0,
+      "samplesPerBeat": 48000.0,
+      "key": "D Lydian",
+      "suggested": {
+        "volume": 0.8,
+        "fadeInS": 0.0,
+        "fadeOutS": 0.5
+      },
+      "loudnessLufs": -17.97,
+      "peakDb": -9.37,
+      "truePeakDb": -9.36,
+      "master": {
+        "glueMaxGrDb": 0.56,
+        "limiterMaxGrDb": -0.0,
+        "gridOffsetSamples": 480,
+        "encodeTrimDb": 0.0,
+        "targetLufs": -18.0
+      },
+      "motif": [
+        {
+          "part": "alphorn",
+          "form": "motif_head",
+          "bar": 1,
+          "beat": 1.0,
+          "tonicPc": 2
+        },
+        {
+          "part": "flute",
+          "form": "motif",
+          "bar": 3,
+          "beat": 1.0,
+          "tonicPc": 2
+        },
+        {
+          "part": "violins",
+          "form": "motif",
+          "bar": 3,
+          "beat": 1.0,
+          "tonicPc": 2
+        }
+      ],
+      "instruments": [
+        "brass",
+        "flute",
+        "strings",
+        "timpani"
+      ],
+      "stinger": {
+        "leadS": 0.01,
+        "bodyEndS": 16.01,
+        "tailS": 3.0
+      },
+      "map": "mountain_pass",
+      "biome": "mountain",
+      "bankRegion": {
+        "bank": "banks/music_stingers_2.ogg",
+        "startS": 29.527313,
+        "endS": 48.537312
+      }
+    },
+    "map_old_fortress": {
+      "file": "map_old_fortress.ogg",
+      "title": "Old Fortress",
+      "description": "Old fortress: the motif in Dorian sung by male choir in parallel fifths (organum) over organ, a horn call, a church bell and timpani in a stone nave.",
+      "state": "LOADING_MAP_STINGER",
+      "kind": "stinger",
+      "durationS": 18.51,
+      "samples": 888480,
+      "channels": 2,
+      "bpm": 64,
+      "meter": "4/4",
+      "beatsPerBar": 4,
+      "bars": 4,
+      "beatS": 0.9375,
+      "barS": 3.75,
+      "samplesPerBeat": 45000.0,
+      "key": "D Dorian",
+      "suggested": {
+        "volume": 0.8,
+        "fadeInS": 0.0,
+        "fadeOutS": 0.5
+      },
+      "loudnessLufs": -18.02,
+      "peakDb": -5.56,
+      "truePeakDb": -5.56,
+      "master": {
+        "glueMaxGrDb": 1.87,
+        "limiterMaxGrDb": -0.0,
+        "gridOffsetSamples": 480,
+        "encodeTrimDb": 0.0,
+        "targetLufs": -18.0
+      },
+      "motif": [
+        {
+          "part": "choir_bass",
+          "form": "motif_dorian",
+          "bar": 1,
+          "beat": 1.0,
+          "tonicPc": 2
+        },
+        {
+          "part": "choir_tenor",
+          "form": "motif_dorian",
+          "bar": 1,
+          "beat": 1.0,
+          "tonicPc": 9
+        },
+        {
+          "part": "horns",
+          "form": "motif_head",
+          "bar": 3,
+          "beat": 1.0,
+          "tonicPc": 2
+        }
+      ],
+      "instruments": [
+        "bell",
+        "brass",
+        "choir",
+        "organ",
+        "timpani"
+      ],
+      "stinger": {
+        "leadS": 0.01,
+        "bodyEndS": 15.01,
+        "tailS": 3.5
+      },
+      "map": "old_fortress",
+      "biome": "fortress_old",
+      "bankRegion": {
+        "bank": "banks/music_stingers_2.ogg",
+        "startS": 49.037312,
+        "endS": 67.547313
+      }
+    },
+    "map_open_plains": {
+      "file": "map_open_plains.ogg",
+      "title": "Open Plains",
+      "description": "Open plains: the motif in D major on horns over open-string guitar arpeggios and wide strings, a Mixolydian C-major answer, soft timpani.",
+      "state": "LOADING_MAP_STINGER",
+      "kind": "stinger",
+      "durationS": 16.843625,
+      "samples": 808494,
+      "channels": 2,
+      "bpm": 72,
+      "meter": "4/4",
+      "beatsPerBar": 4,
+      "bars": 4,
+      "beatS": 0.833333,
+      "barS": 3.333333,
+      "samplesPerBeat": 40000.0,
+      "key": "D Mixolydian",
+      "suggested": {
+        "volume": 0.8,
+        "fadeInS": 0.0,
+        "fadeOutS": 0.5
+      },
+      "loudnessLufs": -17.99,
+      "peakDb": -8.05,
+      "truePeakDb": -8.05,
+      "master": {
+        "glueMaxGrDb": 0.65,
+        "limiterMaxGrDb": -0.0,
+        "gridOffsetSamples": 480,
+        "encodeTrimDb": 0.0,
+        "targetLufs": -18.0
+      },
+      "motif": [
+        {
+          "part": "horn",
+          "form": "motif",
+          "bar": 1,
+          "beat": 1.0,
+          "tonicPc": 2
+        }
+      ],
+      "instruments": [
+        "brass",
+        "pluck",
+        "strings",
+        "timpani"
+      ],
+      "stinger": {
+        "leadS": 0.01,
+        "bodyEndS": 13.343333,
+        "tailS": 3.5
+      },
+      "map": "open_plains",
+      "biome": "plains",
+      "bankRegion": {
+        "bank": "banks/music_stingers_2.ogg",
+        "startS": 68.047313,
+        "endS": 84.890938
+      }
+    },
+    "map_river_town": {
+      "file": "map_river_town.ogg",
+      "title": "River Town",
+      "description": "River town: a 3/4 waltz - the motif on tremolo mandolin over an accordion oom-pah-pah and pizzicato bass, closing on a church bell.",
+      "state": "LOADING_MAP_STINGER",
+      "kind": "stinger",
+      "durationS": 15.51,
+      "samples": 744480,
+      "channels": 2,
+      "bpm": 144,
+      "meter": "3/4",
+      "beatsPerBar": 3,
+      "bars": 10,
+      "beatS": 0.416667,
+      "barS": 1.25,
+      "samplesPerBeat": 20000.0,
+      "key": "D minor",
+      "suggested": {
+        "volume": 0.8,
+        "fadeInS": 0.0,
+        "fadeOutS": 0.5
+      },
+      "loudnessLufs": -18.01,
+      "peakDb": -6.48,
+      "truePeakDb": -6.47,
+      "master": {
+        "glueMaxGrDb": 0.75,
+        "limiterMaxGrDb": -0.0,
+        "gridOffsetSamples": 480,
+        "encodeTrimDb": 0.0,
+        "targetLufs": -18.0
+      },
+      "motif": [
+        {
+          "part": "mandolin",
+          "form": "motif",
+          "bar": 1,
+          "beat": 1.0,
+          "tonicPc": 2
+        }
+      ],
+      "instruments": [
+        "bell",
+        "pluck",
+        "reed",
+        "strings"
+      ],
+      "stinger": {
+        "leadS": 0.01,
+        "bodyEndS": 12.51,
+        "tailS": 3.0
+      },
+      "map": "river_town",
+      "biome": "river_town",
+      "bankRegion": {
+        "bank": "banks/music_stingers_2.ogg",
+        "startS": 85.390938,
+        "endS": 100.900937
+      }
+    },
+    "results_theme": {
+      "file": "results_theme.ogg",
+      "title": "Results",
+      "description": "Results screen. Calm piano and strings in a Bb-F-Gm-Dm cycle, the motif softly on a solo horn, a flute reply; neutral enough to follow victory, defeat or a draw.",
+      "state": "RESULTS",
+      "kind": "loop",
+      "durationS": 60.0,
+      "samples": 2880000,
+      "channels": 2,
+      "bpm": 64,
+      "meter": "4/4",
+      "beatsPerBar": 4,
+      "bars": 16,
+      "beatS": 0.9375,
+      "barS": 3.75,
+      "samplesPerBeat": 45000.0,
+      "key": "D minor / F major",
+      "suggested": {
+        "volume": 0.6,
+        "fadeInS": 2.0,
+        "fadeOutS": 2.0,
+        "quantize": "bar"
+      },
+      "loudnessLufs": -21.01,
+      "peakDb": -9.51,
+      "truePeakDb": -9.5,
+      "master": {
+        "glueMaxGrDb": 1.48,
+        "limiterMaxGrDb": -0.0,
+        "gridOffsetSamples": 507,
+        "encodeTrimDb": 0.0,
+        "targetLufs": -21.0
+      },
+      "motif": [
+        {
+          "part": "horn",
+          "form": "motif",
+          "bar": 9,
+          "beat": 1.0,
+          "tonicPc": 2
+        }
+      ],
+      "instruments": [
+        "bell",
+        "brass",
+        "flute",
+        "piano",
+        "strings",
+        "timpani"
+      ],
+      "loop": {
+        "startS": 0.0,
+        "endS": 60.0,
+        "gridOffsetSamples": 507,
+        "gridOffsetS": 0.010563,
+        "seamless": true,
+        "seam": {
+          "jumpRatio": 0.077,
+          "hfBurstDb": -7.08,
+          "firstSampleAbs": 0.01219
+        }
+      }
+    },
+    "victory": {
+      "file": "victory.ogg",
+      "title": "Victory",
+      "description": "Victory: snare and timpani roll on the dominant, the motif as a D-major brass fanfare, a rising answer, and a held tutti D-major chord with bells and choir.",
+      "state": "RESULT_STINGER",
+      "kind": "stinger",
+      "durationS": 26.897437,
+      "samples": 1291077,
+      "channels": 2,
+      "bpm": 80,
+      "meter": "4/4",
+      "beatsPerBar": 4,
+      "bars": 8,
+      "beatS": 0.75,
+      "barS": 3.0,
+      "samplesPerBeat": 36000.0,
+      "key": "D major",
+      "suggested": {
+        "volume": 0.9,
+        "fadeInS": 0.0,
+        "fadeOutS": 0.5
+      },
+      "loudnessLufs": -16.03,
+      "peakDb": -6.24,
+      "truePeakDb": -6.23,
+      "master": {
+        "glueMaxGrDb": 0.99,
+        "limiterMaxGrDb": -0.0,
+        "gridOffsetSamples": 480,
+        "encodeTrimDb": 0.0,
+        "targetLufs": -16.0
+      },
+      "motif": [
+        {
+          "part": "horns",
+          "form": "motif",
+          "bar": 2,
+          "beat": 1.0,
+          "tonicPc": 2
+        },
+        {
+          "part": "trumpets",
+          "form": "motif",
+          "bar": 2,
+          "beat": 1.0,
+          "tonicPc": 2
+        }
+      ],
+      "instruments": [
+        "bell",
+        "brass",
+        "choir",
+        "cymbal",
+        "snare",
+        "strings",
+        "timpani"
+      ],
+      "stinger": {
+        "leadS": 0.01,
+        "bodyEndS": 24.01,
+        "tailS": 2.887
+      },
+      "bankRegion": {
+        "bank": "banks/music_stingers_1.ogg",
+        "startS": 0.05,
+        "endS": 26.947437
+      }
+    }
+  }
+}

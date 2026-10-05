@@ -55,7 +55,7 @@ def iron_valley() -> Cue:
         brass("tuba", "tuba", [Note(n.beat, n.dur, n.pitch - 12, n.vel) for n in low], -22.0, reverb=0.25),
         brass("horns", "horn", menace + stab4, -20.0, reverb=0.3),
         strings("pad", "violas", chords(harm, 57, 3, vel=0.55), -24.0, reverb=0.3),
-        P("taiko", "taiko", taiko, -20.0, reverb=0.3, params={"f0": 56.0}),
+        P("taiko", "taiko", taiko, -20.0, reverb=0.3, params={"f0": 55.0}),
         P("timpani", "timpani", timp, -22.0, reverb=0.3, rr=6),
         P("crash", "cymbal", crash, -24.0, params={"kind": "crash"}, reverb=0.2),
     ]
@@ -99,12 +99,12 @@ def frozen_front() -> Cue:
     drone = seq("D2:16", B(1), vel=0.4)
     bells = [Note(B(4), 4, 74, 0.5)]
     parts = [
-        P("celesta", "bell", cel, -21.0, params={"kind": "celesta"}, reverb=0.45, pan=0.2),
-        P("glass", "bell", glass, -24.0, params={"kind": "glass"}, reverb=0.5, pan=-0.25),
+        P("celesta", "bell", cel, -19.0, params={"kind": "celesta"}, reverb=0.45, pan=0.2),
+        P("glass", "bell", glass, -21.5, params={"kind": "glass"}, reverb=0.5, pan=-0.25),
         P("flute", "flute", flute, -23.0, params={"kind": "shakuhachi"}, reverb=0.5, pan=0.3),
-        P("choir", "choir", choir, -22.0, params={"vowel": "oo"}, reverb=0.55),
-        strings("harmonics", "violins", harm_hi, -27.0, reverb=0.5),
-        P("drone", "pad", drone, -26.0, params={"cutoff": 600.0, "attack": 2.0, "release": 3.0}, reverb=0.3),
+        P("choir", "choir", choir, -24.5, params={"vowel": "oo"}, reverb=0.55, eq=(("peak", 300.0, -3.0, 0.8),)),
+        strings("harmonics", "violins", harm_hi, -24.0, reverb=0.5),
+        P("drone", "pad", drone, -28.0, params={"cutoff": 600.0, "attack": 2.0, "release": 3.0}, reverb=0.3),
         P("bell", "bell", bells, -25.0, params={"kind": "tubular"}, reverb=0.5),
     ]
     return _cue("map_frozen_front", "Frozen Front", 72, 4, 4, "D minor (add9)", "4/4", parts,

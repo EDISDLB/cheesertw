@@ -439,8 +439,9 @@ def flute(rng: np.random.Generator, f0: float, dur: float, vel: float = 0.7, sr:
     amps = [1.0, 0.16, 0.08, 0.03] if not shaku else [1.0, 0.3, 0.1, 0.05]
     tone = osc.additive(f, amps, n, sr, rng=rng)
     air = noise.white(n, rng)
-    air_tone = filters.bandpass(air, f0, 6.0, sr) * 1.2 + filters.highpass(air, 2500.0, 2, sr=sr) * 0.15
-    y = (tone + air_tone * breath * (2.5 if shaku else 1.0)) * e
+    hiss = filters.lowpass(filters.highpass(air, 1800.0, 2, sr=sr), 6500.0, 4, sr=sr)
+    air_tone = filters.bandpass(air, f0, 6.0, sr) * 1.2 + hiss * 0.06
+    y = (tone + air_tone * breath * (1.8 if shaku else 1.0)) * e
     k = min(n, n_of(0.05, sr))
     chiff = filters.bandpass(rng.standard_normal(k), min(0.45 * sr, 2.0 * f0), 1.5, sr) * np.exp(-np.linspace(0, 5, k))
     y[:k] += chiff * 0.12
@@ -491,7 +492,7 @@ PLUCKS = {
     "guitar": dict(B=8e-5, pos=0.17, t60=3.2, hf=0.85, partials=30, body=[(100, 2.0, 5), (210, 2.2, 3), (420, 1.8, 2)], pick=0.03),
     "oud": dict(B=2e-4, pos=0.11, t60=1.8, hf=0.95, partials=26, body=[(140, 2.0, 5), (300, 2.0, 3), (950, 1.4, 2)], pick=0.06),
     "harp": dict(B=3e-5, pos=0.45, t60=4.5, hf=1.1, partials=16, body=[(180, 1.4, 3)], pick=0.01),
-    "mandolin": dict(B=1.2e-4, pos=0.11, t60=1.1, hf=0.75, partials=26, body=[(320, 2.0, 3), (820, 1.5, 2)], pick=0.05),
+    "mandolin": dict(B=1.2e-4, pos=0.11, t60=1.1, hf=0.8, partials=22, body=[(320, 2.0, 3), (820, 1.5, 2)], pick=0.025),
     "pizz": dict(B=5e-5, pos=0.22, t60=0.6, hf=1.25, partials=18, body=[(280, 1.3, 3), (480, 1.5, 2)], pick=0.02),
     "bass_pizz": dict(B=3e-5, pos=0.2, t60=1.4, hf=1.2, partials=14, body=[(80, 1.2, 3), (160, 1.4, 2)], pick=0.015),
 }
@@ -518,8 +519,8 @@ def pluck(rng: np.random.Generator, f0: float, dur: float, vel: float = 0.8, sr:
         out += osc.modal(freqs, t60s, amps, n, sr, rng=rng)
     out /= courses
     k = min(n, n_of(0.004, sr))
-    pick = filters.bandpass(rng.standard_normal(k), 2800.0, 0.9, sr) * np.exp(-np.linspace(0, 6, k))
-    out[:k] += pick * p["pick"] * 4.0
+    pick = filters.lowpass(filters.bandpass(rng.standard_normal(k), 2400.0, 0.9, sr), 5000.0, 2, sr=sr)
+    out[:k] += pick * np.exp(-np.linspace(0, 6, k)) * p["pick"] * 2.5
     out = _ramp_in(out, 0.001, sr)
     if damp:
         g = n_of(dur, sr)
@@ -743,9 +744,9 @@ def cymbal(rng: np.random.Generator, vel: float = 0.8, sr: int = SR, kind: str =
         y += osc.modal(fr, rng.uniform(0.03, 0.07, 10), rng.uniform(0.2, 0.5, 10), n, sr, rng=rng)
         y = _fade_end(_ramp_in(y, 0.0003, sr), 0.01, sr) * vel_amp(vel) * 0.18
         return mix.pan(y, rng.uniform(-0.15, 0.15)) / np.sqrt(2.0)
-    count = 70
+    count = 240  # dense enough that no single partial reads as a tone (a wash, not a gong)
     fr = np.exp(rng.uniform(np.log(560.0), np.log(13000.0), count))
-    amps = np.clip(fr / 2500.0, 0.25, 1.0) ** 0.8 * rng.uniform(0.3, 1.0, count)
+    amps = np.clip(fr / 2500.0, 0.25, 1.0) ** 0.8 * rng.uniform(0.3, 1.0, count) * np.sqrt(70.0 / count)
     t60s = rng.uniform(1.4, 3.6, count) * (1.0 if kind != "ride" else 1.4)
     tail = 3.6 if kind != "ride" else 4.0
     if kind == "swell":
@@ -772,7 +773,7 @@ def cymbal(rng: np.random.Generator, vel: float = 0.8, sr: int = SR, kind: str =
         idx = rng.permutation(count)[: int(count * 0.7)]
         y = osc.modal(fr[idx] * (1 + rng.normal(0, 0.002, idx.size)), t60s[idx], amps[idx], n, sr, rng=rng)
         wash = filters.highpass(noise.white(n, rng), 3000.0 if kind == "crash" else 5000.0, 2, sr=sr)
-        y = y * 0.12 + wash * np.exp(-LN1000 * t / (2.4 if kind == "crash" else 1.2)) * 0.22 * (1 - np.exp(-t / 0.01))
+        y = y * 0.12 + wash * np.exp(-LN1000 * t / (2.4 if kind == "crash" else 1.2)) * 0.3 * (1 - np.exp(-t / 0.01))
         sides.append(y)
     out = np.stack(sides, axis=1)
     k = min(n, n_of(0.02, sr))
@@ -870,17 +871,16 @@ UNPITCHED = {
 
 
 def play(name: str, rng: np.random.Generator, f0: float | None, dur: float, vel: float, sr: int = SR, **params) -> np.ndarray:
-    """Uniform entry point used by the score renderer."""
+    """Uniform entry point used by the score renderer (``f0`` in Hz; ``None`` for unpitched hits
+    that keep their default tuning)."""
     if name == "shepard":
         return shepard_grain(rng, params.pop("f_lo", 40.0), params.pop("octaves", 8.0), dur, vel, sr, **params)
     if name in UNPITCHED:
         fn = UNPITCHED[name]
         if name == "cymbal":
             return fn(rng, vel, sr, dur=dur, **params)
-        if name in ("anvil", "clock_tick") and f0 is not None:
-            return fn(rng, vel, sr, f0=f0, **params)
-        if name == "taiko" and f0 is not None:
-            return fn(rng, vel, sr, f0=f0, **params)
+        if f0 is not None and name in ("anvil", "clock_tick", "taiko", "bass_drum"):
+            params["f0"] = f0
         return fn(rng, vel, sr, **params)
     fn = PITCHED.get(name)
     if fn is None:

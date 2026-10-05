@@ -9,7 +9,8 @@
 > `build/audio_review/validation.json`. Research background is in
 > [`docs/research/06-ui-ux-audio.md`](../research/06-ui-ux-audio.md) and
 > [`docs/research/08-roblox-platform-backend.md`](../research/08-roblox-platform-backend.md).
-> Music has its own pipeline and is out of scope here, except for its bus.
+> Music (score, cues, stems and the MusicDirector state machine) is specified in §11; its sources are
+> `tools/audio/scores/`, `tools/audio/generate_music.py` and `assets/music/catalog.json`.
 
 ---
 
@@ -68,7 +69,7 @@ gets its own fader and sidechain.
 | Bus | Contents | Space | Default fader | Bus processing |
 |---|---|---|---|---|
 | **Master** | everything | n/a | 1.00 | Glue compressor (2:1, −18 dB, 10/150 ms). Limiter at −1 dBFS. "Night mode" preset (§7) |
-| **Music** | music cues (separate pipeline) | 2D | 0.45 | Sidechain: ducked by Voice, cues and hits taken |
+| **Music** | music cues and battle stems (§11) | 2D | 0.45 | Sidechain: ducked by Voice, cues and hits taken (§11.6) |
 | **Ambience** | biome beds, weather, spots, hangar | 2D beds + 3D spots | 0.60 | Ducked by own gunfire, explosions, cues and hits taken |
 | **Vehicles** | engines, tracks, turret, transmission | 3D (own vehicle 2D) | 0.80 | Sub-faders `Vehicles/Own` (0.85) and `Vehicles/Others` (1.0) |
 | **Weapons** | gun firing, reload, flybys, distant thumps | 3D (own gun 2D) | 1.00 | Sub-faders `Weapons/Own` and `Weapons/Others` |
@@ -487,7 +488,7 @@ with Vorbis) and Pillow for the review sheets.
   `AudioPlayer.PlaybackRegion = NumberRange.new(startS, endS)`, using `bankRegions[i]` for
   `variants[i]`. Loops are never banked.
 * **Upload:** `tools/upload_assets` (asset pipeline) uploads the 66 loop files and 19 bank files via
-  Open Cloud. It writes asset ids to `assets/manifest.json` and to the generated
+  Open Cloud, plus the music's 8 loops and 2 stinger banks (§11.8): **95 uploads in total**. It writes asset ids to `assets/manifest.json` and to the generated
   `Shared/Assets/AssetManifest.luau`, keyed by sound key with `{ assetId, region? }`. Encoding is
   byte-reproducible, so upload only files whose SHA-256 changed. `AssetResolver` returns silence plus a
   one-time warning for any missing id.
@@ -791,3 +792,269 @@ _Generated from `assets/audio/catalog.json` by `tools/audio/doc_sound_list.py` -
 | `hangar_room_tone` | 1 | Ambience | loop 40s | 40.00 | 2 | 20 | Garage/hangar scene: always-on 2D bed. |
 
 <!-- END SOUND LIST -->
+
+---
+
+## 11. Music
+
+All music is original and composed **as data** in `tools/audio/scores/` (tempo, meter, key, chord
+progressions, motif statements, parts and dynamics). `tools/audio/generate_music.py` renders it with
+the instrument models in `tools/audio/synth/instruments.py` through the loop-safe renderer in
+`tools/audio/synth/music.py`. No samples, sample libraries or recordings are used: every voice is a
+synthesis model (detuned-saw string sections, additive brass, formant choir, modal bells, piano and
+plucked strings, membrane drums). Files go to `assets/music/` with `assets/music/catalog.json`.
+
+### 11.1 Identity: the HULLDOWN call
+
+One motif carries the identity of the whole score. It is two bars of 4/4 in D minor:
+
+```
+D4 (dotted 8th)  D4 (16th)  A4 (quarter)  Bb4 (dotted quarter)  G4 (8th) | A4 (whole)
+degrees 1 1 5 b6 4 5
+```
+
+* **Military:** the dotted pickup on the tonic is a bugle and drum call.
+* **Heroic:** the rising fifth.
+* **Somber:** the minor sixth sighs back to the fifth through the fourth.
+* **Unresolved:** it ends open on the dominant. The fight is not over.
+
+Every cue quotes it, and the score tags each quotation, so the catalogue lists each statement (`motif[]`:
+part, form, bar, beat). Forms used:
+
+| Form | Where |
+|---|---|
+| prime (minor) | main theme horns and trumpets, garage horn, results horn, battle A′ section, endgame, loading trombones, iron valley, frozen front, dust basin (oud), river town |
+| augmented (×2) | main theme bridge (horns under the violin melody), endgame climax (trumpets) |
+| major (raised 6th) | victory fanfare, open plains, battle anthem (in F, the relative major) |
+| Dorian | old fortress (male choir in parallel fifths), harbor district (6/8, accordion) |
+| Lydian (raised 4th) | mountain pass (flute and violins answer the alphorn) |
+| call head (1 1 5) | battle brass stabs, Phrygian D/Eb "menace" in the battle, endgame and loading, horn calls, echoes |
+| lament (falls instead of rising) | defeat (the horn cannot finish the call) |
+| 3/4 and 6/8 rhythms | river town waltz, harbor sway |
+
+### 11.2 Cues
+
+Every cue is in D: D minor for the core score, with modal colours for the maps. All files are
+48 kHz stereo OGG Vorbis.
+
+<!-- BEGIN MUSIC LIST -->
+_Generated from `assets/music/catalog.json` by `tools/audio/doc_sound_list.py` - 19 files, 2 stinger banks._
+
+| Key | State | Type | Len s | Tempo / meter | Key | Bar 1 at | LUFS | Vol | Motif | Upload as |
+|---|---|---|---|---|---|---|---|---|---|---|
+| `main_theme` | MENU | loop | 106.67 | 72 BPM 4/4 | D minor | 591 smp | -18.0 | 0.8 | 7x (aug, full, head) | `main_theme.ogg` |
+| `garage_theme` | GARAGE | loop | 132.00 | 80 BPM 4/4 | D minor | 742 smp | -20.0 | 0.6 | 6x (full) | `garage_theme.ogg` |
+| `loading_theme` | LOADING | loop | 50.00 | 96 BPM 4/4 | D minor | 12 smp | -19.1 | 0.7 | 6x (full, head) | `loading_theme.ogg` |
+| `battle_base` | BATTLE | loop (base stem) | 80.00 | 120 BPM 4/4 | D minor | 203 smp | -22.4 | 0.8 | - | `battle_base.ogg` |
+| `battle_mid` | BATTLE | loop (mid stem) | 80.00 | 120 BPM 4/4 | D minor | 203 smp | -22.7 | 0.8 | - | `battle_mid.ogg` |
+| `battle_high` | BATTLE | loop (high stem) | 80.00 | 120 BPM 4/4 | D minor | 203 smp | -20.7 | 0.8 | 22x (full, head, relmajor, transposed) | `battle_high.ogg` |
+| `battle_endgame` | BATTLE_ENDGAME | loop | 64.00 | 120 BPM 4/4 | D minor | 882 smp | -17.0 | 0.85 | 10x (aug, full, head) | `battle_endgame.ogg` |
+| `victory` | RESULT_STINGER | stinger | 26.90 | 80 BPM 4/4 | D major | 10 ms | -16.0 | 0.9 | 2x (full) | `banks/music_stingers_1.ogg` |
+| `defeat` | RESULT_STINGER | stinger | 26.68 | 60 BPM 4/4 | D minor | 10 ms | -18.0 | 0.85 | 2x (head, lament) | `banks/music_stingers_1.ogg` |
+| `draw` | RESULT_STINGER | stinger | 16.74 | 72 BPM 4/4 | D (open, sus) | 10 ms | -18.5 | 0.8 | 2x (full, head) | `banks/music_stingers_1.ogg` |
+| `results_theme` | RESULTS | loop | 60.00 | 64 BPM 4/4 | D minor / F major | 507 smp | -21.0 | 0.6 | 1x (full) | `results_theme.ogg` |
+| `map_dust_basin` | LOADING_MAP_STINGER | stinger | 15.42 | 90 BPM 4/4 | D Phrygian dominant | 10 ms | -18.0 | 0.8 | 1x (full) | `banks/music_stingers_1.ogg` |
+| `map_frozen_front` | LOADING_MAP_STINGER | stinger | 17.34 | 72 BPM 4/4 | D minor (add9) | 10 ms | -18.0 | 0.8 | 2x (full) | `banks/music_stingers_1.ogg` |
+| `map_harbor_district` | LOADING_MAP_STINGER | stinger | 14.59 | 120 BPM 6/8 | D Dorian | 10 ms | -18.0 | 0.8 | 1x (dorian) | `banks/music_stingers_2.ogg` |
+| `map_iron_valley` | LOADING_MAP_STINGER | stinger | 13.89 | 100 BPM 4/4 | D minor (Phrygian) | 10 ms | -18.1 | 0.8 | 2x (full, head) | `banks/music_stingers_2.ogg` |
+| `map_mountain_pass` | LOADING_MAP_STINGER | stinger | 19.01 | 60 BPM 4/4 | D Lydian | 10 ms | -18.0 | 0.8 | 3x (full, head) | `banks/music_stingers_2.ogg` |
+| `map_old_fortress` | LOADING_MAP_STINGER | stinger | 18.51 | 64 BPM 4/4 | D Dorian | 10 ms | -18.0 | 0.8 | 3x (dorian, head) | `banks/music_stingers_2.ogg` |
+| `map_open_plains` | LOADING_MAP_STINGER | stinger | 16.84 | 72 BPM 4/4 | D Mixolydian | 10 ms | -18.0 | 0.8 | 1x (full) | `banks/music_stingers_2.ogg` |
+| `map_river_town` | LOADING_MAP_STINGER | stinger | 15.51 | 144 BPM 3/4 | D minor | 10 ms | -18.0 | 0.8 | 1x (full) | `banks/music_stingers_2.ogg` |
+<!-- END MUSIC LIST -->
+
+* **`main_theme`** (login and main menu): a distant horn call over a D pedal, then the motif as a horn
+  solo. Full brass and a military snare restate it, followed by a lyrical relative-major bridge with
+  the motif augmented in the horns. A tutti coda winds back into the intro.
+* **`garage_theme`**: calm military theme. Piano arpeggios run over an i–VI–III–VII vamp with a solo
+  horn on the motif, then a string interlude, a brushed march snare, and celesta and flute quotes. It
+  is 132 s long so it does not wear out in the garage.
+* **`loading_theme`** (tension build): ticking pulse, D pedal and an endless Shepard-Risset riser, with
+  a motif ostinato in the celli. Then come the horn call, the trombone motif and a Phrygian D/Eb
+  menace, a hit at bar 17, and a rebuild into the loop point.
+* **Battle stems**: `battle_base` (low pulse and percussion), `battle_mid` (ostinato and harmony) and
+  `battle_high` (full drums, brass with the motif, choir). They share one tempo, key, length and
+  sample grid, and are mastered together, so base + mid + high is the full mix at −17 LUFS.
+* **`battle_endgame`**: the last 2 minutes or a few tanks left. A 16th-note lament bass (D–C–Bb–A)
+  drives a ticking clock and a timpani ostinato, the Phrygian menace returns, and the motif is
+  augmented in the trumpets over full choir. It uses the same grid as the stems.
+* **`victory`** / **`defeat`** / **`draw`**:
+  * **Victory:** a D-major brass fanfare of the motif ending in a held tutti chord.
+  * **Defeat:** a lone horn that stalls on Bb–A over a muffled timpani and a distant bell.
+  * **Draw:** the motif over suspended chords on a D pedal, ending on a bare fifth.
+* **`results_theme`**: a calm piano-and-strings cycle (Bb–F–Gm–Dm) with the motif on a soft horn.
+  It is neutral enough to follow any result.
+* **Map stingers** (`map_<mapId>`, 10–20 s, for the loading screen). Each map has its own
+  instrumentation and mode:
+
+| Map | Biome | Mode | Instrumentation |
+|---|---|---|---|
+| `iron_valley` | temperate_valley_industrial | D minor / Phrygian Eb | anvils on 3+3+2, trombone and tuba motif, celli pulse, taiko |
+| `dust_basin` | desert | D Phrygian dominant (Hijaz) | oud (tremolo on the held A), duduk, maqsum frame drum |
+| `frozen_front` | winter | D minor (add9) | celesta and glass bells, choir "oo", string harmonics, end-blown flute, cathedral reverb |
+| `old_fortress` | fortress_old | D Dorian | male choir in parallel fifths (organum), organ, church bell, timpani |
+| `harbor_district` | harbor | D Dorian, 6/8 | accordion and comping, pizzicato bass, low tuba "foghorn" swell, buoy bell |
+| `mountain_pass` | mountain | D Lydian | alphorn on natural harmonics (flat 7th partial) through the valley-echo IR, flute and violins |
+| `river_town` | river_town | D minor, 3/4 waltz | mandolin tremolo, accordion oom-pah-pah, pizzicato bass, church bell |
+| `open_plains` | plains | D Mixolydian | horn (major form), open-string guitar, wide strings, soft timpani |
+
+### 11.3 Technical standards (validated by `tools/audio/validate_music.py`)
+
+| Property | Standard |
+|---|---|
+| Format | OGG Vorbis, 48 kHz, **stereo**, quality 0.6 (18 MB for all 19 files plus 2 banks) |
+| Headroom | Sample peak ≤ −1.0 dBFS and true peak ≤ −0.5 dBTP on the decoded file. This applies to every stem *and* to base + mid + high summed |
+| Loudness (integrated) | main −18, garage −20, loading −19, battle all layers −17 (base −22.4, mid −22.7, high −20.7 alone), endgame −17, victory −16, defeat −18, draw −18.5, results −21, maps −18 LUFS |
+| Mastering | 28 Hz high-pass, then linked glue compression (2:1). Then a linked 3 ms look-ahead limiter detecting on the full mix and every stem, so stems keep their balance and still sum cleanly |
+| Loops | Rendered **periodic by construction**. Note releases and reverb tails wrap into the loop start (an overlap-add seam). Reverb is circular convolution, and filters, compressor and limiter run circularly. The loop never relies on a crossfade at runtime |
+| Loop start | All stems of a cue are rotated by one common offset (0–20 ms) to the quietest, smoothest common point just before bar 1. Bar 1 beat 1 is at `loop.gridOffsetSamples` |
+| Stingers | 10 ms silent lead-in (`stinger.leadS`). Bar 1 starts there. `stinger.bodyEndS` = end of the last bar. Natural ring-out trimmed at −70 dB with a 250 ms fade |
+| Grid | Tempos give an integer number of samples per beat (72 BPM = 40 000, 120 BPM = 24 000). Battle stems and endgame share 120 BPM: 96 000 samples per bar |
+| Determinism | Seeded per cue, part and note. Byte-identical re-renders (checked on `draw`) |
+
+### 11.4 MusicDirector state machine
+
+The client `MusicDirector` reads `director` from the music catalogue (the same table as below).
+
+```
+BOOT ─► MENU (main_theme) ─► GARAGE (garage_theme) ─► LOADING (map_<mapId> stinger ─► loading_theme)
+                                   ▲                              │ countdown "GO" (bar 1 lands on GO)
+                                   │                              ▼
+          RESULTS (results_theme) ◄─ RESULT_STINGER ◄── BATTLE (base / +mid / +high by intensity)
+                                     (victory|defeat|draw)        │ endgame trigger (one way)
+                                                    ▲             ▼
+                                                    └──── BATTLE_ENDGAME (battle_endgame)
+```
+
+| Transition | Timing |
+|---|---|
+| BOOT → MENU | 2 s fade-in |
+| MENU → GARAGE, RESULTS → GARAGE, * → MENU | 3 s (2 s to MENU) equal-power crossfade, unquantised |
+| GARAGE → LOADING | Garage fades out over 1.5 s. The map stinger plays at once from its bank. `loading_theme` starts at the stinger's `bodyEndS` with a 1.5 s overlap |
+| LOADING → BATTLE | `loading_theme` fades out over 0.6 s. All three stems start **together** at volume 0, scheduled so bar 1 lands on "GO" (`Play(atTime)` against `GetMixerTime()` where available). Base fades in over 1 bar |
+| BATTLE → BATTLE_ENDGAME | Crossfade over 2 s (1 bar), starting on the next bar line. Same grid, so the endgame enters in time. One-way |
+| BATTLE / ENDGAME → RESULT_STINGER | Battle music fades out over 0.5 s, quantised to the next beat (at most 0.5 s wait). The stinger plays from its bank region |
+| RESULT_STINGER → RESULTS | `results_theme` starts at the stinger's `bodyEndS` with a 3 s crossfade into the stinger's ring-out |
+
+### 11.5 Battle intensity (vertical layering)
+
+Intensity `I` (0–1) is a weighted sum. It rises with a 1.5 s time constant and falls with an 8 s
+time constant.
+
+| Input | Weight | Definition |
+|---|---|---|
+| combat | 0.35 | Shots fired or received by the own tank or within 150 m in the last 10 s, ÷ 6, capped at 1 |
+| threat | 0.25 | Spotted enemies within 300 m, ÷ 3, capped at 1 |
+| ownDamage | 0.20 | 1 − ownHP / maxHP |
+| closeness | 0.10 | 1 − \|teamHpShare − 0.5\| × 2 (a close fight is tense) |
+| time | 0.10 | Elapsed / battle length |
+
+| Layer | On | Off | Fade in / out | Rule |
+|---|---|---|---|---|
+| `battle_base` | always | n/a | 1 bar at GO | — |
+| `battle_mid` | I ≥ 0.30 | I < 0.20 | 4 s / 8 s | Changes start on a bar line |
+| `battle_high` | I ≥ 0.60 | I < 0.45 | 2 s / 8 s | Changes start on a bar line |
+
+* **Hold:** after any layer change, the layer set is held for at least **4 bars** (8 s). The on/off
+  gap is hysteresis, so layers do not flutter.
+* **Stem sync:** the three stems always play, and inactive ones sit at volume 0, so they never drift
+  apart. If the reported `TimePosition`s differ by more than 20 ms, the director re-seeks mid and
+  high to base on the next bar line, while they are silent.
+* **Endgame trigger** (any one): time left ≤ 120 s, ≤ 6 vehicles alive in total, one team with ≤ 2
+  alive, or \|team HP share difference\| ≥ 0.4. There is no way back to the stems.
+* **Own tank destroyed (spectating):** music −6 dB and a 2 kHz low-pass on the Music bus.
+* **Bar maths:** bar `n` of a loop starts at `gridOffsetS + (n − 1) × barS`, modulo `durationS`.
+  The next bar line is found from the player's `TimePosition`.
+
+### 11.6 Ducking and mix
+
+The Music bus fader is **0.6 in menus, 0.5 in the garage and 0.45 in battle** (`director.busFader`).
+Music is the first thing players turn off, so it never masks gameplay cues.
+
+| Trigger | Music duck | Attack / hold / release |
+|---|---|---|
+| Voice bus active (radio, crew) | −6 dB | 20 ms / while active / 400 ms |
+| Own gun fired | −4 dB | 5 ms / 150 ms / 500 ms |
+| `armor_hit_taken_*` | −6 dB | 5 ms / 300 ms / 800 ms |
+| Explosion within 60 m | −6 dB | 5 ms / 500 ms / 1.2 s |
+| `cue_sixth_sense` | −4 dB | 10 ms / 1 s / 600 ms |
+| Garage fanfares (`ui_vehicle_unlocked`, ...) | −5 dB | 20 ms / sound length / 600 ms |
+| Low-HP heartbeat | −3 dB | 200 ms / while active / 1 s |
+
+These match §3.3. Ducks of the Music bus do not add up: the deepest active one wins. Result
+stingers and map stingers play on the Music bus at their `suggested.volume` and are never ducked by
+UI sounds.
+
+### 11.7 Roblox playback notes
+
+* **Loops:** `AudioPlayer.Looping = true` on the whole file. The files are seamless, so never set
+  `LoopRegion` on music. Start a loop with a fade of at least 50 ms (every transition above already
+  fades). Loop files start close to zero (largest first sample 0.041 of full scale).
+* **Stingers** play from their bank: `PlaybackRegion = NumberRange.new(bankRegion.startS, bankRegion.endS)`.
+* The `suggested.volume` in the catalogue is the `AudioPlayer` volume. Bus faders and ducking are
+  applied on top.
+
+### 11.8 Pipeline and uploads
+
+```bash
+python3 tools/audio/generate_music.py           # compose + render + master + encode all cues, pack stinger banks, write catalog (~3 min on 4 cores)
+python3 tools/audio/generate_music.py --only 'map_*,draw'   # partial re-render (catalogue is merged)
+python3 tools/audio/generate_music.py --list    # cue list: tempo, meter, bars, length, parts, notes
+python3 tools/audio/validate_music.py           # all checks + review sheets -> build/audio_review/music_validation.json, music_*.png
+python3 tools/audio/doc_sound_list.py           # refresh the generated tables in this document
+```
+
+* **Uploads:** upload the **8 loops** individually. The 11 stingers (results plus maps) are packed
+  into **2 banks** (`assets/music/banks/music_stingers_{1,2}.ogg`, ≤ 120 s each, 0.5 s gaps), and
+  `bankRegion` in each catalogue entry locates them. That is 10 music uploads, and 95 together with
+  the SFX, which fits the 100-per-30-days limit for unverified accounts. The individual stinger files
+  stay in the repository for review and for verified accounts.
+* Lossless masters are written to `build/music_masters/*.flac` (git-ignored). The bank packer reads
+  them, so banks are a single lossy generation.
+* **Adding a cue:** write a function returning a `Cue` in `tools/audio/scores/*.py` and register it in
+  `scores/__init__.py`. Quote the motif with `scores.common.motif()` or `head()` so it is tagged.
+  Regenerate, validate, view the sheets, and run `doc_sound_list.py`.
+
+### 11.9 Validation (current run)
+
+`python3 tools/audio/validate_music.py`: **0 errors, 1 warning** (19 files, 2 banks).
+
+* **Headroom:** highest sample peak −1.52 dBFS and highest true peak −1.51 dBTP. The summed battle
+  stems peak at −1.36 dBFS. Largest DC offset is 0.00005, and there are no clipped runs.
+* **Loudness:** every cue is within 0.1 dB of its target. Battle base + mid + high measures
+  −17.04 LUFS.
+* **Loop seams** (decoded files): worst jump ratio 0.20 (limit 1.0). The spectral and level change
+  across each seam is no larger than at the same loop's ordinary bar lines (results_theme: level
+  change 6.8 dB, against up to 6.0 dB at bar lines from its accented piano downbeats, within the
+  1 dB allowance).
+* **Stem alignment:**
+  * Identical lengths (3 840 000 samples = 40 bars) and identical grid offset (203 samples).
+  * Onset cross-correlation lags between stems are 0 and 1 hop (2.5 ms).
+  * Folded on the 16th-note grid, onset energy lands within 2.5–5 ms of the declared grid on every
+    stem, after calibrating the detector with a synthetic click train. Bowed and blown attacks speak
+    slightly after a click.
+  * The stems agree with each other within 2.5 ms.
+* **Tempo:** onset-autocorrelation tempo matches the declared tempo at a metrical level on every loop
+  (the 3+3+2 battle_base pulse reads as its dotted level, 80 = 2/3 × 120).
+* **Tonality:** the declared key (or its relative or same-pitch-set mode) ranks in the top 3 of the 24
+  Krumhansl–Kessler key profiles for every cue except `draw`. The draw is open fifths and sus chords
+  by design: it ranks 4th, with D as the strongest bass pitch class. That is the one warning.
+* **Motif:** every cue states it. At the statement points, the audio's chroma shows the call's tonic
+  and fifth among the three strongest pitch classes in 136 of 144 windows.
+* **Banks:** each region matches its standalone file (envelope correlation ≥ 0.9995).
+* **Determinism:** a re-render is byte-identical.
+* **Melody salience** (measured during development, on dry parts): leads hold 88–97 % of their
+  energy in time–frequency cells where they dominate the rest of the mix.
+* **Review sheets:** `build/audio_review/music_themes.png`, `music_battle_stems.png`,
+  `music_battle_grid.png`, `music_stingers.png`, `music_maps.png`, `music_seams.png` and
+  `music_motif_pitch.png` (semitone axis).
+
+### 11.10 Still to verify by ear
+
+These are measured, not listened to. Before shipping, someone should listen for:
+
+* **Brass realism:** the additive horns and trumpets are the most synthetic-sounding voices.
+* **Fatigue:** the balance of the battle layers on laptop and phone speakers, and fatigue from the
+  80 s battle loop over a 7–10 minute match. If it fatigues, add a second battle loop variant on the
+  same grid.
+* **Map stinger character:** whether each stinger reads as its biome.

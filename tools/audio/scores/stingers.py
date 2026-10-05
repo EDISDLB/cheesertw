@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from synth.music import Cue, Note, bass, chords, hits, prog, roll, seq
+from synth.music import Cue, Note, chords, hits, prog, roll, seq
 
 from .common import B, P, brass, head, motif, pitched, strings, with_params
 
@@ -71,7 +71,7 @@ def defeat() -> Cue:
     parts = [
         brass("horn", "horn", horn, -18.5, reverb=0.45, params={"players": 1}),
         strings("cello_solo", "celli", cello, -21.0, reverb=0.35, params={"players": 2}),
-        strings("pad", "violas", pad, -23.5, reverb=0.4, params={"bright": 0.65}),
+        strings("pad", "violas", pad, -23.5, reverb=0.4, params={"bright": 0.85}),
         strings("basses", "basses", bs, -23.0, reverb=0.25),
         P("choir", "choir", choir, -25.0, params={"vowel": "oo"}, reverb=0.5),
         P("timpani", "timpani", timp, -24.0, reverb=0.3, rr=4),
@@ -85,11 +85,11 @@ def defeat() -> Cue:
 
 def draw() -> Cue:
     """Neither major nor minor: the motif over suspended chords, ending on an open fifth. 72 BPM, 4 bars + 3.5 s."""
-    harm = prog("Dsus2:2 Bbsus2:2 | Gsus2:2 Asus4:2 | Dsus2:4 | D5:4", B(1))
+    harm = prog("Dsus2:2 Bbsus2/D:2 | Gsus2/D:2 Asus4/D:2 | Dsus2:4 | D5:4", B(1))
     horn = motif(B(1), "D4", vel=0.65)
     echo = head(B(3), "D5", vel=0.45, last=2.0)
     pad = chords(harm, 57, 3, vel=0.5)
-    bs = seq("D2:2 Bb1:2 | G1:2 A1:2 | D2:4 | D2:4", B(1), vel=0.55, bar=4)
+    bs = seq("D2:4 | D2:4 | D2:4 | D2:4", B(1), vel=0.55, bar=4)  # D pedal under the suspensions
     fifth = seq("D3+A3:4", B(4), vel=0.6)
     timp = pitched(hits("o", B(1), vel=0.55), "D2") + roll(B(4), 4, 8, 0.25, 0.1, pitch=38)
     parts = [
@@ -100,7 +100,7 @@ def draw() -> Cue:
         brass("open_fifth", "trombone", fifth, -22.0, reverb=0.35),
         P("timpani", "timpani", timp, -25.0, reverb=0.3, rr=4),
     ]
-    return Cue("draw", "Draw", "stinger", 72, 4, 4, "D (open)", "4/4", parts, -18.5, tail_s=3.5,
-               description="Draw: the motif in the horns over suspended harmony (sus2/sus4), a soft echo of the call, "
-                           "ending on a bare D-A fifth - neither major nor minor.",
+    return Cue("draw", "Draw", "stinger", 72, 4, 4, "D (open, sus)", "4/4", parts, -18.5, tail_s=3.5,
+               description="Draw: the motif in the horns over suspended harmony (sus2/sus4) on a D pedal, a soft echo of "
+                           "the call, ending on a bare D-A fifth - neither major nor minor.",
                state="RESULT_STINGER", volume=0.8)
