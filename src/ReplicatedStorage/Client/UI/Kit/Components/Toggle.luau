@@ -90,9 +90,13 @@ function Toggle.new(props: ToggleProps): TextButton
 			}),
 		},
 	})
-	State.observe(State.of(checked), function(on: boolean)
-		Motion.tween(knob, { Position = knobPosition(on) }, { duration = "fast", kind = "move" })
-	end)
+	-- The knob animation observer lives exactly as long as the button (no rooted observer outliving it).
+	local knobObserver: State.Connection? = nil
+	if State.isState(checked) then
+		knobObserver = State.observe(checked :: State.State<boolean>, function(on: boolean)
+			Motion.tween(knob, { Position = knobPosition(on) }, { duration = "fast", kind = "move" })
+		end)
+	end
 	local track = Create.Frame({
 		Name = "Track",
 		BackgroundTransparency = 1,
@@ -156,6 +160,9 @@ function Toggle.new(props: ToggleProps): TextButton
 		if props.onChanged ~= nil then
 			props.onChanged(nextValue)
 		end
+	end
+	if knobObserver ~= nil then
+		values[Create.Cleanup] = knobObserver
 	end
 	Create.apply(button, values)
 	return Common.parent(button, props)

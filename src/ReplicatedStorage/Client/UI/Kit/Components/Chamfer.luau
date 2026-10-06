@@ -218,22 +218,68 @@ function Chamfer.fillPieces(props: ChamferProps): { Instance }
 	return pieces
 end
 
---- Border pieces (edges + diagonal cut lines) and optional bevel lines.
+--- Border pieces (edges + diagonal cut lines) and optional bevel lines. `borderThickness` may be a State (e.g.
+--- Theme.borderWidth(), which becomes 2 px under high contrast); every piece follows it.
 function Chamfer.borderPieces(props: ChamferProps): { Instance }
 	local sizes = Chamfer.cornerSizes(props.corners or "brand", props.size or Theme.chamfer("m"))
 	local z = (props.zIndex or 1) + 1
 	local color: CanBeState<Color3> = props.border or Theme.color("border.subtle")
 	local transparency: CanBeState<number> = props.borderTransparency or 0
-	local thicknessState: CanBeState<number> = props.borderThickness or 1
-	local t = State.peek(thicknessState)
-	local pieces: { Instance } = {}
-	local function edge(name: string, position: UDim2, size: UDim2)
-		table.insert(pieces, piece(name, position, size, color, transparency, z))
+	local thickness: CanBeState<number> = props.borderThickness or 1
+	-- Geometry that depends on the thickness: a constant UDim2 for constant thickness, else a bound State.
+	local function byThickness(fn: (t: number) -> UDim2): CanBeState<UDim2>
+		if State.isState(thickness) then
+			return State.map(thickness, fn)
+		end
+		return fn(thickness :: number)
 	end
-	edge("EdgeTop", UDim2.new(0, sizes.tl, 0, 0), UDim2.new(1, -(sizes.tl + sizes.tr), 0, t))
-	edge("EdgeBottom", UDim2.new(0, sizes.bl, 1, -t), UDim2.new(1, -(sizes.bl + sizes.br), 0, t))
-	edge("EdgeLeft", UDim2.new(0, 0, 0, sizes.tl), UDim2.new(0, t, 1, -(sizes.tl + sizes.bl)))
-	edge("EdgeRight", UDim2.new(1, -t, 0, sizes.tr), UDim2.new(0, t, 1, -(sizes.tr + sizes.br)))
+	local pieces: { Instance } = {}
+	local function edge(name: string, position: CanBeState<UDim2>, size: CanBeState<UDim2>)
+		table.insert(
+			pieces,
+			Create.Frame({
+				Name = name,
+				BorderSizePixel = 0,
+				Position = position,
+				Size = size,
+				BackgroundColor3 = color,
+				BackgroundTransparency = transparency,
+				ZIndex = z,
+			})
+		)
+	end
+	edge(
+		"EdgeTop",
+		UDim2.new(0, sizes.tl, 0, 0),
+		byThickness(function(t: number): UDim2
+			return UDim2.new(1, -(sizes.tl + sizes.tr), 0, t)
+		end)
+	)
+	edge(
+		"EdgeBottom",
+		byThickness(function(t: number): UDim2
+			return UDim2.new(0, sizes.bl, 1, -t)
+		end),
+		byThickness(function(t: number): UDim2
+			return UDim2.new(1, -(sizes.bl + sizes.br), 0, t)
+		end)
+	)
+	edge(
+		"EdgeLeft",
+		UDim2.new(0, 0, 0, sizes.tl),
+		byThickness(function(t: number): UDim2
+			return UDim2.new(0, t, 1, -(sizes.tl + sizes.bl))
+		end)
+	)
+	edge(
+		"EdgeRight",
+		byThickness(function(t: number): UDim2
+			return UDim2.new(1, -t, 0, sizes.tr)
+		end),
+		byThickness(function(t: number): UDim2
+			return UDim2.new(0, t, 1, -(sizes.tr + sizes.br))
+		end)
+	)
 	local diagonals = {
 		{ corner = "tl", cut = sizes.tl, position = UDim2.new(0, sizes.tl / 2, 0, sizes.tl / 2), rotation = -45 },
 		{ corner = "tr", cut = sizes.tr, position = UDim2.new(1, -sizes.tr / 2, 0, sizes.tr / 2), rotation = 45 },
@@ -242,6 +288,7 @@ function Chamfer.borderPieces(props: ChamferProps): { Instance }
 	}
 	for _, diagonal in diagonals do
 		if diagonal.cut > 0 then
+			local cut = diagonal.cut
 			table.insert(
 				pieces,
 				Create.Frame({
@@ -249,7 +296,9 @@ function Chamfer.borderPieces(props: ChamferProps): { Instance }
 					BorderSizePixel = 0,
 					AnchorPoint = Vector2.new(0.5, 0.5),
 					Position = diagonal.position,
-					Size = UDim2.fromOffset(diagonal.cut * SQRT2 + t, t),
+					Size = byThickness(function(t: number): UDim2
+						return UDim2.fromOffset(cut * SQRT2 + t, t)
+					end),
 					Rotation = diagonal.rotation,
 					BackgroundColor3 = color,
 					BackgroundTransparency = transparency,
@@ -261,25 +310,31 @@ function Chamfer.borderPieces(props: ChamferProps): { Instance }
 	if props.bevel then
 		table.insert(
 			pieces,
-			piece(
-				"BevelTop",
-				UDim2.new(0, sizes.tl, 0, t),
-				UDim2.new(1, -(sizes.tl + sizes.tr), 0, 1),
-				Theme.color("border.bevel_hi"),
-				0.65,
-				z
-			)
+			Create.Frame({
+				Name = "BevelTop",
+				BorderSizePixel = 0,
+				Position = byThickness(function(t: number): UDim2
+					return UDim2.new(0, sizes.tl, 0, t)
+				end),
+				Size = UDim2.new(1, -(sizes.tl + sizes.tr), 0, 1),
+				BackgroundColor3 = Theme.color("border.bevel_hi"),
+				BackgroundTransparency = 0.65,
+				ZIndex = z,
+			})
 		)
 		table.insert(
 			pieces,
-			piece(
-				"BevelBottom",
-				UDim2.new(0, sizes.bl, 1, -(t + 1)),
-				UDim2.new(1, -(sizes.bl + sizes.br), 0, 1),
-				Theme.color("border.bevel_lo"),
-				0,
-				z
-			)
+			Create.Frame({
+				Name = "BevelBottom",
+				BorderSizePixel = 0,
+				Position = byThickness(function(t: number): UDim2
+					return UDim2.new(0, sizes.bl, 1, -(t + 1))
+				end),
+				Size = UDim2.new(1, -(sizes.bl + sizes.br), 0, 1),
+				BackgroundColor3 = Theme.color("border.bevel_lo"),
+				BackgroundTransparency = 0,
+				ZIndex = z,
+			})
 		)
 	end
 	return pieces

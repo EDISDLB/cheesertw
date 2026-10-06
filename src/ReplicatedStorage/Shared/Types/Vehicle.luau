@@ -112,12 +112,18 @@ export type GunStats = {
 	camoAfterShotMul: number,
 	shellSwapS: number,
 	indirect: boolean,
+	--- Shift of the lower bound of the damage / penetration roll, as a fraction of the mean, added to the
+	--- Config.Combat spread (0 = none; Ammo Tuck `damageRollMin` / `penetrationRollMin` add 0.05 → 0.75 becomes 0.80).
+	damageRollMinAdd: number,
+	penetrationRollMinAdd: number,
 }
 
 --- Per-module health and repair at battle start.
 export type ModuleStats = {
 	maxHp: number,
 	repairS: number, -- field repair Destroyed -> Damaged (50 %), after crew level and equipment
+	--- × the Damaged-state penalty of this module (1 = Config.Combat's; Recon on Optics 0.5 turns VR ×0.80 into ×0.90).
+	damagedPenaltyMul: number,
 }
 
 export type CrewSlotStats = {
@@ -154,6 +160,22 @@ export type WheeledStats = {
 --- Mid-battle changes (module damage, injured crew, stun, consumables, siege) are applied by the systems as
 --- ratios on top of these values; `crewLevels` records the L each duty was resolved with so an injury can rescale
 --- (f(L_injured) / f(L)).
+---
+--- Where each Content.StatKey lands (every key has exactly one home; Types/Vehicle.spec checks the table):
+---   damage, penetration, shellVelocity -> gun.shells[*].damage / penetrationMm (+ penetrationAt500Mm) / velocityMps
+---   damageRollMin, penetrationRollMin -> gun.damageRollMinAdd / penetrationRollMinAdd
+---   reloadTime -> gun.reload (every timer)  · aimTime -> gun.aimTimeS  · dispersion -> gun.dispersionM100
+---   bloomMovement / bloomHullTraverse / bloomTurretTraverse / bloomAfterShot -> gun.bloom.*
+---   shellSwapTime -> gun.shellSwapS  · ammoCapacity -> gun.ammoCapacity  · gunDepression / gunElevation -> gun.*Deg
+---   turretTraverse -> turretTraverseDegS  · enginePower -> enginePowerHp  · topSpeed / reverseSpeed -> *SpeedKmh
+---   hullTraverse -> hullTraverseDegS  · terrainResistance -> terrainResistance  · loadLimit -> loadLimitKg
+---   hp -> hp  · moduleHp -> modules[*].maxHp  · repairTime -> modules[*].repairS (+ repairTimeMul)
+---   damagedModulePenalty -> modules[*].damagedPenaltyMul  · fireChance -> fireChance  · fireDuration -> fireDurationS
+---   crewInjuryChance -> crewInjuryChanceMul  · spallFactor -> spallFactor  · stunDuration -> stunDurationMul
+---   ramDamageDealt / ramDamageTaken / fallDamage -> *Mul  · viewRange -> viewRangeM  · signalRange -> signalRangeM
+---   camoStationary / camoMoving / camoAfterShot / camoNet -> camo.stationary / moving / afterShotMul / net
+---   crewLevel -> crew[*].level + crewLevels  · consumableCooldown -> consumableCooldownMul  · crewXp -> crewXpMul
+---   mechanicChargeTime / mechanicCooldown / mechanicDuration / mechanicCharges / mechanicFactor -> mechanics[*]
 export type VehicleStats = {
 	vehicleId: VehicleId,
 	faction: FactionId,
@@ -207,6 +229,7 @@ export type VehicleStats = {
 	crewLevels: { [CrewRole]: number }, -- per duty (multiple loaders averaged; doubled duties use that member)
 	consumableSlots: number,
 	consumableCooldownMul: number,
+	crewXpMul: number, -- × crew XP earned (Mentor); Scoring reads it for XpReport.crewXp
 	mechanics: { SpecialMechanic }, -- resolved copies: Apex `mechanic*` StatKeys already applied to their numbers
 	conditionalModifiers: { StatModifier },
 }

@@ -42,6 +42,17 @@ describe("Layout math", function()
 		expect(Layout.computeScale(Vector2.new(-5, 0))).toBe(1)
 	end)
 
+	it("detects TV setups (console, Large display, gamepad on a wide display) and caps tablets", function()
+		expect(Layout.isTv(true, Enum.DisplaySize.Medium, false, Vector2.new(1280, 720))).toBe(true)
+		expect(Layout.isTv(false, Enum.DisplaySize.Large, false, Vector2.new(1280, 720))).toBe(true)
+		expect(Layout.isTv(false, Enum.DisplaySize.Medium, true, Vector2.new(1920, 1080))).toBe(true)
+		expect(Layout.isTv(false, Enum.DisplaySize.Medium, true, Vector2.new(1366, 768))).toBe(false)
+		expect(Layout.isTv(false, nil, false, Vector2.new(3840, 2160))).toBe(false)
+		expect(Layout.computeScale(Vector2.new(2732, 2048), { tablet = true })).toBeCloseTo(1.2, 1e-9)
+		expect(Layout.computeScale(Vector2.new(2732, 2048))).toBe(1.5)
+		expect(Layout.computeScale(Vector2.new(2732, 2048), { tablet = true, userScale = 1.1 })).toBeCloseTo(1.32, 1e-9)
+	end)
+
 	it("derives the platform profile and safe margins", function()
 		expect(Layout.platformFor(Vector2.new(1920, 1080), Enum.DisplaySize.Medium, false)).toBe("pc")
 		expect(Layout.platformFor(Vector2.new(1920, 1080), nil, true)).toBe("console")
@@ -81,6 +92,24 @@ describe("Layout live state", function()
 		env:setViewport(Vector2.new(844, 390))
 		expect(Layout.state.breakpoint:peek()).toBe("Regular")
 		Theme.set({ uiScale = 1 })
+	end)
+
+	it("switches to the TV layout when a gamepad drives a wide display", function()
+		Layout.setEnvironment({
+			viewport = Vector2.new(1920, 1080),
+			tenFoot = false,
+			displaySize = Enum.DisplaySize.Medium,
+			gamepad = false,
+		})
+		expect(Layout.state.tv:peek()).toBe(false)
+		expect(Layout.state.scale:peek()).toBe(1)
+		Layout.setEnvironment({ gamepad = true })
+		expect(Layout.state.tv:peek()).toBe(true)
+		expect(Layout.state.scale:peek()).toBe(1.25)
+		expect(Theme.snapshot().layout).toBe("tv")
+		expect(Theme.snapshot().platform).toBe("console")
+		Layout.setEnvironment({ gamepad = false })
+		expect(Theme.snapshot().layout).toBe("regular")
 	end)
 
 	it("pushes the layout family into Theme (TV wins over Compact)", function()

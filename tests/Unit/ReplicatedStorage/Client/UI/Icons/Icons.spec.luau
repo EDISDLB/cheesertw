@@ -13,7 +13,13 @@ local describe, it, expect = Test.describe, Test.it, Test.expect
 
 Support.install()
 
-local SVG_FOLDERS = { "classes", "minimap", "tiers", "currency", "ammo", "modules", "crew", "ui" }
+-- Every folder of the asset pipeline (assets/icons/<folder>/<key>.svg).
+local SVG_FOLDERS: { string } = {}
+for _, entry in fs.readDir("assets/icons") do
+	if fs.isDir(`assets/icons/{entry}`) then
+		table.insert(SVG_FOLDERS, entry)
+	end
+end
 
 describe("Icons registry", function()
 	it("matches Shared/Assets/FallbackKeys exactly", function()
@@ -31,12 +37,31 @@ describe("Icons registry", function()
 		end
 	end)
 
-	it("uses the asset pipeline's key names (assets/icons/<key>.svg) where source art exists", function()
+	it("uses the asset pipeline's key names (assets/icons/<key>.svg); only awaitingArt keys lack art", function()
+		expect(#SVG_FOLDERS >= 10).toBe(true)
+		local awaiting: { [string]: boolean } = {}
+		for _, key in FallbackKeys.awaitingArt do
+			awaiting[key] = true
+			-- Remove a key from awaitingArt as soon as its SVG lands.
+			expect({ key = key, hasArt = fs.isFile(`assets/icons/{key}.svg`) }).toEqual({ key = key, hasArt = false })
+			expect({ key = key, glyph = Registry.has(key) }).toEqual({ key = key, glyph = true })
+		end
 		for _, key in Registry.keys() do
 			local folder = AssetResolver.categoryOf(key)
-			if folder ~= nil and table.find(SVG_FOLDERS, folder) then
+			expect({ key = key, folder = folder ~= nil and table.find(SVG_FOLDERS, folder) ~= nil }).toEqual({
+				key = key,
+				folder = true,
+			})
+			if not awaiting[key] then
 				expect({ key = key, exists = fs.isFile(`assets/icons/{key}.svg`) }).toEqual({ key = key, exists = true })
 			end
+		end
+	end)
+
+	it("never uses the retired non-pipeline key names", function()
+		for _, key in Registry.keys() do
+			local folder = AssetResolver.categoryOf(key)
+			expect(folder ~= "hits" and folder ~= "pings" and folder ~= "hud").toBe(true)
 		end
 	end)
 
@@ -57,9 +82,18 @@ describe("Icons registry", function()
 				"modules/engine_damaged",
 				"modules/gun_destroyed",
 				"crew/loader_injured",
-				"hits/ricochet",
-				"pings/focus_fire",
-				"hud/spotted",
+				"crew/commander",
+				"battle/hit_ricochet",
+				"battle/hit_kill",
+				"battle/ping_attack",
+				"battle/ping_spotted",
+				"battle/cmd_focus_fire",
+				"battle/cmd_attack",
+				"battle/spotted_warning",
+				"battle/self",
+				"ui/menu",
+				"ui/garage",
+				"ui/notifications",
 			}
 		do
 			expect(Registry.has(key)).toBe(true)

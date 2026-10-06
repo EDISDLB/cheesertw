@@ -42,10 +42,11 @@ IV–X and an SPG line cannot be built from two nodes. Result:
 | `northern_federation` | 12 | 1 | 1 | **14** | HT IX–X branch |
 | **Total** | **77** | **6** | **6** | **89** | 12 Tier X, 6 Tier XI, 1 SPG line |
 
-The **second branches are designed in full** (all tiers, §1) but their lower tiers ship later. Wave 1 (W1) ships the
-IX–X top of each second branch, reached by a cross-class unlock from Tier VIII. Wave 2 (W2, one season ≈ 8 weeks
-later) ships the class-pure lower body, which then also unlocks the same Tier IX, so no node is ever orphaned or
-re-homed. The reserved W2/W3 slots and their priorities are in §6.1. Nothing in W1 is a dead end: every W1 vehicle
+The **second branches are designed in full** as branches (identity, tier range, row, every future edge and its
+unlocking module; §1, §2.11, §6.1) but their lower tiers ship later. Wave 1 (W1) ships the IX–X top of each second
+branch, reached by a cross-class unlock from Tier VIII. Wave 2 (W2, one season ≈ 8 weeks later) or Wave 3 (W3, the
+season after) ships the class-pure lower body, whose Tier VIII then also unlocks the same Tier IX, so no node is ever
+orphaned or re-homed. The reserved W2/W3 slots and their priorities are in §6.1. Nothing in W1 is a dead end: every W1 vehicle
 either unlocks another W1 vehicle or is a Tier X/XI.
 
 ### 0.2 Identifier and data conventions
@@ -382,7 +383,7 @@ Store: ea_sevzar (LT V, P)                                       ᴹ Magazine   
 
 **Progression arc: Skirmish (LT).**
 * **I `ea_kirett` (Versatile):** tiny and quick, with a choice of a fast-firing or a harder-hitting gun.
-* **II `ea_essett` (Scout):** the best camouflage at Tier II. Lesson: *passive spotting from a bush.*
+* **II `ea_essett` (Scout):** the lowest silhouette at Tier II. Lesson: *passive spotting from a bush.*
 * **III `ea_veshett` (Scout):** faster, turret moved forward. Lesson: *active spotting: show, then break contact.*
 * **IV `ea_talett` (Support):** the biggest gun on any Tier IV light. Lesson: *a light can deal damage from a flank.*
 * **V `ea_sevett` (Versatile):** first Eastern light to reach 60+ km/h with a fast turret. Lesson: *circle and
@@ -459,7 +460,7 @@ I            II           III             IV            V            VI         
 dc_waymark → dc_bearing → dc_sandglass → dc_parallax → dc_azimuth → dc_meridian → dc_longsight → dc_sextant ᴬ → dc_dawnfix ᴬ → dc_sunward ᴬ → dc_zenith★
   MT           MT           MT      │        MT            MT           MT            MT             MT             MT            MT            MT
                                     └(engine)→ dc_dustfall → dc_ashfall → dc_sparkfall → dc_glassfall → dc_flarefall → dc_starfall → dc_noonfall
-                                               SPG           SPG          SPG            SPG            SPG          SPG           SPG
+                                                 SPG           SPG          SPG            SPG            SPG            SPG           SPG
 Store: dc_dunelight (MT VIII, P)                                                 ᴬ Autoreloader   ★ ChargedShot (dispersion)
 ```
 
@@ -493,18 +494,19 @@ Store: dc_dunelight (MT VIII, P)                                                
 §2.4; splash R = 3 + 0.03 × calibre m, decisions §7.4; direct-hit damage clamped to 0.45 × same-tier MT HP; stun
 maximum from `Tiers.luau`, ×0.5 at the splash edge; every shell flies ≥ 2.5 s):
 
-| Tier | Vehicle | Role | Calibre | HE α | Reload | Splash R | Direct-hit clamp | Stun max | Shell velocity |
-|---|---|---|---|---|---|---|---|---|---|
-| IV | `dc_dustfall` | AreaControl | 105 mm | 170 | 11.6 s | 5.2 m | 238 | 0 s | ×1.15 |
-| V | `dc_ashfall` | Support | 120 mm | 230 | 16.0 s | 6.6 m | 288 | 6 s | ×1.0 |
-| VI | `dc_sparkfall` | AreaControl | 105 mm | 320 | 19.2 s | 5.2 m | 369 | 4 s | ×1.15 |
-| VII | `dc_glassfall` | Support | 155 mm | 440 | 28.1 s | 7.65 m | 477 | 10 s | ×1.0 |
-| VIII | `dc_flarefall` | AreaControl | 130 mm | 520 | 27.4 s | 5.9 m | 607 | 6 s | ×1.15 |
-| IX | `dc_starfall` | Support | 155 mm | 640 | 32.7 s | 7.65 m | 742 | 14 s | ×1.0 |
-| X | `dc_noonfall` | Support | 155 mm | 800 | 36.1 s | 7.65 m | 877 | 16 s | ×1.0 |
+| Tier | Vehicle | Role | Calibre | HE α | HE pen | Reload | Splash R | Direct-hit clamp | Stun max | Shell velocity |
+|---|---|---|---|---|---|---|---|---|---|---|
+| IV | `dc_dustfall` | AreaControl | 105 mm | 170 | 21 mm | 11.6 s | 5.2 m | 238 | 0 s | ×1.15 |
+| V | `dc_ashfall` | Support | 120 mm | 230 | 25 mm | 16.0 s | 6.6 m | 288 | 6 s | ×1.0 |
+| VI | `dc_sparkfall` | AreaControl | 105 mm | 320 | 33 mm | 19.2 s | 5.2 m | 369 | 4 s | ×1.15 |
+| VII | `dc_glassfall` | Support | 155 mm | 440 | 40 mm | 28.1 s | 7.65 m | 477 | 10 s | ×1.0 |
+| VIII | `dc_flarefall` | AreaControl | 130 mm | 520 | 49 mm | 27.4 s | 5.9 m | 607 | 6 s | ×1.15 |
+| IX | `dc_starfall` | Support | 155 mm | 640 | 56 mm | 32.7 s | 7.65 m | 742 | 14 s | ×1.0 |
+| X | `dc_noonfall` | Support | 155 mm | 800 | 64 mm | 36.1 s | 7.65 m | 877 | 16 s | ×1.0 |
 
-Every direct-hit clamp is below the HP of the weakest light the gun can meet (§5.2), so no SPG one-shots a full-HP
-light. Turret: open carriages and half-enclosed compartments traverse ±15° (`yawLimitsDeg`); IX–X turrets are 360°.
+HE pen is the SPG class target (0.25 × P), authored as a per-gun override of the decisions §1 default of calibre ÷ 2,
+which would fail the lint by up to ×2.5 (a 155 mm shell would get 77 mm); the special HE gets ×1.30. Every
+direct-hit clamp is below the HP of the weakest light the gun can meet (§5.2), so no SPG one-shots a full-HP light. Turret: open carriages and half-enclosed compartments traverse ±15° (`yawLimitsDeg`); IX–X turrets are 360°.
 
 ### 1.5 MOUNTAIN REPUBLIC (`mountain_republic`) — terrain
 
@@ -522,7 +524,7 @@ any kit, paid for with paper hulls (×0.60). Their siege destroyers lock down a 
 |---|---|
 | Hull | **Very low**, long track run with **7–8 small road wheels**, raised front idler for climbing; TDs carry a small dozer blade |
 | Turret | Low turret **mounted at the rear**, so the gun overhangs the bow and the hull stays below the crest |
-| Hydropneumatic MTs | Visible suspension cylinders between road-wheel stations; the hull model pitches with the mechanic |
+| Hydropneumatic MTs | Visible suspension cylinders between road-wheel stations; the hull visibly pitches nose-down (up to 4°) when the mechanic settles. The pitch is `VehicleSim` state applied to the hull frame, so the rendered model and the server armor move together (the ≤ 0.25 m collision/visual parity standard of decisions §10) |
 | Siege TDs | **Turretless, no superstructure**: the whole hull is the casemate, gun fixed in the hull front, twin side periscopes |
 | Gun | Slim barrel with a **short conical flash hider** and a breech counterweight collar |
 | Detail kit | Spare road wheels on the hull sides, rope coils, snow-white hatch trim |
@@ -639,9 +641,9 @@ premium `nf_thawbreaker` (HT VIII) trains Rimeguard crews.
 ```
 I              II           III         IV             V             VI            VII           VIII           IX            X              XI
 nf_hoarling → nf_icepick → nf_sleet → nf_hailstone → nf_rimecrag → nf_floewall → nf_rimewall → nf_hoarwall → nf_driftwall → nf_winterwall
-  MT            TD           TD          TD             TD            TD            TD            TD     │      TD            TD
-                                                                                                        └(engine)→ nf_whiteout → nf_deepwinter → nf_rimeburst★
-                                                                                                                   HT            HT              HT
+  MT            TD           TD         TD             TD            TD            TD            TD      │     TD             TD
+                                                                                                         └(engine)→ nf_whiteout → nf_deepwinter → nf_rimeburst★
+                                                                                                                      HT            HT              HT
 Store: nf_thawbreaker (HT VIII, P)                                                             ★ active Turbo
 ```
 
@@ -710,7 +712,7 @@ Numbers in identities are targets derived from §5 (class × role × kit × tier
 | `ci_tesselion` | Tesselion | X | HT | Support | warden | | The most accurate heavy (≈ 0.33), −12°, α 460, HESH; peek, shoot, hide | HESH shell kit | Tallest Crown turret, very long barrel with the line's largest bore evacuator | `ci_sovrion` |
 | `ci_precine` | Precine | IX | TD | Sniper | vernier | | Low front casemate, ±12° yaw, camo +0.04, armor ≤ 0.45 P; HESH alternative round | HESH shell kit | Low front casemate with a flat brass-trimmed face, long gun | `ci_regnion` |
 | `ci_vernine` | Vernine | X | TD | Sniper | vernier | | Best Tier X dispersion (≈ 0.26), α 580, HESH; paper armor | HESH shell kit | Casemate set mid-hull, the faction's longest gun with a bore evacuator | `ci_precine` |
-| `ci_calibine` | Calibine | VI | TD | Support | (vernier) | P | Fast-firing low-alpha casemate (α ≈ 221), speed ×1.1; credits ×1.35; trains Vernier crews | | Small sloped casemate, short bore-evacuated gun, brass trim | Store 1,600 BUL |
+| `ci_calibine` | Calibine | VI | TD | Support | (vernier) | P | Fast-firing low-alpha casemate: α 214, 6.79 s, DPM 1,892, 46 km/h (Support speed ×1.1); credits ×1.35; trains Vernier crews | | Small sloped casemate, short bore-evacuated gun, brass trim | Store 1,600 BUL |
 | `ci_aurelline` | Aurelline | XI | TD | Sniper | vernier | | HP 1,870, α 638, pen 325, HESH; ActiveCooling wins the 5-second duel it would otherwise lose | ★ ActiveCooling | Low casemate with radiator louvres along its sides, the longest gun in the game | `ci_vernine` (47,000 XP) |
 
 ### 2.3 Eastern Armor Group (14)
@@ -718,7 +720,7 @@ Numbers in identities are targets derived from §5 (class × role × kit × tier
 | id | Name | T | Cls | Role | Branch | P | Combat identity | Mechanic | Visual hook | Parent |
 |---|---|---|---|---|---|---|---|---|---|---|
 | `ea_kirett` | Kirett | I | LT | Versatile | skirmish | | Best Tier I acceleration (≈ 21 hp/t) at ≈ 51 km/h; a quick-firing or a harder-hitting gun | | Tiny wedge hull, forward wedge turret, 4 big wheels | starter (free) |
-| `ea_essett` | Essett | II | LT | Scout | skirmish | | Best camouflage at Tier II, view range +10 m, weak gun | | Lower, longer wedge hull, very small turret | `ea_kirett` |
+| `ea_essett` | Essett | II | LT | Scout | skirmish | | Lowest Tier II silhouette (Scout camo +0.03, view range +10 m), weak gun | | Lower, longer wedge hull, very small turret | `ea_kirett` |
 | `ea_veshett` | Veshett | III | LT | Scout | skirmish | | 57 km/h with a forward turret: show, spot, break contact | | Long narrow hull, forward turret, slotted brake debut | `ea_essett` |
 | `ea_talett` | Talett | IV | LT | Support | skirmish | | Biggest gun on a Tier IV light (α and pen ×1.05), speed ×0.95 | | Barrel overhanging the nose, wedge turret | `ea_veshett` |
 | `ea_sevett` | Sevett | V | LT | Versatile | skirmish | | 64 km/h and the fastest turret at V: circle and track | | Longer hull, 5 wide-spaced wheels, wing mudguards | `ea_talett` |
@@ -743,7 +745,7 @@ MT HP) applies to both. Per-tier numbers: the Sunfall gun table in §1.4.
 
 | id | Name | T | Cls | Role | Branch | P | Combat identity | Mechanic | Visual hook | Parent |
 |---|---|---|---|---|---|---|---|---|---|---|
-| `dc_waymark` | Waymark | I | MT | Versatile | caravan | | Quick aim (×0.94) and −10° from the first battle | | Boxy little hull under a sunshade canopy frame, round turret | starter (free) |
+| `dc_waymark` | Waymark | I | MT | Versatile | caravan | | Quick aim (×0.94) and −10° from the first battle | | Boxy little hull under a sunshade canopy frame, small hexagonal turret | starter (free) |
 | `dc_bearing` | Bearing | II | MT | Support | caravan | | Fast reload; teaches sustained fire | | Short sand skirts debut, hexagonal turret | `dc_waymark` |
 | `dc_sandglass` | Sandglass | III | MT | Sniper | caravan | | Long gun with the highest Tier III sniper DPM (reload ×0.95); tall cupola weak spot | | Tall cupola, long thin gun with sleeve bands | `dc_bearing` |
 | `dc_parallax` | Parallax | IV | MT | Versatile | longshot | | Hull-down turret (×1.08) over a weak lower plate (×0.85) | | Full sand skirts, sloped glacis over a tall flat lower plate | `dc_sandglass` |
@@ -790,7 +792,7 @@ MT HP) applies to both. Per-tier numbers: the Sunfall gun table in §1.4.
 | `nf_icepick` | Icepick | II | TD | Support | glacis | | Open-top gun carriage (casemate mount, ±11°): quick reload, fragile; ambush and relocate | | Low chassis with an open gun shield | `nf_hoarling` (engine) |
 | `nf_sleet` | Sleet | III | TD | Sniper | glacis | | Best TD camouflage at III, accurate (×0.94 kit) | | Low enclosed casemate, box muzzle brake debut | `nf_icepick` |
 | `nf_hailstone` | Hailstone | IV | TD | Versatile | glacis | | Turreted (360°, α ×0.9): tracks moving targets | | Hexagonal open-top turret on a deep hull | `nf_sleet` |
-| `nf_rimecrag` | Rimecrag | V | TD | Assault | glacis | | First assault casemate (1.1–1.4 P front), ±11° arc, camo −0.08 | | Front full-width casemate, continuous glacis slope | `nf_hailstone` |
+| `nf_rimecrag` | Rimecrag | V | TD | Assault | glacis | | First assault casemate (1.17–1.45 P front after kit and clamp), ±11° arc, camo −0.08 | | Front full-width casemate, continuous glacis slope | `nf_hailstone` |
 | `nf_floewall` | Floewall | VI | TD | Assault | glacis | | Heavier casemate and bigger gun: anchors the heavy lane | | Taller casemate, wide skirts | `nf_rimecrag` |
 | `nf_rimewall` | Rimewall | VII | TD | Support | glacis | | Lighter and faster (×1.1), reload ×0.9, armor ≤ 0.45 P: rotate and support | | Smaller casemate set mid-hull | `nf_floewall` |
 | `nf_hoarwall` | Hoarwall | VIII | TD | Assault | glacis | | Wall up beside the heavies; the slope is the armor | | One continuous slope from nose to casemate roof | `nf_rimewall` |
@@ -899,7 +901,7 @@ only; all others are silhouette features that must survive at LOD2 (§1 budget).
 | `ci_guild` | slab hull `"Slab"` · box turret with bustle `style "Box"` + `bustleLengthM` · set high `turretRing.heightOffsetM` 0.15–0.25 · bore evacuator `fumeExtractor true` · small brake `"None"`/`"Single"` · skirts `"Full"` · casemates: mount `Casemate`, `superstructure.positionFraction` ≤ 0.35 (front) or 0.45–0.55 (mid) · `returnRollers 3` | `stowage_bins` `periscope_mast` `radiator_louvres` `brass_hoods` (LOD0) |
 | `ea_windward` | wedge nose `"Wedge"` · wedge turret `style "Wedge"` · forward turret `positionFraction` 0.25–0.35 · centred 0.5 · flush turret `heightM` ≤ 0.5 · slotted brake `"Slotted"` · wheeled `suspension "Wheeled"`, `roadWheels 4` | `wing_mudguards` `drum_bulge` `boat_hull` `axle_hubs` |
 | `dc_caravan` | sloped glacis over a tall lower plate `"Sloped"`, `upperFrontFraction` 0.40–0.45 · sand skirts `"Full"` · hex turret `"Hexagonal"` + `cupola true` · sleeve bands `thermalSleeve true` (bands = clamp(round(barrelLengthM ÷ 2), 1, 4)) · single baffle `"Single"` · jerrycans `details.jerrycans` · SPG open carriage `style "Open"`, IX–X enclosed `"Box"` (360°) | `sunshade_frame` `tall_cupola` `raised_idler` `rangefinder_ears` `cheek_plates` `magazine_bustle` · SPG `crew_shield` `half_enclosed` `recoil_spades` |
-| `mr_highland` | very low hull `"LowProfile"` · rear turret `positionFraction` 0.65–0.75 · small wheels `roadWheels` 6–8, `wheelDiameterM` ≤ 0.5 · hydropneumatics `suspension "Hydro"` (the preset draws the struts and pitches the whole model up to 4° nose-down through the root, no extra joint) · siege TD `hull.style "Casemate"`, mount `Casemate`, no `superstructure` · brake `"None"` | `raised_idler` `flash_hider` `spare_wheels` `dozer_blade` `side_periscopes` `rocket_pods` `tall_nose` |
+| `mr_highland` | very low hull `"LowProfile"` · rear turret `positionFraction` 0.65–0.75 · small wheels `roadWheels` 6–8, `wheelDiameterM` ≤ 0.5 · hydropneumatics `suspension "Hydro"` (the preset draws the struts; the up-to-4° nose-down pitch comes from `VehicleSim` through the root, never a client-only joint, so armor and model stay in parity) · siege TD `hull.style "Casemate"`, mount `Casemate`, no `superstructure` · brake `"None"` | `raised_idler` `flash_hider` `spare_wheels` `dozer_blade` `side_periscopes` `rocket_pods` `tall_nose` |
 | `nf_rimeworks` | deep hull `"Sloped"`, `sideSlopeDeg` ≥ 15 · casemate mount `Casemate`, `superstructure.positionFraction` ≤ 0.35 (front) or 0.5 (Rimewall) · HT hex turret `"Hexagonal"` · open shield / open turret `style "Open"` · skirts `"Full"` · box brake `muzzleBrake "Single"` drawn as a block by the hook | `chamfered_edges` `box_brake` `continuous_glacis` `open_hex_turret` `raised_cupola` `heater_stacks` (Neon, glows during Turbo) `ice_cleats` (LOD0) |
 
 **Hooks per vehicle** (W1):
@@ -1019,25 +1021,25 @@ larger than one tier column. Vehicles available to a battle whose top tier is T,
 2. **Bots never introduce artillery.** A bot takes an SPG slot only to mirror a human SPG on the other team.
    With one SPG per tier, that bot is the same vehicle the human drives; that is intended (a true mirror).
 3. **Default bot class mix** when no human constrains a team (proposal), per 15, sized to supply so a thin cell is
-   not copied four times: Tier VIII+ MT 5, HT 4, TD 3, LT 3 · VI–VII MT 6, HT 3, TD 3, LT 3 · IV–V MT 7, HT 2, TD 3,
-   LT 3 · II–III MT 10, LT 3, TD 2 · I MT 12, LT 3 (the LT cap of 3 binds). SPG slots appear only to mirror a
-   human SPG (rule 2) and replace one MT.
-   Humans' classes replace these slots one for one; class slots are placed on the tier rows of the template where
-   that class exists (HT never on a Tier III row).
+   not copied four times: Tier VIII+ MT 5, HT 4, TD 3, LT 3 · VI–VII MT 6, HT 3, TD 3, LT 3 · IV–V MT 7, HT 2,
+   TD 3, LT 3 · II–III MT 10, LT 3, TD 2 · I MT 12, LT 3 (the LT cap of 3 binds). SPG slots appear only to mirror
+   a human SPG (rule 2) and replace one MT. Humans' classes replace these slots one for one; class slots are placed
+   on the tier rows of the template where that class exists (HT never on a Tier III row).
 4. **Variety:** within a team, bots field at most 2 copies of one vehicle while another vehicle of the same tier,
-   class and role group exists, and at most 3 copies in any case; when that cap blocks a slot, the bot takes the
-   same class one tier lower inside the template, else the nearest legal class. Bots pick factions uniformly at
-   random among eligible vehicles and may use premiums (they are inside the balance envelope and never get MM
-   preference).
+   class and role group exists; the hard cap per vehicle is max(3, ⌈class slots ÷ vehicles of that class in the
+   template⌉), which is 4 only for Tier I mediums (12 slots, 3 vehicles) and 5 for Tier II mediums (10 slots,
+   2 vehicles). When the cap blocks a slot, the bot takes the same class one tier lower inside the template, else
+   the nearest legal class. Bots pick factions uniformly at random among eligible vehicles and may use premiums
+   (they are inside the balance envelope and never get MM preference).
 5. **Thin cells to watch** (single vehicle at that tier and class): TD II–V and VII, LT IV/VI/VII, HT IV, all SPG,
    LT and TD at XI. Telemetry per (tier, class): human pick share, bot duplicate rate and win rate. If a thin cell
    carries more than 30 % of the class's bot fills at its tier, it goes up the W2 priority list (§6.1).
 6. **Tier XI** meets only X–XI. A human XI LT is mirrored by a bot `ea_lirvesh`; once the class mirror relaxes to
    ±1 (decisions §8), an LT in a Tier X slot may stand in.
 7. **Starter spread:** all six Tier I starters are free and balanced to the same envelope (every core stat at lint
-   ratio 1.00 ± 0.03 of its own class × role × kit target, §5.4); they differ by class, role and kit, never by power
-   level, so a new player's faction choice is a matter of taste. Tier I–II MM is single-tier (decisions §8), so supply per battle at I is
-   6 vehicles; bots there use Recruit skill for the first 20 battles.
+   ratio 1.00 ± 0.03 of its own class × role × kit target, §5.4); they differ by class, role and kit, never by
+   power level, so a new player's faction choice is a matter of taste. Tier I–II MM is single-tier (decisions §8),
+   so supply per battle at I is 6 vehicles; bots there use Recruit skill for the first 20 battles.
 
 ---
 
@@ -1181,7 +1183,7 @@ sentences, present tense for what the vehicle does, past tense for how it came t
 * `ea_rhuvari` — Clan engineers asked why a scout needed tracks on roads that run for days. The Rhuvari rolls on eight wheels and shifts into a road gear that leaves tracked vehicles behind.
 * `ea_lirvari` — The Lirvari is the fastest vehicle ever entered in the Trials; the Marshals timed it twice to be sure. It sees everything and carries a gun mostly for emergencies.
 * `ea_sevzar` — The Sevzar is a clan champion's personal machine: a scout hull under an oversized turret, with the attitude to match. It suits crews who prefer to finish what they spot.
-* `ea_lirvesh` — The Lirvesh's drum can be topped up shell by shell, so it never waits on an empty magazine again. The clans call it "the sky that does not blink".
+* `ea_lirvesh` — The Lirvesh's drum can be topped up whenever its loader chooses, so it never sits out a full reload with shells still to spare. The clans call it "the sky that does not blink".
 
 **Desert Armor Corps**
 * `dc_waymark` — Caravan guards built the Waymark from a supply tractor and a canvas sunshade. Its gunner sights from the shade, which is the first lesson of the Erg.
@@ -1229,7 +1231,7 @@ sentences, present tense for what the vehicle does, past tense for how it came t
 * `nf_floewall` — The Floewall is named for the walls of pack ice that close a harbour each winter. In the Trials it closes lanes the same way.
 * `nf_rimewall` — The Rimewall is the Federation's lighter casemate, built to move between positions the heavier walls cannot reach. It trades armor for a quick hand at the breech.
 * `nf_hoarwall` — The Hoarwall's glacis runs in one unbroken slope from nose to roof, so snow and shells slide off alike. Its crew compartment is heated, which its crews mention often.
-* `nf_driftwall` — The Glacis carries the thickest frontal armor the Marshals have ever accepted, so its designers named it after the armor itself. Its one weakness is the cupola, which the commander refuses to give up.
+* `nf_driftwall` — The Driftwall is named for the snowdrifts that bank metres deep against the Pale Reaches sea walls each midwinter. Its casemate face is the thickest the Marshals accept at its weight; its one weakness is the cupola, which the commander refuses to give up.
 * `nf_winterwall` — The Winterwall is the Federation's flagship destroyer: slow, enormous and almost impossible to stop from the front. Federation crews say winter always wins in the end, and so do they.
 * `nf_whiteout` — The Whiteout's hexagonal turret is cast to the pattern of the Federation crest. Built for blizzards, it shrugs off damage that would stop any other heavy of its weight.
 * `nf_deepwinter` — The Deepwinter trades the Federation's thickest plates for an engine that keeps moving in the worst storms. It breaks the lines the walls have held.
@@ -1250,18 +1252,27 @@ target(stat, vehicle) = MT_baseline(stat, tier)          -- decisions §7.4 tabl
                       × mechanic factor                   -- Magazine 0.85 / Autoreloader 0.92 sustained DPM; DualGun per-barrel 2.3 × reload
 ```
 
-Author the **top configuration** to the target; the stock configuration then lands at ≈ 85 % (top ÷ stock: pen
-×1.20, power-to-weight ×1.15, aim ×0.95, dispersion ×0.95, turret traverse ×1.10, hull traverse ×1.08, HP ×1.05
-from the turret; speed unchanged). The balance lint divides each core stat (HP, alpha, pen, DPM, speed, hull
-traverse, dispersion) by the target: outside **[0.85, 1.15] fails**, outside [0.92, 1.08] warns unless the vehicle
-declares `balanceException` with a reason. Every "combat identity" claim in §2 that needs a stat beyond ±8 % (for
-example `iu_durhald`'s 0.87 DPM, which comes from the DualGun factor and is therefore *inside* the target) must be
-traceable to a multiplier, never to a hand-tuned number. Premiums: `premium = true` adds the 40th–55th percentile
-check and the P60 ceiling (decisions §7.4).
+Tier XI uses the MT baseline's XI row (§2.7). Kits and role trims are **lint-only** (`Factions.luau` `kit`,
+`Roles.luau` `trims`, content-schema §3.1): authors bake them into module and hull numbers; nothing multiplies them
+at runtime.
+
+Author the **top configuration** to the target. The stock configuration is then derived (top ÷ stock): standard pen
+×1.20, power-to-weight ×1.15, aim time ×0.95, dispersion ×0.95, turret traverse ×1.10, hull traverse ×1.08, HP ×1.05
+where a turret upgrade exists; speed unchanged; stock gun alpha 0.85–1.0 × top. **Stock effectiveness** is the mean
+of (stock ÷ top standard pen) and (stock ÷ top power-to-weight) = (0.833 + 0.870) ÷ 2 ≈ 0.85, the decisions §7.4
+"stock ≈ 85 %"; R12 bounds it.
+
+The balance lint divides each core stat (HP, alpha, pen, DPM, speed, hull traverse, dispersion) by the target:
+outside **[0.85, 1.15] fails**, outside [0.92, 1.08] warns unless the vehicle declares `balanceException` with a
+reason. Every "combat identity" claim in §2 that needs a stat beyond ±8 % (for example `iu_durhald`'s 0.87 DPM, which
+comes from the DualGun factor and is therefore *inside* the target) must be traceable to a multiplier, never to a
+hand-tuned number. **Percentiles** of the envelope are read linearly on the lint ratio: P40 = 0.97, P45 = 0.985,
+P55 = 1.015, P60 = 1.03. Premiums (`premium = true`) follow §2.8; vehicles alone in their (tier, class) cell follow
+R13; every other tech-tree vehicle may use the whole warn band.
 
 ### 5.2 Firepower bands (class baselines before role and kit)
 
-**Standard-shell alpha** (premium shells same alpha; HE = 1.30 × AP; HESH as HE)
+**Standard-shell alpha** (special shells same alpha; HE = min(1.30 × AP, the shell cap below); HESH as HE)
 
 | Tier | LT | MT | HT | TD | SPG (HE) |
 |---|---|---|---|---|---|
@@ -1276,6 +1287,22 @@ check and the P60 ceiling (decisions §7.4).
 | IX | 272 | 320 | 400 | 480 | 640 |
 | X | 340 | 400 | 500 | 600 | 800 |
 | XI | 374 | 440 | 550 | 660 | – |
+
+**Single-shell alpha cap** (red flag R1). The maximum roll (×1.25) of any one direct-fire shell, after ChargedShot,
+must stay below the HP of the weakest light it can meet, i.e. the base LT HP at the bottom of its tier's matchmaking
+spread (I–II single tier, III meets III–IV, IV meets III–V, V meets IV–VII, VI–X meet T − 2, XI meets X). Cap =
+⌊(LT HP − 1) ÷ 1.25⌋. Bursts (DualGun volleys, magazines, autoreloaders) are bounded by R2 instead, and artillery by
+its direct-hit clamp (§1.4).
+
+| Tier | I | II | III | IV | V | VI | VII | VIII | IX | X | XI |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| Weakest LT met (HP) | I (224) | II (288) | III (352) | III (352) | IV (424) | V (512) | V (512) | VI (656) | VII (848) | VIII (1,080) | X (1,560) |
+| Shell alpha cap | 178 | 229 | 280 | 280 | 338 | 408 | 408 | 524 | 677 | 863 | 1,247 |
+
+The cap binds only on destroyer HE: TD HE rounds from Tier VII up are authored at min(1.30 × AP, cap). In W1 that
+is `nf_rimewall` (VII: 330 × 1.30 = 429 → 408, 1.24 × AP); in W2/W3 it also hits TD Snipers at VII–VIII
+(VIII: 410 × 1.30 = 533 → 524) and Iron TDs at IX–X (X Sniper: 693 × 1.30 = 901 → 863). Every other W1 shell,
+including the howitzer of `iu_brakkhald` (253) and the charged HE of `iu_gorrtund` (865), is under its cap.
 
 **DPM** (single-shot guns; `60 × alpha ÷ reload`) and **reload** in seconds
 
@@ -1315,8 +1342,10 @@ check and the P60 ceiling (decisions §7.4).
 | TD (×0.85) | – | 306 | 374 | 451 | 544 | 697 | 901 | 1,148 | 1,403 | 1,658 | 1,870 |
 | SPG (×0.30) | – | – | – | 159 | 192 | 246 | 318 | 405 | 495 | 585 | – |
 
-**Effective frontal armor at 0° yaw** (mm, the decisions §7.4 rule applied to P; multiply by role and kit armor
-factors, then apply the 1.45 P clamp of red flag R3)
+**Effective frontal armor at 0° yaw** (mm, the decisions §7.4 rule applied to P). The HT, MT and LT columns are
+class bands: multiply them by role and kit armor factors. The two TD columns are already role bands (decisions
+§7.4): multiply them by the kit only; TD Versatile (turreted) uses the Sniper/Support column. Then apply the 1.45 P
+clamp of red flag R3.
 
 | Tier | HT turret 1.15–1.35 P | HT upper .95–1.15 P | HT weak ≤ .55–.70 P | MT turret .85–1.0 P | MT hull .50–.70 P | TD Assault 1.1–1.4 P | TD Sniper/Support ≤ .45 P | LT ≤ .35 P | Sides HT .35–.45 / others .2–.3 P | Rear .2–.3 P | Clamp 1.45 P |
 |---|---|---|---|---|---|---|---|---|---|---|---|
@@ -1357,12 +1386,12 @@ HT 0.65, turreted TD 0.50. Gun arcs default −8° / +20° with the kit depressi
 
 | Tiers | Intent | Content rules |
 |---|---|---|
-| I–III | Learn to move, aim, angle and spot. Six free-feeling starters; no heavies, no artillery, no mechanics | Single-tier MM at I–II. Stock pen ≥ 0.85 P so stock vehicles still penetrate same-tier medium hulls. Tier I starters within ±3 % of each other on every core stat after kits |
+| I–III | Learn to move, aim, angle and spot. Six free-feeling starters; no heavies, no artillery, no mechanics | Single-tier MM at I–II. Stock standard pen ≥ 0.72 P so stock vehicles still penetrate same-tier medium hulls (≤ 0.70 P). Tier I starters at lint ratio 1.00 ± 0.03 on every core stat (they differ by class, role and kit only) |
 | IV–V | Classes become real: first heavies, first artillery, first assault casemate | Heavies must have an obvious lower-plate weak spot; SPG IV has no stun |
-| VI–VII | Faction identities peak: depression, turret armor, precision, assault casemates | No special mechanics; identity comes from kits and roles only |
-| VIII | Mechanics arrive (DualGun, Autoreloader, Hydropneumatic) and premiums concentrate | One mechanic per vehicle; premiums at the 40th–55th percentile |
+| VI–VII | Faction identities peak: depression, turret armor, precision, assault casemates | No special mechanics in W1; identity comes from kits and roles only. From W2 a second branch may start its mechanic at VII (Outrider Wheeled, W3 Bastion SiegeMode) so it is learned before IX |
+| VIII | Mechanics arrive (DualGun, Autoreloader, Hydropneumatic) and premiums concentrate | One mechanic per vehicle; premiums per §2.8 |
 | IX–X | Endgame variety: two Tier X per faction, Magazine/Wheeled/Siege, 12 Tier X total | Every Tier X has a written counter in its faction section |
-| XI | Veteran showcase; X–XI only | Signature only; node track ≤ +12 % |
+| XI | Veteran showcase; X–XI only | Signature only; nodes ≤ +6 % per stat (§2.7), ≤ +12 % ceiling (R16) |
 
 ### 5.5 Balance red flags (review blockers)
 
@@ -1371,22 +1400,22 @@ Any of these blocks a vehicle from shipping until fixed or signed off by the lea
 
 | # | Red flag | Test | Why |
 |---|---|---|---|
-| R1 | **One-trigger kill of a full-HP light** | Max-roll damage (×1.25) of any single trigger pull (shell, DualGun volley, ChargedShot, HE/HESH) must stay below the same-tier LT HP. Checked: `iu_durhald` volley 1,375 < 1,560; `iu_gorrtund` charged 833 < 1,760 | Fast TTK on Roblox reads as unfair (decisions §7.1 TD alpha cap) |
+| R1 | **One-shell kill of a full-HP light** | Max-roll damage (×1.25) of any single direct-fire shell (AP/APCR/HEAT/HE/HESH, ChargedShot included) must stay below the base LT HP at the bottom of the vehicle's matchmaking spread: alpha ≤ the §5.2 cap. Checked: `iu_gorrtund` charged HE 865 ≤ 1,247; `iu_durhald` HE 715 ≤ 863; `nf_rimewall` HE capped at 408. Bursts are R2's job; artillery is clamped (§1.4) | Fast TTK on Roblox reads as unfair (decisions §7.1 chose TD α 1.50 for "no LT one-shots") |
 | R2 | **Burst overflow** | Magazine, Autoreloader or DualGun burst ≤ 0.85 × same-tier MT HP | Decisions §4 burst cap |
 | R3 | **Impenetrable fronts** | No frontal zone above **1.45 P** effective at 0° yaw (same-tier TD premium round = 1.53 P must always work); every vehicle shows a frontal weak spot ≤ 0.70 P covering ≥ 8 % of its frontal silhouette, and every turret face has one ≤ 0.90 P covering ≥ 3 % (cupola, vision block, mantlet edge) | Stacked kit × role armor (Iron HT Assault turret up to 1.71 P, Northern Assault casemate 1.48 P) would otherwise create hull-down invulnerability |
-| R4 | **Multiplier stacking** | Any non-armor, non-camo core stat whose class × role × kit product falls outside [0.75, 1.35] of the MT baseline needs review (example: Mountain MT Support hull 0.60 × 0.90 is armor, so allowed) | Kits were designed independently of roles |
-| R5 | **Angling made useless** | No HT, MT Assault or TD Assault frontal plate thinner than ⅓ of the largest same-tier gun calibre (the 3-calibre rule means it can never ricochet) | Keeps decisions §1 overmatch rules meaningful |
-| R6 | **Depression and speed outliers** | Depression never beyond −20° (Mountain siege); top speed never above 95 km/h (Wheeled speed mode 91, RocketBoost 84) | Prediction and camera limits |
-| R7 | **Invisible vehicles** | Best still body camo (base + role + Concealment perk + net + paint) ≤ 0.60, so the 0.90 cap is reached only with foliage | Decisions §5: no invisible TDs |
-| R8 | **Premium creep** | Any premium core stat above the tech-tree P60, or a premium better than the same-tier tech-tree vehicle of its role on both DPM and armor; any premium with a special mechanic | Decisions §7.4 and §15: no pay-for-power |
-| R9 | **Mechanic creep** | More than 20 % of Tier I–X vehicles with a mechanic (W1: 18.1 %), more than one mechanic per vehicle, any Tier XI signature below XI, a second Magazine branch in one faction | Decisions §4 |
+| R4 | **Multiplier stacking** | Any non-armor, non-camo core stat whose role × kit product (on top of the class multiplier) falls outside [0.75, 1.35] needs review. Current extremes: Crown MT Support reload 0.92 × 0.92 = 0.85, Mountain TD Support speed 1.10 × 1.15 = 1.27 (armor products such as Mountain MT Support hull 0.60 × 0.90 are exempt) | Kits were designed independently of roles |
+| R5 | **Angling made useless** | No HT, MT Assault or TD Assault upper frontal plate thinner than ⅓ of the largest same-tier direct-fire calibre (the 3-calibre rule means it could never ricochet) | Keeps decisions §1 overmatch rules meaningful |
+| R6 | **Depression and speed outliers** | Depression never beyond −20° (Mountain siege); top speed including equipment never above 100 km/h (worst legal case: Wheeled speed mode with a slotted Turbo Kit, (70 + 5) × 1.30 = 97.5; RocketBoost 64 + 20 + 5 = 89) | Prediction (2.7 studs per 30 Hz tick at 97.5 km/h), sweep collision and camera limits |
+| R7 | **Invisible vehicles** | Best still body camo (authored base incl. role add, × full Concealment perk 1.8, + slotted net + paint) ≤ 0.80. Worst W1 case: turretless TD Sniper (0.28 + 0.04) × 1.8 + 0.1725 + 0.04 = 0.79; any new camo source needs a review | Decisions §5: the 0.90 cap with foliage is the only way to reach the floor spot distance; no invisible TDs |
+| R8 | **Premium creep** | Any premium outside the §2.8 rules: a core stat above ratio 1.03 (P60); a premium that beats **every** same-tier, same-class tech-tree vehicle on both sustained DPM and front armor; any premium with a special mechanic | Decisions §7.4 and §15: no pay-for-power |
+| R9 | **Mechanic creep** | More than 20 % of Tier I–X vehicles with a mechanic (W1: 18.1 %), more than one mechanic per vehicle (an Apex's AdaptiveMagazine and its carrier `Magazine` gun count as one), any Tier XI signature below XI, a second Magazine or DualGun branch in one faction | Decisions §4 (DualGun: one line); one Magazine branch per faction is a roster rule that keeps the burst identity rare |
 | R10 | **Class collapse** | An LT with HT-band armor; a TD faster than the same-tier LT; a non-Breakthrough HT faster than the same-tier MT; an MT with higher alpha than the same-tier TD; an SPG direct hit above 0.45 × same-tier MT HP | Classes must stay readable |
-| R11 | **Flat progression** | Within a branch, each next vehicle must change at least one identity axis (role, armor scheme, gun family or furniture, mechanic, silhouette) and never lose top-gun penetration; HP grows 15–40 % per tier | The "not just a stat bump" rule of §1 |
-| R12 | **Stock trap** | Stock configuration below 80 % or above 90 % effectiveness, or stock standard pen below 0.85 P | Decisions §7.4 stock ≈ 85 %; new players must still penetrate same-tier medium hulls |
-| R13 | **Thin-cell dominance** | A vehicle that is alone in its (tier, class) cell (§3.1) sits at the 45th–55th percentile of its envelope, never at the edge | Bots mirror with it; any outlier is multiplied across many battles |
-| R14 | **Hidden weaknesses** | Every detonation-prone ammo location (Crown bustles) and every weak spot must be visible in the Armor Inspector and readable at LOD1 | Counterplay must be learnable |
-| R15 | **Shell abuse** | HE and HESH alpha ≤ 1.30 × AP alpha, except declared howitzer guns (≤ 1.60 × AP, reload ≥ 1.35 × AP gun), and never on a Tier I–III vehicle | Low-tier HE one-shots ruin onboarding |
-| R16 | **Apex overreach** | A fully noded Apex above Tier X × the decisions multipliers × 1.12, or an Apex carrying an I–X mechanic | Decisions §7.4 |
+| R11 | **Flat progression** | Within a branch, each next vehicle must change at least one identity axis (role, armor scheme, gun family or furniture, mechanic, silhouette) and never lose top-gun standard penetration across a research edge (artillery exempt); between same-class tiers HP grows 12–35 % (MT baseline steps run +18 % to +29 %, role HP trims stretch that to +12.5 % for `dc_dawnfix` → `dc_sunward` and +35 % for `iu_kolmal` → `iu_ostmal`, the Apex step is +12.8 %); class switches are exempt | The "not just a stat bump" rule of §1 |
+| R12 | **Stock trap** | Stock effectiveness (§5.1) outside [0.80, 0.90], stock gun alpha below 0.85 × top, or stock standard pen below 0.72 P (artillery exempt) | Decisions §7.4 stock ≈ 85 %; new players must still penetrate same-tier medium hulls (≤ 0.70 P) |
+| R13 | **Thin-cell dominance** | A vehicle that is alone in its (tier, class) cell (§3.1) sits at the 45th–55th percentile of its envelope (lint ratio 0.985–1.015) on every core stat, never at the edge | Bots mirror with it; any outlier is multiplied across many battles |
+| R14 | **Hidden weaknesses** | Every detonation-prone ammo location (Crown bustles, casemate side racks) and every weak spot must be visible in the Armor Inspector and readable at LOD1 | Counterplay must be learnable |
+| R15 | **Shell abuse** | HE and HESH alpha ≤ 1.30 × AP alpha and ≤ the §5.2 cap, except declared howitzer guns (HE ≤ 1.60 × AP, reload ≥ 1.35 × the AP gun's), which never appear below Tier IV | Low-tier HE one-shots ruin onboarding |
+| R16 | **Apex overreach** | A fully noded Apex with any stat above its XI target × 1.12, or carrying an I–X mechanic other than the `Magazine` gun that carries `AdaptiveMagazine` | Decisions §7.4 and §11 |
 | R17 | **Silhouette confusion and IP look-alikes** | Two vehicles of different classes in one faction that are indistinguishable at LOD2, or any silhouette a reviewer can name as a real tank | Brand §1.1 and readability |
 
 ---
@@ -1395,36 +1424,44 @@ Any of these blocks a vehicle from shipping until fixed or signed off by the lea
 
 ### 6.1 Reserved slots for Waves 2 and 3
 
-Ids are reserved now so `TechTree.luau` can validate future edges; names and roles are drafts. Each wave must keep
-the special-mechanic share at or below 20 % of the Tier I–X roster.
+What is reserved now is the **topology**: branch ids (already in `TechTree.luau`), tree rows (§2.11), the parent
+and unlocking module of every future edge, and mechanic slots. Vehicle ids are **not** reserved: the validator cannot
+check edges to vehicles that do not exist, and a placeholder id would become permanent. W2/W3 vehicles get names and
+ids in their own design pass, following §4 morphology, never reusing a W1 vehicle id or any branch id. Each wave must
+keep the special-mechanic share at or below 20 % of the Tier I–X roster.
 
-| Wave | Faction | Branch (class) | Tiers | Count | Joins W1 at | Mechanics | Why this priority |
+| Wave | Faction | Branch (class) | Tiers | Count | Joins W1 at (unlocking module on the parent) | Mechanics and role constraints | Why this priority |
 |---|---|---|---|---|---|---|---|
-| W2 | Iron Union | `iu_ram` (TD) | IV–X | 7 | Foundry III → Ram IV | none | Mid-tier TD supply; premium `iu_tammvarr` crews |
-| W2 | Crown Industries | `ci_vernier` lower body (TD) | IV–VIII | 5 | Guild III → IV; VIII → `ci_precine` (merge) | none | Mid-tier TD supply |
-| W2 | Eastern Armor Group | `ea_outrider` lower body (Wheeled LT) | VII–VIII | 2 | Skirmish VI → VII; VIII → `ea_rhuvari` (merge) | Wheeled ×2 | Wheeled play before IX |
-| W2 | Eastern Armor Group | `ea_gale` (MT) | V–X | 6 | Skirmish IV → Gale V | none | Medium supply at V–VII |
-| W2 | Desert Armor Corps | `dc_glint` (TD) | V–X | 6 | Longshot IV → Glint V | Autoreloader VIII–X ×3 | Faction signature "Autoreloader TD" |
-| W2 | Mountain Republic | `mr_scree` (LT) | IV–X | 7 | Pathfinder III → Scree IV | none | LT supply at IV–VII (thinnest class); premium `mr_highstag` crews |
-| W2 | Northern Federation | `nf_rimeguard` lower body (HT) | IV–VIII | 5 | Glacis III → IV; VIII → `nf_whiteout` (merge) | none | HT supply at IV |
-| W3 | Iron Union | `iu_hammer` lower body (MT) | IV–VIII | 5 | Foundry III → IV; VIII → `iu_tundmal` (merge) | none | Complete the Hammer line |
-| W3 | Crown Industries | `ci_herald` (LT) | V–X | 6 | Guild IV → Herald V (MT → LT, engine) | none | Second LT line to X |
-| W3 | Mountain Republic | `mr_bastion` lower body (TD) | IV–VIII | 5 | Pathfinder III → Bastion IV; VIII → `mr_tarnhold` (merge) | SiegeMode VII–VIII ×2 | Complete the siege line |
-| W3 | Northern Federation | `nf_aurora` (SPG) | IV–X | 7 | Glacis III → Aurora IV (engine) | none | Second artillery line (stun Support) |
+| W2 | Iron Union | `iu_ram` (TD) | IV–X | 7 | `iu_bulmal` III → Ram IV (top engine) | none; rear casemates, so no turreted Versatile; HE capped (§5.2) | Mid-tier TD supply; premium `iu_tammvarr` crews |
+| W2 | Crown Industries | `ci_vernier` lower body (TD) | IV–VIII | 5 | `ci_ordant` III → IV (top engine); Vernier VIII → `ci_precine` (top gun, merge) | none; HESH at VIII | Mid-tier TD supply |
+| W2 | Eastern Armor Group | `ea_outrider` lower body (Wheeled LT) | VII–VIII | 2 | `ea_venett` VI → VII (top engine); Outrider VIII → `ea_rhuvari` (top gun, merge) | Wheeled ×2 (LT only, ≤ 1 per team) | Wheeled play before IX |
+| W2 | Eastern Armor Group | `ea_gale` (MT) | V–X | 6 | `ea_talett` IV → Gale V (top engine) | none (Magazine stays on Skirmish, R9) | Medium supply at V–VII |
+| W2 | Desert Armor Corps | `dc_glint` (TD) | V–X | 6 | `dc_parallax` IV → Glint V (top engine) | Autoreloader VIII–X ×3 (TD) | Faction signature "Autoreloader TD" |
+| W2 | Mountain Republic | `mr_scree` (LT) | IV–X | 7 | `mr_ridgewren` III → Scree IV (top engine) | none | LT supply at IV–VII (thinnest class); premium `mr_highstag` crews |
+| W2 | Northern Federation | `nf_rimeguard` lower body (HT) | IV–VIII | 5 | `nf_sleet` III → IV (top engine); Rimeguard VIII → `nf_whiteout` (top gun, merge) | none | HT supply at IV |
+| W3 | Iron Union | `iu_hammer` lower body (MT) | IV–VIII | 5 | `iu_bulmal` III → IV (top turret); Hammer VIII → `iu_tundmal` (top gun, merge) | none | Complete the Hammer line |
+| W3 | Crown Industries | `ci_herald` (LT) | V–X | 6 | `ci_calibrant` IV → Herald V (top engine; MT → LT) | none | Second LT line to X |
+| W3 | Mountain Republic | `mr_bastion` lower body (TD) | IV–VIII | 5 | `mr_ridgewren` III → Bastion IV (top turret); Bastion VIII → `mr_tarnhold` (top gun, merge) | SiegeMode VII–VIII ×2, roles Sniper or Support only (decisions §4) | Complete the siege line |
+| W3 | Northern Federation | `nf_aurora` (SPG) | IV–X | 7 | `nf_sleet` III → Aurora IV (top tracks) | none; stun Support role only | Second artillery line (stun Support) |
 
 After W2 the roster is 89 + 38 = 127 (Tier I–X 121, mechanics 20 = 16.5 %); after W3, 150 (I–X 144, mechanics 22 =
 15.3 %). Further Apexes (a second per faction) follow the X lines added in W2–W3, never before their parent ships.
 
 ### 6.2 Per-vehicle authoring checklist (Content team)
 
-1. File `Content/Vehicles/<Faction>/<id>.luau` with: id, faction, tier, class, role, branch, `premium`,
-   `mechanic` (or nil), `visualPreset` + `hooks`, crew seats (Commander, Gunner, Driver, Loader; small vehicles double
-   up: LT and SPG I–V may seat 3), engine family (petrol or diesel per faction table), modules (stock + top within
-   the load-limit rule), shells (standard, premium-family, HE or HESH).
-2. Numbers from §5 × role × kit × mechanic factor; run the balance report; no fail, warnings explained.
+1. File `Content/Vehicles/<FactionPascal>/<PascalId>.luau` (`IronUnion/IuTukkhald.luau`) with: id, name,
+   shortName, faction, tier, class, role, `acquisition`, `tree = { row, branch }` (§2.11), `mechanics` (§2.10, or
+   nil) and the gun's `reload.kind`, `visual` (§2.9 fields + `hooks`), crew seats, engine fuel (petrol or diesel per
+   faction table), modules (stock + top within the load limit), shells (§0.2 shell kit). Crew: 2–6 seats, every
+   role covered, the Driver never doubles (content-schema §5.2); guideline 2–3 seats at Tier I, 4 from Tier IV,
+   a second Loader only when alpha ≥ the MT alpha of the tier.
+2. Numbers from §5 × role × kit × mechanic factor (baked in; kits are lint-only); run the balance report; no fail,
+   warnings explained; R1 shell cap and R12 stock rules checked.
 3. Armor authored against P(T) per §5.3 with the R3 clamp and weak spots; check in the Armor Inspector.
-4. `TechTree.luau` edge from the parent named in §2 with the unlocking module; `ContentRegistry.validate()` green.
-5. Silhouette review at LOD0/1/2 against the visual hook and R17; tech-tree side profile with the gun to the right.
+4. `unlocks` on the parent named in §2 with the unlocking module, `researchXp` on this vehicle;
+   `ContentRegistry.validate()` green with zero warnings.
+5. Silhouette review at LOD0/1/2 against the visual hook, the LOD2 budget of §1 and R17; tech-tree side profile with
+   the gun to the right.
 6. Localisation keys `vehicle.<id>.name`, `.lore` (§4.3), `role.<role>.hint`; IP screen of the name (§4.1).
 7. Garage tooltip for any mechanic: burst, sustained DPM, time to full aim (decisions §4 readability rule).
 
@@ -1436,4 +1473,16 @@ After W2 the roster is 89 + 38 = 127 (Tier I–X 121, mechanics 20 = 16.5 %); af
 4. Role-group mirror scoring and the default bot class mix (§3.2, §3.4) need the Matchmaking owner's sign-off [MM].
 5. W1 is 89 vehicles against an ≈ 84 brief because of the artillery line; if scope must be cut, drop the
    second-branch Tier IX–X pair of one faction (−2), never the SPG line or an Apex parent [Production].
-6. Turretless share is 87 % of TDs (target 80 %); W2 Glint or Ram may add one turreted TD Versatile [Design].
+6. Turretless share is 87 % of TDs (14 of 16; decisions §7.1 target 80 %); a W2 Vernier or Glint TD Versatile
+   with a turret brings it back toward 80 % [Design].
+7. The premium percentile reading of §2.8 (envelope ratios P40 = 0.97 … P60 = 1.03, plus the dominance check) is
+   this document's operational form of decisions §7.4; confirm with the economy owner. Known edge: `mr_highstag`
+   (74 km/h) is the fastest tracked Tier VIII in W1 until W2 Scree VIII ships; watch its win rate [Economy +
+   Balance].
+8. The single-shell cap of §5.2 extends the decisions §7.1 "no LT one-shots" rationale to the bottom of the
+   matchmaking spread; it lowers TD HE alpha from Tier VII. Confirm in `Config.Combat` defaults [Combat].
+9. `ChargedShot`, `RocketBoost`, `Turbo` and `ActiveCooling` behaviour rules (§2.7) need `GunState` and
+   `VehicleSim` tests; the UI mechanic slot (ui-ux H-10) lacks the ChargedShot charge ring and the
+   AdaptiveMagazine top-off bar [Combat + UI].
+10. The ×1.15 shell velocity and ×0.90 reload of `artillery_area_control` (§2.4) change the Sunfall reload column
+    if rejected [Combat].

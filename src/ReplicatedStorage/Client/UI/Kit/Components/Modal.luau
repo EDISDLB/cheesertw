@@ -54,6 +54,10 @@ export type Action = {
 	keepOpen: boolean?,
 	--- Initial gamepad focus.
 	focus: boolean?,
+	--- Hold-to-confirm on gamepad/touch (Button `hold`).
+	hold: (boolean | number)?,
+	--- Shows the button's loading state (non-activating while true).
+	loading: CanBeState<boolean>?,
 }
 export type ModalProps = {
 	Name: string?,
@@ -226,6 +230,8 @@ function Modal.new(props: ModalProps): Frame
 					icon = action.icon,
 					hint = action.hint,
 					disabled = action.disabled,
+					loading = action.loading,
+					hold = action.hold,
 					onActivated = action.onActivated,
 					LayoutOrder = i,
 				})
@@ -258,6 +264,7 @@ function Modal.new(props: ModalProps): Frame
 			size = Theme.chamfer("m"),
 			fill = Theme.color("bg.panel"),
 			border = Theme.color("border.strong"),
+			borderThickness = Theme.borderWidth(),
 			bevel = true,
 			zIndex = 1,
 		}),

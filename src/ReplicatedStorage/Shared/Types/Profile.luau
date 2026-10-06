@@ -116,6 +116,10 @@ export type VehicleRecord = {
 	acquiredAt: number,
 	soldAt: number, -- 0 = never; buyback allowed for 72 h at +10 % (00-DECISIONS §11)
 	configuration: Configuration, -- mounted modules (must pass ContentRegistry:checkConfiguration)
+	--- Non-stock modules already bought for THIS vehicle (module priceCredits is paid once per vehicle). Mounting a
+	--- stock module or one of these is free; mounting another researched module charges its price and adds it here.
+	--- Swapping never loses a purchase; selling the vehicle refunds per Config.Economy.
+	ownedModules: { [ModuleId]: boolean },
 	equipment: { VehicleTypes.EquipmentSlot },
 	ammo: { VehicleTypes.AmmoLoad }, -- desired load; resupplied after each battle when autoResupply.ammo
 	consumables: { VehicleTypes.ConsumableSlot },
@@ -216,6 +220,9 @@ export type EventState = {
 	joinedAt: number,
 	progress: { [string]: number }, -- event-owned counters (stage reached, tokens earned…)
 	ranked: RankedProgress?, -- Ranked events only
+	--- When the end-of-event settlement ran (Ranked finalRewards by bestRank, leftover-token conversion after the
+	--- shop closes): unix s, 0 = not yet. The Hub settles once, under the session lock, and never again.
+	settledAt: number,
 }
 export type AchievementProgress = {
 	count: number, -- times earned (medals) or tier reached (milestones)

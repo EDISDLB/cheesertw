@@ -302,6 +302,15 @@ local Tokens = {
 		},
 		tab = { family = "Oswald", weight = "SemiBold", size = 20, lineHeight = 1.00, upper = true, kind = "label" },
 		badge = { family = "Oswald", weight = "SemiBold", size = 13, lineHeight = 1.00, upper = true, kind = "label" },
+		--- Keycap prompts (ui-ux §1.12: Builder Mono at the `label` size).
+		keycap = {
+			family = "BuilderMono",
+			weight = "Medium",
+			size = 14,
+			lineHeight = 1.00,
+			upper = false,
+			kind = "label",
+		},
 		--- Toast titles (brand-art §8.5: Builder Sans Bold 16).
 		["title.s"] = {
 			family = "BuilderSans",
@@ -349,10 +358,13 @@ local Tokens = {
 	--- brand-art §8.2: one elevation shadow, ink at 45 %, offset 0/4 px, 12 px soft (modals and dropdowns only).
 	shadow = { color = "ink", opacity = 0.45, offsetY = 4, blur = 12 },
 
-	--- ScreenGui DisplayOrder per layer (research 09 R2; Loading in ReplicatedFirst stays at 100).
+	--- ScreenGui DisplayOrder per layer (research 09 R2, ui-ux §1.1; Loading in ReplicatedFirst stays at 100).
 	layers = {
 		Background3D = 0,
+		--- Battle gauges (ScreenInsets.DeviceSafeInsets; non-interactive).
 		HUD = 10,
+		--- Battle touch controls (CoreUISafeInsets, so they never sit under the Roblox top-bar buttons).
+		HUDInput = 11,
 		Screens = 20,
 		--- Garage top bar in the engine's top-bar row (ScreenInsets.TopbarSafeInsets; ui-ux §1.1).
 		TopBar = 25,

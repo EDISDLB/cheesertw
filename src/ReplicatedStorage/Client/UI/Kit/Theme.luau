@@ -7,12 +7,14 @@
 	                  typography roles (Font + reactive TextSize honouring text scale and the brand minimum rendered
 	                  sizes per platform), spacing, radii, strokes, layers, motion timings, team/rarity/currency/
 	                  faction/material palettes. Holds the theme settings (scheme, high contrast, text scale, UI scale,
-	                  reduced motion, preferred transparency) and fires `Theme.changed` when they change.
+	                  reduced motion (On / Off / follow the engine), hold-to-confirm duration, preferred transparency)
+	                  and fires `Theme.changed` when they change.
 	Dependencies:     Kit/State, Kit/Tokens, Core/Signal, Core/Log. `bindEngine` reads GuiService accessibility
 	                  properties (ReducedMotionEnabled, PreferredTransparency) at runtime only.
 	State:            Module-level Values for each setting (app-global theme), caches of Computed tokens.
 	Validation:       Unknown token/role names raise immediately ("Theme: unknown colour token ..."); settings are
-	                  validated (scheme names) and clamped (text scale 0.8–1.5, UI scale 0.8–1.2, transparency 0–1).
+	                  validated (scheme names, motion setting) and clamped (text scale 0.8–1.5, UI scale 0.8–1.2,
+	                  hold 0.6–2.0 s, transparency 0–1).
 	Error handling:   Invalid settings raise from Theme.set (callers are settings code, which must pass valid data).
 	Performance notes: Each token's State is created once and cached; static tokens are constant Values (no
 	                  recomputation). A scheme switch recomputes only team colours; text scale only text sizes.
@@ -119,6 +121,7 @@ export type TypeRole =
 	| "button.battle"
 	| "tab"
 	| "badge"
+	| "keycap"
 	| "title.s"
 export type MotionToken =
 	"instant"
@@ -135,17 +138,22 @@ export type MotionToken =
 	| "toastHoldAction"
 	| "focusPulse"
 export type EasingToken = "standard" | "enter" | "exit" | "linear" | "emphasized"
-export type Layer = "Background3D" | "HUD" | "Screens" | "TopBar" | "Modals" | "Toasts" | "Tooltip" | "Debug"
+export type Layer = "Background3D" | "HUD" | "HUDInput" | "Screens" | "TopBar" | "Modals" | "Toasts" | "Tooltip" | "Debug"
 --- Layout family pushed by Kit/Layout: Regular, Compact (phones) or TV (10-ft); selects authored type minimums.
 export type LayoutMode = "regular" | "compact" | "tv"
+
+--- The player's reduced-motion choice: true = always reduced, false = always full motion, "system" = follow
+--- GuiService.ReducedMotionEnabled (default; ui-ux §1.15 "honours ReducedMotionEnabled, or override On/Off").
+export type MotionSetting = boolean | "system"
 
 export type Settings = {
 	scheme: Scheme,
 	highContrast: boolean,
 	textScale: number,
 	uiScale: number,
-	reducedMotion: boolean,
+	reducedMotion: MotionSetting,
 	preferredTransparency: number,
+	holdSeconds: number,
 }
 
 export type SettingsPatch = {
@@ -153,8 +161,9 @@ export type SettingsPatch = {
 	highContrast: boolean?,
 	textScale: number?,
 	uiScale: number?,
-	--- The player's "reduced effects/motion" setting (OR-ed with the engine's ReducedMotionEnabled).
-	reducedMotion: boolean?,
+	reducedMotion: MotionSetting?,
+	--- Hold-to-confirm duration in seconds (clamped 0.6–2.0; ui-ux §1.15 `a11y.holdConfirm`).
+	holdSeconds: number?,
 }
 
 export type SystemPatch = {
@@ -170,7 +179,10 @@ export type Snapshot = {
 	highContrast: boolean,
 	textScale: number,
 	uiScale: number,
+	--- Effective reduced motion (setting combined with the engine flag).
 	reducedMotion: boolean,
+	motionSetting: MotionSetting,
+	holdSeconds: number,
 	preferredTransparency: number,
 	renderScale: number,
 	platform: Platform,
@@ -197,6 +209,8 @@ Theme.TEXT_SCALE_MIN = 0.8
 Theme.TEXT_SCALE_MAX = 1.5
 Theme.UI_SCALE_MIN = 0.8
 Theme.UI_SCALE_MAX = 1.2
+Theme.HOLD_SECONDS_MIN = 0.6
+Theme.HOLD_SECONDS_MAX = 2.0
 
 --------------------------------------------------------------------------------
 -- Colour parsing
@@ -245,8 +259,9 @@ local DEFAULTS: Settings = {
 	highContrast = false,
 	textScale = 1,
 	uiScale = 1,
-	reducedMotion = false,
+	reducedMotion = "system",
 	preferredTransparency = 1,
+	holdSeconds = 1.2,
 }
 
 -- String-literal unions widen through generic instantiation in the old solver: annotate + cast.
@@ -254,15 +269,24 @@ local schemeValue: State.Value<Scheme> = State.Value(DEFAULTS.scheme) :: any
 local highContrastValue = State.Value(DEFAULTS.highContrast)
 local textScaleValue = State.Value(DEFAULTS.textScale)
 local uiScaleValue = State.Value(DEFAULTS.uiScale)
-local reducedMotionUserValue = State.Value(false)
+local motionSettingValue: State.Value<MotionSetting> = State.Value(DEFAULTS.reducedMotion) :: any
 local reducedMotionSystemValue = State.Value(false)
+local holdSecondsValue = State.Value(DEFAULTS.holdSeconds)
 local preferredTransparencyValue = State.Value(1)
 local renderScaleValue = State.Value(1)
 local platformValue: State.Value<Platform> = State.Value("pc") :: any
 local layoutValue: State.Value<LayoutMode> = State.Value("regular") :: any
 
+--- Pure: effective reduced motion for a player setting and the engine flag.
+function Theme.resolveReducedMotion(setting: MotionSetting, system: boolean): boolean
+	if setting == "system" then
+		return system
+	end
+	return setting == true
+end
+
 local reducedMotionComputed = State.Computed(function(): boolean
-	return reducedMotionUserValue:get() or reducedMotionSystemValue:get()
+	return Theme.resolveReducedMotion(motionSettingValue:get(), reducedMotionSystemValue:get())
 end)
 
 --- Read-only reactive views of the settings (bind UI to these; change them with Theme.set / Theme.setSystem).
@@ -272,6 +296,8 @@ Theme.state = {
 	textScale = State.readonly(textScaleValue),
 	uiScale = State.readonly(uiScaleValue),
 	reducedMotion = reducedMotionComputed,
+	motionSetting = State.readonly(motionSettingValue),
+	holdSeconds = State.readonly(holdSecondsValue),
 	preferredTransparency = State.readonly(preferredTransparencyValue),
 	renderScale = State.readonly(renderScaleValue),
 	platform = State.readonly(platformValue),
@@ -288,6 +314,8 @@ function Theme.snapshot(): Snapshot
 		textScale = textScaleValue:peek(),
 		uiScale = uiScaleValue:peek(),
 		reducedMotion = reducedMotionComputed:peek(),
+		motionSetting = motionSettingValue:peek(),
+		holdSeconds = holdSecondsValue:peek(),
 		preferredTransparency = preferredTransparencyValue:peek(),
 		renderScale = renderScaleValue:peek(),
 		platform = platformValue:peek(),
@@ -319,6 +347,10 @@ function Theme.set(patch: SettingsPatch)
 	if patch.scheme ~= nil and table.find(Theme.SCHEMES, patch.scheme) == nil then
 		error(`Theme.set: unknown colour-blind scheme "{tostring(patch.scheme)}"`, 2)
 	end
+	local motion: MotionSetting? = patch.reducedMotion
+	if motion ~= nil and motion ~= true and motion ~= false and motion ~= "system" then
+		error(`Theme.set: reducedMotion must be true, false or "system" (got {tostring(motion)})`, 2)
+	end
 	local before = Theme.snapshot()
 	State.batch(function()
 		if patch.scheme ~= nil then
@@ -333,8 +365,11 @@ function Theme.set(patch: SettingsPatch)
 		if patch.uiScale ~= nil then
 			uiScaleValue:set(clamp(patch.uiScale, Theme.UI_SCALE_MIN, Theme.UI_SCALE_MAX))
 		end
-		if patch.reducedMotion ~= nil then
-			reducedMotionUserValue:set(patch.reducedMotion == true)
+		if motion ~= nil then
+			motionSettingValue:set(motion :: any)
+		end
+		if patch.holdSeconds ~= nil then
+			holdSecondsValue:set(clamp(patch.holdSeconds, Theme.HOLD_SECONDS_MIN, Theme.HOLD_SECONDS_MAX))
 		end
 	end)
 	local after = Theme.snapshot()
@@ -379,7 +414,8 @@ function Theme.reset()
 		highContrast = DEFAULTS.highContrast,
 		textScale = DEFAULTS.textScale,
 		uiScale = DEFAULTS.uiScale,
-		reducedMotion = false,
+		reducedMotion = DEFAULTS.reducedMotion,
+		holdSeconds = DEFAULTS.holdSeconds,
 	})
 	Theme.setSystem({
 		renderScale = 1,
@@ -507,11 +543,41 @@ function Theme.mix(a: ColorToken, b: ColorToken, t: number): State<Color3>
 	end)
 end
 
---- Background transparency honouring GuiService.PreferredTransparency (Roblox accessibility guidance: multiply).
+--- Pure: background transparency for a base value under PreferredTransparency (Roblox guidance: multiply) and
+--- high contrast (opaque panels, ui-ux §1.15).
+function Theme.resolveBackgroundTransparency(base: number, preferred: number, highContrast: boolean): number
+	if highContrast then
+		return 0
+	end
+	return math.clamp(base * preferred, 0, 1)
+end
+
+--- Background transparency honouring GuiService.PreferredTransparency and high contrast (reactive).
 function Theme.backgroundTransparency(base: number): State<number>
 	return State.Computed(function(): number
-		return math.clamp(base * preferredTransparencyValue:get(), 0, 1)
+		return Theme.resolveBackgroundTransparency(base, preferredTransparencyValue:get(), highContrastValue:get())
 	end)
+end
+
+local borderWidthCache: { [string]: State<number> } = {}
+
+--- Reactive border width for a stroke token: high contrast raises hairlines to the strong width (ui-ux §1.15:
+--- borders 2 px). Bind panel/card borders to it.
+function Theme.borderWidth(name: ("hairline" | "strong")?): State<number>
+	local key = name or "hairline"
+	local cached = borderWidthCache[key]
+	if cached ~= nil then
+		return cached
+	end
+	local px = (Tokens.stroke :: any)[key]
+	if px == nil then
+		error(`Theme: unknown stroke "{tostring(key)}"`, 2)
+	end
+	local state = State.Computed(function(): number
+		return if highContrastValue:get() then math.max(px, Tokens.stroke.strong) else px
+	end)
+	borderWidthCache[key] = state
+	return state
 end
 
 function Theme.team(role: TeamRole): State<Color3>

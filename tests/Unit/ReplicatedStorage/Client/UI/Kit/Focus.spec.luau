@@ -235,18 +235,109 @@ describe("Focus scopes", function()
 		end).toThrow("destroyed")
 	end)
 
-	it("plays the focus tick only for gamepad moves inside the top scope", function()
+	it("ticks for player moves only (not programmatic focus) and rate-limits fast scrolling", function()
+		local now = 0
+		Focus.setClock(function()
+			return now
+		end)
 		Sound.resetCounts()
 		local screen = Create("Frame", {})
 		local a = button("A", { Parent = screen })
 		local b = button("B", { Parent = screen })
+		local c = button("C", { Parent = screen })
+		local scope = Focus.scope(screen, { initial = a })
+		scope:activate()
+		-- Initial focus was set by Focus itself: its SelectionChanged is not a player move.
+		expect(env.guiService.SelectedObject).toBe(a)
+		expect(Sound.counts().ui_hover or 0).toBe(0)
+		Support.select(env.guiService, b)
+		expect(Sound.counts().ui_hover).toBe(1)
+		-- Faster than HOVER_SOUND_RATE moves per second: silent.
+		now += 0.05
+		Support.select(env.guiService, c)
+		expect(Sound.counts().ui_hover).toBe(1)
+		now += 1 / Focus.HOVER_SOUND_RATE
+		Support.select(env.guiService, a)
+		expect(Sound.counts().ui_hover).toBe(2)
+		-- scope:focus() is programmatic too.
+		now += 1
+		scope:focus(b)
+		expect(Sound.counts().ui_hover).toBe(2)
+		scope:Destroy()
+		Focus.setClock(nil)
+	end)
+
+	it("restores to the nearest sibling when the remembered element is gone", function()
+		local screen = Create("Frame", { Name = "Screen" })
+		local list = Create("Frame", { Name = "List", Parent = screen })
+		local rows = {}
+		for i = 1, 4 do
+			rows[i] = button("Row" .. i, { Parent = list })
+			setPosition(rows[i], 0, i * 50)
+		end
+		local header = button("Header", { Parent = screen })
+		setPosition(header, 0, 0)
+		local scope = Focus.scope(screen, { initial = header })
+		scope:activate()
+		Support.select(env.guiService, rows[3])
+		local modal = Focus.scope(Create("Frame", { [Create.Children] = { button("OK") } }), { trap = true })
+		modal:activate()
+		-- While the modal is up, the remembered row is removed (e.g. the item was sold).
+		rows[3]:Destroy()
+		modal:Destroy()
+		expect(env.guiService.SelectedObject).toBe(rows[2])
+		expect(Focus.nearestIndex({ Vector2.new(0, 0), Vector2.new(0, 10) }, Vector2.new(0, 8))).toBe(2)
+		expect(Focus.nearestIndex({}, Vector2.new(0, 0))).toBeNil()
+		scope:Destroy()
+	end)
+
+	it("pages the focused scroll region by one viewport minus 10 % and focuses the new page", function()
+		expect(Focus.pageOffset(0, 500, 2000, 1)).toBe(450)
+		expect(Focus.pageOffset(450, 500, 2000, -1)).toBe(0)
+		expect(Focus.pageOffset(1400, 500, 2000, 1)).toBe(1500)
+		expect(Focus.pageOffset(0, 500, 300, 1)).toBe(0)
+
+		local screen = Create("Frame", { Name = "Screen" })
+		local scroller = Create("ScrollingFrame", { Name = "Scroller", Parent = screen })
+		local props = rawget(scroller, "_props")
+		props.AbsoluteWindowSize = Vector2.new(400, 500)
+		props.AbsoluteCanvasSize = Vector2.new(400, 2000)
+		props.AbsolutePosition = Vector2.new(0, 0)
+		props.CanvasPosition = Vector2.new(0, 0)
+		props.ScrollingDirection = Enum.ScrollingDirection.Y
+		local rows = {}
+		for i = 1, 20 do
+			rows[i] = button("Row" .. i, { Parent = scroller })
+			rawget(rows[i], "_props").AbsoluteSize = Vector2.new(400, 90)
+		end
+		local function layout()
+			local offset = scroller.CanvasPosition.Y
+			for i, row in rows do
+				setPosition(row, 0, (i - 1) * 100 - offset)
+			end
+		end
+		layout()
 		local scope = Focus.scope(screen)
 		scope:activate()
-		local before = Sound.counts().ui_hover or 0
-		Support.select(env.guiService, b)
-		Support.select(env.guiService, a)
-		expect((Sound.counts().ui_hover or 0) - before).toBe(2)
+		Support.select(env.guiService, rows[1])
+		expect(Focus.page(1)).toBe(true)
+		expect(scroller.CanvasPosition).toEqual(Vector2.new(0, 450))
+		layout()
+		env:step()
+		env:step()
+		-- Row 6 starts at 500 - 450 = 50: the first row fully inside the new page.
+		expect(env.guiService.SelectedObject).toBe(rows[6])
+		-- A screen handler replaces the default paging (e.g. tech-tree zoom).
+		local pages = {}
+		scope:setPageHandler(function(direction)
+			table.insert(pages, direction)
+		end)
+		UIInput.trigger("PageNext")
+		UIInput.trigger("PagePrev")
+		expect(pages).toEqual({ 1, -1 })
+		expect(scroller.CanvasPosition).toEqual(Vector2.new(0, 450))
 		scope:Destroy()
+		expect(Focus.page(1)).toBe(false)
 	end)
 
 	it("rejects non-GuiObject roots", function()
@@ -286,6 +377,59 @@ describe("UIInput", function()
 		stop()
 		expect(inputs:FindFirstChild(UIInput.CONTEXT_NAME)).toBeNil()
 		connection:Disconnect()
+	end)
+
+	it("exposes every KitUI menu action as a signal (and binds them in the context)", function()
+		local stop = UIInput.start()
+		local context =
+			game:GetService("ReplicatedStorage"):FindFirstChild("Inputs"):FindFirstChild(UIInput.CONTEXT_NAME)
+		for _, name in UIInput.ACTIONS do
+			expect(context:FindFirstChild(name)).never.toBeNil()
+		end
+		expect(context:FindFirstChild("Secondary"):FindFirstChild("ButtonX").KeyCode).toBe(Enum.KeyCode.ButtonX)
+		expect(context:FindFirstChild("PageNext"):FindFirstChild("ButtonR2").KeyCode).toBe(Enum.KeyCode.ButtonR2)
+		-- Confirm stays with the engine's selection activation.
+		expect(context:FindFirstChild("Confirm")).toBeNil()
+		UIInput.setEnabled(true)
+		local fired = {}
+		local connections = {
+			UIInput.on("Secondary", function()
+				table.insert(fired, "secondary")
+			end),
+			UIInput.on("Tertiary", function()
+				table.insert(fired, "tertiary")
+			end),
+		}
+		context:FindFirstChild("Secondary").Pressed:Fire()
+		UIInput.trigger("Tertiary")
+		expect(fired).toEqual({ "secondary", "tertiary" })
+		expect(UIInput.signal("PagePrev")).toBe(UIInput.pagePrev)
+		expect(function()
+			UIInput.signal("Jump" :: any)
+		end).toThrow("unknown action")
+		for _, connection in connections do
+			connection:Disconnect()
+		end
+		stop()
+	end)
+
+	it("rebinds the context and refreshes glyphs when an action is remapped", function()
+		local stop = UIInput.start()
+		local back = game:GetService("ReplicatedStorage")
+			:FindFirstChild("Inputs")
+			:FindFirstChild(UIInput.CONTEXT_NAME)
+			:FindFirstChild("Back")
+		local glyph = InputMode.glyphState("Back")
+		InputMode.set("MouseKeyboard")
+		expect(glyph:get().keyCode).toBe(Enum.KeyCode.Backspace)
+		InputMode.registerAction("Back", { keyboard = { Enum.KeyCode.Delete }, gamepad = { Enum.KeyCode.ButtonB } })
+		expect(back:FindFirstChild("Backspace")).toBeNil()
+		expect(back:FindFirstChild("Delete").KeyCode).toBe(Enum.KeyCode.Delete)
+		expect(back:FindFirstChild("ButtonB")).never.toBeNil()
+		expect(glyph:get().keyCode).toBe(Enum.KeyCode.Delete)
+		InputMode.registerAction("Back", { keyboard = { Enum.KeyCode.Backspace }, gamepad = { Enum.KeyCode.ButtonB } })
+		expect(back:FindFirstChild("Backspace")).never.toBeNil()
+		stop()
 	end)
 
 	it("falls back to UserInputService when asked", function()

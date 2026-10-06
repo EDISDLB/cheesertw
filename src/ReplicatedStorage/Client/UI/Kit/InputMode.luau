@@ -8,7 +8,7 @@
 	                  `InputMode.glyph(action)` resolves the prompt for a UI action in the current mode: keyboard key
 	                  text (layout-aware GetStringForKeyCode, abbreviated) or the gamepad button image
 	                  (GetImageForKeyCode: Xbox/PlayStation art) with a short text fallback (A / ✕ / LB / L1 ...).
-	Dependencies:     Kit/State, Kit/Services, Core/Log.
+	Dependencies:     Kit/State, Kit/Services, Core/Signal.
 	State:            Module-level mode Value, action registry (name -> keyboard/gamepad key codes).
 	Validation:       Actions must declare at least one key; reserved keys (Esc, ButtonStart, F9, F11, F12,
 	                  PrintScreen — 00-DECISIONS §16) are rejected at registration.
@@ -23,6 +23,7 @@
 
 local State = require("./State")
 local Services = require("./Services")
+local Signal = require("@game/ReplicatedStorage/Shared/Core/Signal")
 
 type State<T> = State.State<T>
 
@@ -164,7 +165,11 @@ end
 
 local actions: { [string]: ActionSpec } = {}
 
---- Registers (or replaces) a UI action's keys. Reserved keys raise.
+--- Fires (action name) after an action's keys change (remapping): UIInput rebinds its context, prompts refresh.
+InputMode.actionsChanged = Signal.new() :: Signal.Signal<string>
+local actionsVersion = State.Value(0)
+
+--- Registers (or replaces) a UI action's keys (also the remapping entry point). Reserved keys raise.
 function InputMode.registerAction(name: string, spec: ActionSpec)
 	if type(name) ~= "string" or name == "" then
 		error("InputMode.registerAction: name must be a non-empty string", 2)
@@ -184,6 +189,10 @@ function InputMode.registerAction(name: string, spec: ActionSpec)
 		gamepad = table.clone(spec.gamepad),
 		label = spec.label,
 	}
+	actionsVersion:update(function(v: number): number
+		return v + 1
+	end)
+	InputMode.actionsChanged:Fire(name)
 end
 
 function InputMode.action(name: string): ActionSpec?
@@ -354,9 +363,10 @@ function InputMode.glyph(action: string | Enum.KeyCode, mode: Mode?): Glyph
 	return { kind = "key", keyCode = keyCode, text = InputMode.keyText(keyCode), image = nil }
 end
 
---- Reactive glyph that follows the input mode.
+--- Reactive glyph that follows the input mode and remapping.
 function InputMode.glyphState(action: string | Enum.KeyCode): State<Glyph>
 	return State.Computed(function(): Glyph
+		actionsVersion:get()
 		return InputMode.glyph(action, modeValue:get())
 	end, { equals = State.shallowEqual })
 end

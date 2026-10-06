@@ -5,12 +5,18 @@
 	Purpose:          Every screen (and modal, dropdown...) owns a FocusScope over its root. Scopes form a stack: the
 	                  top scope owns GuiService.SelectedObject. Activating a scope makes its root a SelectionGroup
 	                  (behaviour Escape, or Stop on all sides for trapped modals) and, in Gamepad mode, selects its
-	                  remembered element, else its initial element, else the first selectable (lowest SelectionOrder,
-	                  then top-left). Popping a scope restores the scope below exactly where it was. Selection that
+	                  remembered element, else (when that element is gone) the nearest selectable sibling in the same
+	                  list, else its initial element, else the first selectable (lowest SelectionOrder, then
+	                  top-left). Popping a scope restores the scope below exactly where it was. Selection that
 	                  escapes a trapped scope is pulled back. Switching input mode to Gamepad repairs an invalid
 	                  selection; switching away clears it (no stray focus ring for mouse/touch). LB/RB (and Q/E) go to
-	                  the top scope's shoulder handler (tab bars). Helpers set explicit NextSelection* neighbours.
-	Dependencies:     Kit/InputMode, Kit/UIInput, Kit/Services, Kit/Sound, Components/FocusRing, Core/Log.
+	                  the top scope's shoulder handler (tab bars); LT/RT (Z/C) page the focused scroll region by one
+	                  viewport minus 10 % and move focus into the new page (or the scope's own onPage handler).
+	                  The ui_hover tick plays for player moves only: never for programmatic focus, and at most
+	                  HOVER_SOUND_RATE per second while scrolling fast (ui-ux §1.16). Helpers set explicit
+	                  NextSelection* neighbours.
+	Dependencies:     Kit/InputMode, Kit/UIInput, Kit/Services, Kit/Sound, Kit/Motion, Components/FocusRing,
+	                  Core/Log.
 	State:            Module-level scope stack (top = last) and the install() connections.
 	Validation:       Scope roots must be GuiObjects; neighbour helpers ignore nil entries.
 	Error handling:   Engine property writes are guarded; failures are logged, never thrown into input handlers.
@@ -25,6 +31,7 @@ local InputMode = require("./InputMode")
 local UIInput = require("./UIInput")
 local Services = require("./Services")
 local Sound = require("./Sound")
+local Motion = require("./Motion")
 local FocusRing = require("./Components/FocusRing")
 local Log = require("@game/ReplicatedStorage/Shared/Core/Log")
 
@@ -38,6 +45,8 @@ export type ScopeOptions = {
 	remember: boolean?,
 	--- LB/RB handler (-1 = previous, +1 = next) while this scope is on top.
 	onShoulder: ((direction: number) -> ())?,
+	--- LT/RT handler (-1 = page back, +1 = page forward); replaces the default scroll paging (e.g. tech-tree zoom).
+	onPage: ((direction: number) -> ())?,
 }
 
 export type FocusScope = {
@@ -52,6 +61,7 @@ export type FocusScope = {
 	focus: (self: FocusScope, target: GuiObject?) -> (),
 	setInitial: (self: FocusScope, initial: (GuiObject | () -> GuiObject?)?) -> (),
 	setShoulderHandler: (self: FocusScope, handler: ((direction: number) -> ())?) -> (),
+	setPageHandler: (self: FocusScope, handler: ((direction: number) -> ())?) -> (),
 	remembered: (self: FocusScope) -> GuiObject?,
 	--- Best element to focus now: remembered -> initial -> first selectable.
 	target: (self: FocusScope) -> GuiObject?,
@@ -79,11 +89,25 @@ type ScopeImpl = {
 	_remember: boolean,
 	_initial: (GuiObject | () -> GuiObject?)?,
 	_remembered: GuiObject?,
+	-- Where the remembered element lived (for nearest-sibling restoration when it is destroyed).
+	_rememberedParent: Instance?,
+	_rememberedPosition: Vector2?,
 	_shoulder: ((number) -> ())?,
+	_page: ((number) -> ())?,
 	_destroyed: boolean,
 }
 
 local stack: { ScopeImpl } = {}
+
+--- Max ui_hover ticks per second while the player scrolls through a list (ui-ux §1.16).
+Focus.HOVER_SOUND_RATE = 6
+--- Fraction of the viewport kept as context when paging with LT/RT (ui-ux §1.13: one viewport minus 10 %).
+Focus.PAGE_OVERLAP = 0.1
+
+-- The object Focus itself selected last (its SelectionChanged is not a player move: no hover tick).
+local expectedSelection: GuiObject? = nil
+local lastHoverAt = -math.huge
+local clock: () -> number = os.clock
 -- Shoulder handlers registered by components (TabBar): used when the top scope has no handler of its own.
 local shoulderHandlers: { { object: GuiObject, fn: (number) -> () } } = {}
 local ScopeClass = {}
@@ -256,6 +280,27 @@ function Focus.grid(list: { GuiObject }, columns: number, wrap: boolean?)
 	end
 end
 
+--- Pure: index (into `positions`) of the point nearest to `target`; nil for an empty list. Ties keep the first.
+function Focus.nearestIndex(positions: { Vector2 }, target: Vector2): number?
+	local best: number? = nil
+	local bestDistance = math.huge
+	for i, position in positions do
+		local distance = (position - target).Magnitude
+		if distance < bestDistance then
+			best, bestDistance = i, distance
+		end
+	end
+	return best
+end
+
+--- Pure: the scroll offset one page away (`direction` -1/+1): one viewport minus PAGE_OVERLAP, clamped to the
+--- content.
+function Focus.pageOffset(offset: number, viewExtent: number, contentExtent: number, direction: number): number
+	local step = math.max(1, viewExtent * (1 - Focus.PAGE_OVERLAP))
+	local maxOffset = math.max(0, contentExtent - viewExtent)
+	return math.clamp(offset + (if direction < 0 then -step else step), 0, maxOffset)
+end
+
 --- Pure: the scroll offset that reveals [itemStart, itemStart + itemSize) inside a viewport of `viewSize` currently
 --- scrolled to `offset` (all in content coordinates), keeping `padding` px of context. Unchanged if visible.
 function Focus.revealOffset(
@@ -292,6 +337,7 @@ local function selectedObject(): GuiObject?
 end
 
 local function setSelected(object: GuiObject?)
+	expectedSelection = object
 	local ok, err = pcall(function()
 		Services.gui().SelectedObject = object
 	end)
@@ -312,10 +358,35 @@ local function resolveInitial(scope: ScopeImpl): GuiObject?
 	return initial :: GuiObject
 end
 
+-- The selectable left in the remembered element's list that is closest to where it was.
+local function nearestSibling(scope: ScopeImpl): GuiObject?
+	local parent = scope._rememberedParent
+	local position = scope._rememberedPosition
+	if parent == nil or position == nil or not Focus.contains(scope.root, parent) then
+		return nil
+	end
+	local candidates: { GuiObject } = {}
+	local positions: { Vector2 } = {}
+	for _, child in parent:GetChildren() do
+		if Focus.isSelectable(child, scope.root) then
+			table.insert(candidates, child :: GuiObject)
+			table.insert(positions, positionOf(child :: GuiObject))
+		end
+	end
+	local index = Focus.nearestIndex(positions, position)
+	return if index ~= nil then candidates[index] else nil
+end
+
 local function bestTarget(scope: ScopeImpl): GuiObject?
 	local remembered = scope._remembered
-	if scope._remember and remembered ~= nil and Focus.isSelectable(remembered, scope.root) then
-		return remembered
+	if scope._remember and remembered ~= nil then
+		if Focus.isSelectable(remembered, scope.root) then
+			return remembered
+		end
+		local sibling = nearestSibling(scope)
+		if sibling ~= nil then
+			return sibling
+		end
 	end
 	local initial = resolveInitial(scope)
 	if initial ~= nil and Focus.isSelectable(initial, scope.root) then
@@ -355,10 +426,16 @@ function Focus.ensureValid()
 	setSelected(bestTarget(top))
 end
 
+local function remember(scope: ScopeImpl, object: GuiObject)
+	scope._remembered = object
+	scope._rememberedParent = object.Parent
+	scope._rememberedPosition = positionOf(object)
+end
+
 local function rememberCurrent(scope: ScopeImpl)
 	local current = selectedObject()
 	if current ~= nil and Focus.contains(scope.root, current) then
-		scope._remembered = current
+		remember(scope, current)
 	end
 end
 
@@ -417,7 +494,10 @@ function Focus.scope(root: GuiObject, options: ScopeOptions?): FocusScope
 		_remember = opts.remember ~= false,
 		_initial = opts.initial,
 		_remembered = nil,
+		_rememberedParent = nil,
+		_rememberedPosition = nil,
 		_shoulder = opts.onShoulder,
+		_page = opts.onPage,
 		_destroyed = false,
 	}, ScopeClass) :: any
 	return (impl :: any) :: FocusScope
@@ -442,7 +522,7 @@ end
 function ScopeClass.focus(self: ScopeImpl, target: GuiObject?)
 	if stack[#stack] ~= self or not gamepadMode() then
 		if target ~= nil and Focus.contains(self.root, target) then
-			self._remembered = target
+			remember(self, target)
 		end
 		return
 	end
@@ -456,6 +536,10 @@ end
 
 function ScopeClass.setShoulderHandler(self: ScopeImpl, handler: ((number) -> ())?)
 	self._shoulder = handler
+end
+
+function ScopeClass.setPageHandler(self: ScopeImpl, handler: ((number) -> ())?)
+	self._page = handler
 end
 
 function ScopeClass.remembered(self: ScopeImpl): GuiObject?
@@ -473,8 +557,11 @@ function ScopeClass.Destroy(self: ScopeImpl)
 	Focus.pop(self :: any)
 	self._destroyed = true
 	self._remembered = nil
+	self._rememberedParent = nil
+	self._rememberedPosition = nil
 	self._initial = nil
 	self._shoulder = nil
+	self._page = nil
 end
 
 --- Registers a component's LB/RB handler (tab bars). It receives presses while `object` is visible inside the
@@ -531,17 +618,34 @@ function Focus.shoulder(direction: number): boolean
 	return true
 end
 
--- Selection changes: remember per scope, keep trapped scopes closed, tick the focus sound.
+--- Replaces the clock used for the hover-tick rate limit (tests). nil restores os.clock.
+function Focus.setClock(fn: (() -> number)?)
+	clock = fn or os.clock
+	lastHoverAt = -math.huge
+end
+
+local function hoverTick()
+	local now = clock()
+	if now - lastHoverAt < 1 / Focus.HOVER_SOUND_RATE then
+		return
+	end
+	lastHoverAt = now
+	Sound.play(Sound.KEYS.hover)
+end
+
+-- Selection changes: remember per scope, keep trapped scopes closed, tick the focus sound for player moves.
 local function onSelectionChanged()
 	local top = stack[#stack]
 	local selected = selectedObject()
+	local programmatic = selected ~= nil and selected == expectedSelection
+	expectedSelection = nil
 	if top == nil or selected == nil then
 		return
 	end
 	if Focus.contains(top.root, selected) then
-		top._remembered = selected
-		if gamepadMode() then
-			Sound.play(Sound.KEYS.hover)
+		remember(top, selected)
+		if gamepadMode() and not programmatic then
+			hoverTick()
 		end
 		return
 	end
@@ -552,10 +656,117 @@ local function onSelectionChanged()
 	for i = #stack - 1, 1, -1 do
 		local scope = stack[i]
 		if Focus.contains(scope.root, selected) then
-			scope._remembered = selected
+			remember(scope, selected)
 			return
 		end
 	end
+end
+
+-- Product of the UIScales above `instance` (screen px -> layout px).
+local function uiScaleOf(instance: Instance): number
+	local scale = 1
+	local current: Instance? = instance
+	while current ~= nil do
+		local uiScale = current:FindFirstChildOfClass("UIScale")
+		if uiScale ~= nil then
+			scale *= uiScale.Scale
+		end
+		current = current.Parent
+	end
+	return if scale > 0 then scale else 1
+end
+
+local function scrollContainer(top: ScopeImpl): ScrollingFrame?
+	local selected = selectedObject()
+	if selected ~= nil and Focus.contains(top.root, selected) then
+		local frame = selected:FindFirstAncestorWhichIsA("ScrollingFrame")
+		if frame ~= nil and Focus.contains(top.root, frame) then
+			return frame
+		end
+	end
+	for _, descendant in top.root:GetDescendants() do
+		if descendant:IsA("ScrollingFrame") and (descendant :: ScrollingFrame).ScrollingEnabled ~= false then
+			local frame = descendant :: ScrollingFrame
+			if frame.Visible ~= false then
+				return frame
+			end
+		end
+	end
+	return nil
+end
+
+-- After a page jump, focus the first selectable that is now fully inside the scroll window (gamepad only).
+local function focusInView(top: ScopeImpl, frame: ScrollingFrame, vertical: boolean)
+	if not gamepadMode() or stack[#stack] ~= top then
+		return
+	end
+	local origin, window = frame.AbsolutePosition, frame.AbsoluteWindowSize
+	local best: GuiObject? = nil
+	local bestMain = math.huge
+	for _, descendant in frame:GetDescendants() do
+		if Focus.isSelectable(descendant, top.root) then
+			local gui = descendant :: GuiObject
+			local relative = gui.AbsolutePosition - origin
+			local main = if vertical then relative.Y else relative.X
+			local extent = if vertical then window.Y else window.X
+			local size = if vertical then gui.AbsoluteSize.Y else gui.AbsoluteSize.X
+			if main >= -0.5 and main + size <= extent + 0.5 and main < bestMain then
+				best, bestMain = gui, main
+			end
+		end
+	end
+	if best ~= nil then
+		setSelected(best)
+	end
+end
+
+--- Routes a page press (-1 LT/Z, +1 RT/C): the top scope's onPage handler, else scrolls the focused scroll region
+--- (or the scope's first ScrollingFrame) one viewport minus 10 % and moves gamepad focus into the new page.
+--- Returns true if anything handled it.
+function Focus.page(direction: number): boolean
+	local top = stack[#stack]
+	if top == nil then
+		return false
+	end
+	local handler = top._page
+	if handler ~= nil then
+		local ok, err = pcall(handler :: any, direction)
+		if not ok then
+			log:error("page handler of %s failed: %s", top.name, tostring(err))
+		end
+		return true
+	end
+	local frame = scrollContainer(top)
+	if frame == nil then
+		return false
+	end
+	local vertical = frame.ScrollingDirection ~= Enum.ScrollingDirection.X
+	-- Absolute sizes are screen px; CanvasPosition is in the canvas' own (unscaled) units, like VirtualList assumes.
+	local scale = uiScaleOf(frame)
+	local window, canvas, position =
+		frame.AbsoluteWindowSize / scale, frame.AbsoluteCanvasSize / scale, frame.CanvasPosition
+	local offset = if vertical then position.Y else position.X
+	local target = Focus.pageOffset(
+		offset,
+		if vertical then window.Y else window.X,
+		if vertical then canvas.Y else canvas.X,
+		direction
+	)
+	if target == offset then
+		return false
+	end
+	frame.CanvasPosition = if vertical then Vector2.new(position.X, target) else Vector2.new(target, position.Y)
+	-- Let the engine (and VirtualLists) lay the new page out before choosing the element to focus.
+	local frames = 0
+	Motion.loop(function(): boolean?
+		frames += 1
+		if frames < 2 then
+			return nil
+		end
+		focusInView(top, frame, vertical)
+		return true
+	end)
+	return true
 end
 
 --- Global wiring (call once at client start): GuiService flags, brand focus ring, selection tracking, input-mode
@@ -598,6 +809,18 @@ function Focus.install(options: InstallOptions?): () -> ()
 			Focus.shoulder(1)
 		end)
 	)
+	table.insert(
+		connections,
+		UIInput.pagePrev:Connect(function()
+			Focus.page(-1)
+		end)
+	)
+	table.insert(
+		connections,
+		UIInput.pageNext:Connect(function()
+			Focus.page(1)
+		end)
+	)
 	local stopInput: (() -> ())? = nil
 	if opts.startInput ~= false then
 		stopInput = UIInput.start()
@@ -616,6 +839,8 @@ end
 --- Clears every scope (tests, full UI teardown).
 function Focus.reset()
 	table.clear(stack)
+	expectedSelection = nil
+	lastHoverAt = -math.huge
 	UIInput.setEnabled(false)
 end
 

@@ -81,6 +81,7 @@ function Icon.palette(entry: Registry.Entry, color: CanBeState<Color3>?): Glyph.
 			shade = material.shade,
 			ink = Theme.ink,
 			accent = accent,
+			tinted = false,
 		}
 	end
 	local fg: CanBeState<Color3> = color or Theme.color((entry.color or "text.primary") :: any)
@@ -92,6 +93,7 @@ function Icon.palette(entry: Registry.Entry, color: CanBeState<Color3>?): Glyph.
 		shade = State.map(fg, shadeOf),
 		ink = Theme.ink,
 		accent = accent,
+		tinted = color ~= nil,
 	}
 end
 

@@ -115,6 +115,8 @@ local owner: GuiObject? = nil
 local ownerPlacement: Placement? = nil
 local showToken = 0
 
+local reposition: () -> ()
+
 local function ensureView(anchor: Instance): ViewState?
 	local current = view
 	local parent = Layers.parentFor("Tooltip", anchor)
@@ -146,6 +148,7 @@ local function ensureView(anchor: Instance): ViewState?
 				size = Theme.chamfer("s"),
 				fill = Theme.color("bg.panel"),
 				border = Theme.color("border.strong"),
+				borderThickness = Theme.borderWidth(),
 				zIndex = Theme.z("top"),
 			}),
 			Create.UISizeConstraint({ MaxSize = Vector2.new(Theme.sizes.tooltipMaxWidth, math.huge) }),
@@ -174,6 +177,12 @@ local function ensureView(anchor: Instance): ViewState?
 	})
 	local created: ViewState = { frame = frame, title = title, body = body, hasTitle = hasTitle, hasBody = hasBody }
 	view = created
+	-- AutomaticSize settles after the text is set: re-place the tip once its real size is known.
+	frame:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+		if owner ~= nil and frame.Visible then
+			reposition()
+		end
+	end)
 	return created
 end
 
@@ -185,7 +194,7 @@ local function scaleOf(parent: Instance): number
 	return 1
 end
 
-local function reposition()
+function reposition()
 	local current = view
 	local target = owner
 	if current == nil or target == nil then

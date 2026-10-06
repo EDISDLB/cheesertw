@@ -3,7 +3,7 @@
 	Components/Dropdown — single-choice select with a popup option list.
 
 	Purpose:          A secondary-style field showing the selected option (or a placeholder) and a chevron. Activating
-	                  it opens a popup list in the Modals layer under the field (flipped above when there is no room),
+	                  it opens a popup list in the Tooltip layer (above Modals, ui-ux §1.1) under the field (flipped above when there is no room),
 	                  with a shadow, an outside-click catcher and a trapped focus scope that starts on the selected
 	                  option. Back (gamepad B / Backspace) closes it first through a UIInput back interceptor, so the
 	                  Router does not pop the screen. Disabled options are focusable but inert.
@@ -12,7 +12,7 @@
 	                  Icons/Icon.
 	State:            The bound selected Value and the open popup (one per dropdown).
 	Validation:       Option values should be unique; duplicates select the first match.
-	Error handling:   Without a Modals layer or ScreenGui ancestor the popup cannot open (logged once).
+	Error handling:   Without a Tooltip layer or ScreenGui ancestor the popup cannot open (logged once).
 	Performance notes: The popup is built on open and destroyed on close; lists over 8 options scroll.
 ]]
 
@@ -140,9 +140,10 @@ function Dropdown.new(props: DropdownProps): TextButton
 	end
 
 	local function open()
-		local parent = Layers.parentFor("Modals", field)
+		-- Dropdown lists live in the Tooltip layer (ui-ux §1.1), above Modals, so a dropdown inside a dialog opens on top.
+		local parent = Layers.parentFor("Tooltip", field)
 		if parent == nil then
-			log:warn("dropdown %s has no Modals layer or ScreenGui to open in", field.Name)
+			log:warn("dropdown %s has no Tooltip layer or ScreenGui to open in", field.Name)
 			return
 		end
 		local list = State.peek(options)

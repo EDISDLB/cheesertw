@@ -21,6 +21,7 @@ local CREDIT_LINES = {
 	premiumVehicleBonus = "PremiumVehicleBonus",
 	robloxPremiumBonus = "RobloxPremiumBonus",
 	plusBonus = "PlusBonus",
+	boosterBonus = "BoosterCredits",
 	eventBonus = "EventBonus",
 	awardRewards = "AwardRewards",
 	missionRewards = "MissionRewards",
@@ -109,6 +110,19 @@ describe("Types/Battle", function()
 		end
 	end)
 
+	it("every BattleStats counter is a BattleStatKey that missions and achievements can name", function()
+		local keys = {}
+		for _, key in TypeSource.unionMembers(TypeSource.read("Content"), "BattleStatKey") do
+			keys[key] = true
+		end
+		local NOT_COUNTERS = { byTargetClass = true, killedBy = true, deathCause = true }
+		for _, field in TypeSource.fieldsOf(SOURCE, "BattleStats") do
+			if not NOT_COUNTERS[field.name] and not keys[field.name] then
+				error(`BattleStats.{field.name} is not a Content.BattleStatKey`)
+			end
+		end
+	end)
+
 	it("the zero BattleStats example covers every required field", function()
 		expect(TypeSource.sortedKeys(zeroStats() :: any)).toEqual(TypeSource.fieldNames(SOURCE, "BattleStats"))
 	end)
@@ -180,6 +194,7 @@ describe("Types/Battle", function()
 				premiumVehicleBonus = 0,
 				robloxPremiumBonus = 0,
 				plusBonus = 0,
+				boosterBonus = 0,
 				eventBonus = 0,
 				awardRewards = 0,
 				missionRewards = 0,

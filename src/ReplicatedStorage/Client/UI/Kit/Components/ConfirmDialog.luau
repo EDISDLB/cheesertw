@@ -4,8 +4,9 @@
 
 	Purpose:          `ConfirmDialog.open({ title, body, confirmLabel, onConfirm })` for purchases, sells, leaving a
 	                  battle, resetting settings. Destructive confirmations get a warning hazard-stripe band, a
-	                  danger confirm button and initial gamepad focus on Cancel (an accidental A press must never
-	                  destroy something). Back / scrim / close count as cancel. The handle's `closed` fires with true
+	                  danger confirm button that must be HELD on gamepad and touch (Theme.state.holdSeconds, 1.2 s
+	                  default; a click on mouse/keyboard) and initial gamepad focus on Cancel (an accidental A press
+	                  must never destroy something; ui-ux §1.6). Back / scrim / close count as cancel. The handle's `closed` fires with true
 	                  (confirmed) or false.
 	Dependencies:     Kit/Create, Kit/State, Kit/Theme, Components/Modal, Components/Common.
 	State:            See Modal.open.
@@ -29,6 +30,8 @@ export type ConfirmProps = {
 	confirmLabel: CanBeState<string>?,
 	cancelLabel: CanBeState<string>?,
 	destructive: boolean?,
+	--- Destructive only: hold-to-confirm on gamepad/touch (default true, ui-ux §1.6; false = plain press).
+	hold: boolean?,
 	size: Modal.Size?,
 	children: Common.Children?,
 	onConfirm: (() -> ())?,
@@ -119,6 +122,7 @@ function ConfirmDialog.open(props: ConfirmProps): Modal.Handle
 			text = props.confirmLabel or "Confirm",
 			variant = if destructive then "danger" else "primary",
 			focus = not destructive,
+			hold = if destructive and props.hold ~= false then true else nil,
 		},
 	}
 	return Modal.open({

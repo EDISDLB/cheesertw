@@ -80,6 +80,7 @@ describe("Router layers", function()
 		local expected = {
 			Background3D = 0,
 			HUD = 10,
+			HUDInput = 11,
 			Screens = 20,
 			TopBar = 25,
 			Modals = 30,
@@ -101,6 +102,11 @@ describe("Router layers", function()
 		expect(router:layer("Screens").ScreenInsets).toBe(Enum.ScreenInsets.CoreUISafeInsets)
 		expect(router:layer("Screens").IgnoreGuiInset).toBe(false)
 		expect(router:layer("TopBar").ScreenInsets).toBe(Enum.ScreenInsets.TopbarSafeInsets)
+		-- HUD gauges clear notches only; the HUD's touch controls stay clear of the Roblox buttons (ui-ux §1.1).
+		expect(router:layer("HUD").ScreenInsets).toBe(Enum.ScreenInsets.DeviceSafeInsets)
+		expect(router:layer("HUDInput").ScreenInsets).toBe(Enum.ScreenInsets.CoreUISafeInsets)
+		expect(router:layer("Modals").ScreenInsets).toBe(Enum.ScreenInsets.CoreUISafeInsets)
+		expect(router:layer("Debug").ScreenInsets).toBe(Enum.ScreenInsets.None)
 		expect(router:layerRoot("TopBar"):FindFirstChild("SafeArea")).toBeNil()
 		expect(Layers.get("Tooltip")).toBe(router:layerRoot("Tooltip"))
 		expect(router:layerRoot("Screens"):FindFirstChildOfClass("UIScale")).never.toBeNil()
@@ -228,6 +234,63 @@ describe("Router stack semantics", function()
 		expect(router:back()).toBe(true)
 		expect(router:history()).toEqual({ "Garage" })
 		expect(router:back()).toBe(false)
+		router:destroy()
+	end)
+
+	it("fires rootBack and calls onRootBack when Back reaches the root (Game menu)", function()
+		local opened = 0
+		local router = newRouter({
+			onRootBack = function()
+				opened += 1
+			end,
+		})
+		local roots = {}
+		router.rootBack:Connect(function(name)
+			table.insert(roots, name)
+		end)
+		router:push("Garage")
+		router:push("TechTree")
+		expect(router:back()).toBe(true)
+		expect(opened).toBe(0)
+		expect(router:back()).toBe(true)
+		expect(opened).toBe(1)
+		expect(roots).toEqual({ "Garage" })
+		expect(router:history()).toEqual({ "Garage" })
+		router:destroy()
+		-- Without a handler Back at the root reports "not handled" but still signals.
+		local plain = newRouter()
+		local fired = 0
+		plain.rootBack:Connect(function()
+			fired += 1
+		end)
+		plain:push("Garage")
+		expect(plain:back()).toBe(false)
+		expect(fired).toBe(1)
+		plain:destroy()
+	end)
+
+	it("fades the scrim out after the last modal closes and slides sheets up", function()
+		local router = newRouter()
+		router:register("Sheet", fakeScreen(), { modal = true, transition = "sheet" })
+		router:push("Garage")
+		env.deferTweens = true
+		router:openModal("Sheet")
+		local host = router:layerRoot("Modals"):FindFirstChild("Screen_Sheet")
+		expect(host.Position).toEqual(UDim2.fromOffset(0, 64))
+		env:completeTweens()
+		expect(host.Position).toEqual(UDim2.new())
+		local scrim = router:layerRoot("Modals"):FindFirstChild("Scrim")
+		router:closeModal()
+		-- Still visible while fading out; a modal opened meanwhile keeps it.
+		expect(scrim.Visible).toBe(true)
+		router:openModal("Confirm")
+		env:completeTweens()
+		expect(scrim.Visible).toBe(true)
+		router:closeModal()
+		env:completeTweens()
+		expect(scrim.Visible).toBe(false)
+		expect(scrim.BackgroundTransparency).toBe(1)
+		env.deferTweens = false
 		router:destroy()
 	end)
 
@@ -409,5 +472,24 @@ describe("Router.define", function()
 		expect(shown).toEqual({ "Hello", "nil", "Hello" })
 		router:destroy()
 		expect(rawget(root, "_destroyed")).toBe(true)
+	end)
+
+	it("routes LT/RT to a screen's onPage handler instead of default paging", function()
+		local pages = {}
+		local Zoomable = Router.define({
+			build = function()
+				return Create("Frame", { [Create.Children] = { Create("TextButton", { Name = "Node" }) } })
+			end,
+			onPage = function(_ctx, direction)
+				table.insert(pages, direction)
+			end,
+		})
+		local router = newRouter()
+		router:register("Tree", Zoomable)
+		router:push("Tree")
+		Focus.page(1)
+		Focus.page(-1)
+		expect(pages).toEqual({ 1, -1 })
+		router:destroy()
 	end)
 end)

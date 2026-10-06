@@ -180,8 +180,28 @@ describe("Modal and ConfirmDialog", function()
 		-- Destructive: gamepad focus starts on Cancel.
 		expect(env.guiService.SelectedObject).toBe(Support.find(handle.dialog, "Action1"))
 		Support.validateTree(handle.root)
-		Support.click(Support.find(handle.dialog, "Action2"))
+		-- Gamepad: a tap does nothing; holding A on the danger button for the hold time confirms (ui-ux §1.6).
+		local confirm = Support.find(handle.dialog, "Action2")
+		Support.click(confirm)
+		expect(log).toEqual({})
+		Support.select(env.guiService, confirm)
+		env.userInputService.InputBegan:Fire(Support.input({ KeyCode = Enum.KeyCode.ButtonA }), true)
+		for _ = 1, 30 do
+			env:step(1 / 60)
+		end
+		local fill = Support.find(confirm, "HoldFill")
+		expect(fill.Visible).toBe(true)
+		expect(fill.Size.X.Scale).toBeCloseTo(0.5 / 1.2, 0.02)
+		-- Releasing early resets.
+		env.userInputService.InputEnded:Fire(Support.input({ KeyCode = Enum.KeyCode.ButtonA }), true)
+		expect(fill.Visible).toBe(false)
+		expect(log).toEqual({})
+		env.userInputService.InputBegan:Fire(Support.input({ KeyCode = Enum.KeyCode.ButtonA }), true)
+		for _ = 1, 80 do
+			env:step(1 / 60)
+		end
 		expect(log).toEqual({ "confirm" })
+		expect(handle.isOpen()).toBe(false)
 		local results = {}
 		local second = ConfirmDialog.open({
 			title = "Apply?",
@@ -197,6 +217,25 @@ describe("Modal and ConfirmDialog", function()
 		UIInput.interceptBackNow()
 		expect(log).toEqual({ "confirm", "cancel" })
 		expect(results).toEqual({})
+		gui:Destroy()
+	end)
+
+	it("confirms destructive actions with a plain click on mouse and keyboard", function()
+		local gui = registerLayers()
+		InputMode.set("MouseKeyboard")
+		local confirmed = 0
+		local handle = ConfirmDialog.open({
+			title = "Sell vehicle?",
+			destructive = true,
+			onConfirm = function()
+				confirmed += 1
+			end,
+		})
+		Support.click(Support.find(handle.dialog, "Action2"))
+		expect(confirmed).toBe(1)
+		expect(Button.holdProgress(0.6, 1.2)).toBeCloseTo(0.5)
+		expect(Button.holdProgress(5, 1.2)).toBe(1)
+		expect(Button.holdProgress(0.1, 0)).toBe(1)
 		gui:Destroy()
 	end)
 end)
@@ -239,7 +278,8 @@ describe("Toasts", function()
 		expect(
 			Support.find(stack.frame, "Toast_" .. d).LayoutOrder < Support.find(stack.frame, "Toast_" .. c).LayoutOrder
 		).toBe(true)
-		expect(Sound.counts()[Sound.KEYS.notification]).toBe(4)
+		-- Four toasts in one burst share one notification cue (ui-ux §1.16).
+		expect(Sound.counts()[Sound.KEYS.notification]).toBe(1)
 		Support.validateTree(stack.frame)
 		steps(3.9)
 		expect(stack:count()).toBe(3)
@@ -288,6 +328,35 @@ describe("Toasts", function()
 		expect(function()
 			stack:push({ title = "late" })
 		end).toThrow("after destroy")
+	end)
+
+	it("rate-limits the notification cue and builds reward toasts", function()
+		local now = 100
+		ToastStack.setClock(function()
+			return now
+		end)
+		Sound.resetCounts()
+		local stack = ToastStack.new({ parent = Create("Frame", { Name = "Holder" }) })
+		stack:push({ title = "A" })
+		now += 1
+		stack:push({ title = "B" })
+		expect(Sound.counts()[Sound.KEYS.notification]).toBe(1)
+		now += ToastStack.SOUND_GAP
+		stack:push({ title = "C" })
+		expect(Sound.counts()[Sound.KEYS.notification]).toBe(2)
+		stack:push({ title = "Bought", sound = "ui_purchase" })
+		expect(Sound.counts().ui_purchase).toBe(1)
+		stack:clear()
+		local id = stack:push({ title = "Mission complete", reward = { currency = "bullion", amount = 1000 } })
+		local card = Support.find(Support.find(stack.frame, "Toast_" .. id), "Toast")
+		expect(Support.find(card, "Amount").Text).toBe("+1,000")
+		expect(Support.find(card, "Amount").TextColor3).toEqual(Theme.peekColor("currency.bullion"))
+		expect(Support.find(card, "Title").Text).toBe("Mission complete")
+		expect(Support.find(card, "Shimmer")).never.toBeNil()
+		expect(Toast.iconFor({ title = "x", reward = { currency = "credits", amount = 5 } })).toBe("currency/credits")
+		Support.validateTree(card)
+		stack:destroy()
+		ToastStack.setClock(nil)
 	end)
 
 	it("slides out before removal when tweens run", function()

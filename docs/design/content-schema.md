@@ -79,7 +79,7 @@ mechanics = { { kind = "Hydropneumatic", depressionBonusDeg = 4, elevationBonusD
 ```
 
 Aliases: `CrewRoles, Rewards, VehicleClasses, RoleIds, FactionIds, BattleModes, BattleTypes, Modifiers, Mechanics,
-MechanicKinds, ReloadKinds, InternalVolumes, FieldKit, EventModes, EventAbilities, MapRandomEvents`. Required lists
+MechanicKinds, ReloadKinds, InternalVolumes, CrewSeats, FieldKit, EventModes, EventAbilities, MapRandomEvents`. Required lists
 need no cast. Typical casts in new fields: `MapPosition.classes = { "td" } :: Content.VehicleClasses`,
 `EventModeDefinition.battleTypes = { "Standard" } :: Content.BattleTypes`, ladder `rewards = {...} :: Content.Rewards`.
 Maps keyed by an enum (`classCaps = { artillery = 0 }`, `effectsByClass = { td = {...} }`) need no cast.
@@ -117,7 +117,8 @@ getModule(kind, id)` (kind-checked), `getAnyModule(id)`, `getVehicle, getEquipme
 getCrewBook, getBooster, getCustomization, getMission, getAchievement, getMap, getStoreItem, getEvent, getSeason,
 getBranch`.
 
-Views (all return frozen arrays in a stable order):
+Views (all return frozen arrays in a stable order; `table.clone` one before sorting it another way — an in-place
+`table.sort` on a view raises instead of silently reordering the shared registry):
 
 | Call | Returns |
 |---|---|
@@ -210,13 +211,14 @@ crew HP = 0.8 × this).
 ```lua
 { id = "iu_bulwark", faction = "iron_union", name = "Bulwark heavy line",
   description = "The spine: from riveted box to pike nose to twin-gun wall.",
-  classes = { "heavy" }, tiers = { min = 4, max = 11 } }
+  classes = { "heavy" }, tiers = { min = 4, max = 11 }, row = 2 }
 ```
 
 A branch is identity and layout only (tree headers, filter chips). Research **edges are not in branches**: they live
 on vehicles (`unlocks`), and `techTreeEdges()` derives the graph, so no fact is written twice. A vehicle joins a branch
-with `tree.branch`; the validator checks faction, class and tier against the branch (`BRANCH`). Roster.md writes
-branches as `iu.bulwark`; ids are the snake_case form `iu_bulwark`.
+with `tree.branch`; the validator checks faction, class, tier and row against the branch (`BRANCH`). `row` is the
+branch's fixed lane (roster.md §2.11: row 2 is every faction's spine), so later waves never move a node. A vehicle id
+never equals a branch id (`BAD_VALUE`).
 
 ---
 
@@ -233,7 +235,7 @@ branches as `iu.bulwark`; ids are the snake_case form `iu_bulwark`.
 | `penetrationMm` | Mean pen at ≤ 100 m |
 | `velocityMps` | In-game muzzle velocity (0.6 × real) |
 | `priceCredits` | Standard shells use the tier shell price |
-| optional | `moduleDamage`, `penetrationAt500Mm` (AP/APCR only — other kinds do not lose pen, `SHELL_KIND`), `gravityMps2`, `maxRangeM` (required ≥ 900 on every shell of an indirect gun: the 600 m default is the direct-fire despawn), `explosionRadiusM` (HE/HESH only), `normalizationDeg`, `ricochetAngleDeg`, `stun` (HE/HESH, and only on shells of indirect guns — `SHELL_KIND`), `tracer`, `icon` |
+| optional | `moduleDamage`, `penetrationAt500Mm` (AP/APCR only — other kinds do not lose pen, `SHELL_KIND`), `gravityMps2`, `maxRangeM` (required ≥ 900 on every shell of an indirect gun: the 600 m default is the direct-fire despawn), `explosionRadiusM` (HE/HESH only), `normalizationDeg`, `ricochetAngleDeg` (not on HE/HESH: they never ricochet), `stun` (HE/HESH, and only on shells of indirect guns — `SHELL_KIND`), `tracer`, `icon` |
 
 Authoring defaults (00-DECISIONS §1): special pen = 1.30 × AP, same alpha; HE alpha = 1.30 × AP alpha, HE pen =
 calibre / 2; APCR velocity = 1.25 × AP.
@@ -260,10 +262,10 @@ turret changes both the model and the armour model.
 | `dispersionM100` | Aiming-circle radius in m at 100 m, fully aimed |
 | `aimTimeS` | Convergence time constant |
 | `arcs {depressionDeg, elevationDeg}` | Positive magnitudes |
-| `ammoCapacity` | At least one Magazine/Autoreloader clip (`size ≤ ammoCapacity`) |
+| `ammoCapacity` | At least one Magazine/Autoreloader clip (`size ≤ ammoCapacity`), at least 2 for a DualGun volley |
 | `bloom?` | Overrides of movement / hull / turret / after-shot / damaged bloom |
 | `camoAfterShotMul?`, `shellSwapS?` | Defaults from calibre / one reload |
-| `indirect?` | Artillery howitzer: required for artillery vehicles, never on others; elevates ≥ 45° |
+| `indirect?` | Artillery howitzer: required for artillery vehicles, never on others; elevates ≥ 45°; fires HE/HESH only (standard + special HE, roster.md §0.2) |
 | `visual` | `barrelLengthM`, `muzzleBrake`, `mantlet`, optional diameter, fume extractor, thermal sleeve, mantlet width |
 | `audio` | Gun sound family (`small_20_45mm` …) |
 
@@ -272,7 +274,7 @@ Reload kinds (00-DECISIONS §4):
 ```lua
 reload = { kind = "Single", reloadS = 2.4 }
 reload = { kind = "Magazine", size = 4, intraClipS = 2, reloadS = 18 }        -- not on heavy_assault
-reload = { kind = "Autoreloader", size = 3, perShellReloadS = { 9, 7, 6 }, intraClipS = 2 } -- medium / td
+reload = { kind = "Autoreloader", size = 3, perShellReloadS = { 9, 7, 6 }, intraClipS = 2 } -- medium / td; refill order, longest first
 reload = { kind = "DualGun", reloadEachS = 12, salvoDelayS = 1.5, chargeTimeS = 1.0, volleyDispersionMul = 1.5 } -- heavy VII–X
 ```
 
@@ -281,12 +283,19 @@ Magazine together with the `AdaptiveMagazine` signature (roster §2.7: an Apex c
 
 ### 4.4 Turret
 
-`mount` (`"Turret"` or `"Casemate"` — turretless TD or SPG only: the superstructure is fixed and only the gun yaws
-inside the required `yawLimitsDeg`, visual style `Casemate`; `MOUNT`), `armor {front, side, rear, roof, mantlet,
-cupola?}`,
-`traverseDegS`, `viewRangeM` (base, before class factor/crew/equipment), `hpBonus` (added to hull HP), `guns` (guns it
-can mount, ≥ 1, no duplicates), `yawLimitsDeg?`, `visual {style, lengthM, widthM, heightM, bustleLengthM?,
-frontAngleDeg?, sideAngleDeg?, rearAngleDeg?, cupola?}`.
+`mount` (`"Turret"` or `"Casemate"`), `armor {front, side, rear, roof, mantlet, cupola?}`, `traverseDegS`,
+`viewRangeM` (base, before class factor/crew/equipment), `hpBonus` (added to hull HP), `guns` (guns it can mount, ≥ 1,
+no duplicates), `yawLimitsDeg?` (positive magnitudes: `left` counter-clockwise, `right` clockwise from hull-forward),
+`visual {style, lengthM, widthM, heightM, bustleLengthM?, frontAngleDeg?, sideAngleDeg?, rearAngleDeg?, cupola?}`.
+
+**Casemates (one model, so the Blueprint and Combat agree).** A turretless TD or SPG keeps its fighting compartment
+in the **hull**: either `visual.hull.superstructure` (armour `hull.armor.superstructureFront/Side`, zones
+`Superstructure*`) or `hull.style = "Casemate"` (the whole hull is the compartment). Its `Casemate` "turret" module
+is only the **gun mount** set into the compartment's front: `visual` (style `Casemate`) sizes the gun housing,
+`armor.front` is the gun shield and `armor.mantlet` the mantlet; it sits at `turretRing`, never yaws, and the gun
+yaws inside the required `yawLimitsDeg`. `MOUNT` errors: a Casemate mount without a compartment, a rotating turret on
+a `Casemate` hull, Casemate style on a rotating turret (and the reverse), one vehicle mixing both mounts, a casemate
+on a class other than TD/SPG. A rotating turret's footprint covers its ring (`VISUAL`).
 
 ### 4.5 Engine
 
@@ -360,7 +369,8 @@ moduleTree = { { module = "iu_gun_45mm" } },
 - Every module listed must exist and be of the right kind (`DANGLING_REF`, `WRONG_KIND`); every gun must fit at least
   one of the vehicle's turrets and every turret must mount one of its guns (`TURRET_GUNS`).
 - `stock` and `top` must be valid configurations within the load limit (`CONFIG_INVALID`, `OVER_LOAD_LIMIT`). `top`
-  is required: the balance lint and the Compare screen read it.
+  is required: the balance lint and the Compare screen read it, so wherever the vehicle lists a researchable module
+  for a slot, `top` mounts one of them (`CONFIG_INVALID` warning).
 - `moduleTree` lists every non-stock module exactly once; `requires` names modules of this vehicle researched first.
   No stock modules in the tree, no foreign modules, no cycles (`MODULE_TREE`, `MODULE_UNREACHABLE`, `MODULE_CYCLE`).
   A module in a tree is researched, so it has `researchXp > 0` and `priceCredits > 0`.
@@ -389,7 +399,10 @@ Store items may grant Premium and Event vehicles only; a TechTree or Reward vehi
 error (it would bypass research or the reward).
 
 Unlock edges go to the same faction, same or next tier, tech-tree targets only, no duplicates, `requires` must be a
-module of the parent. The tree is acyclic (`TECH_TREE_CYCLE`) and every faction has a Tier I root (`NO_ROOT`).
+module of the parent (a stock one warns: the unlock would need no research). The tree is acyclic
+(`TECH_TREE_CYCLE`) and every faction has a Tier I root (`NO_ROOT`). A tech-tree vehicle is never a reward
+(`REWARD`), and every Reward/Event vehicle must be handed out by a reward, a store grant or an event mode's rental
+list (`ORPHAN` warning).
 `tree.row` is unique per faction + tier for tech-tree vehicles (`TREE_POSITION`); premium and reward vehicles sit in
 the side panel.
 
@@ -402,12 +415,20 @@ the side panel.
   vehicles). Runtime placement: VehicleSim runs SiegeMode, Hydropneumatic, Wheeled, Turbo, RocketBoost,
   ReserveTracks; GunState runs ChargedShot, ActiveCooling, AdaptiveMagazine and the reload kinds. At most one of
   SiegeMode, Wheeled, Turbo, RocketBoost and ActiveCooling per vehicle: `InputCommand.mechanic` is one key. A
-  `ChargedShot` sets only the factor of its `effect` (`dispersionMul` or `damageMul`).
+  `ChargedShot` sets only the factor of its `effect` (`dispersionMul` or `damageMul`) and rides the fire trigger, so
+  every gun of its vehicle is a `Single` reload gun. `Wheeled` comes as a set: wheeled tracks, the `"Wheeled"`
+  suspension visual with `roadWheels = wheelPairs`, and no `mobility.pivot` (and the Wheeled suspension never
+  appears without the mechanic). Wheel damage is per side (`TrackLeft`/`TrackRight`): `lostPairSpeedMul` applies per
+  destroyed side and never immobilises.
 - Roster lint (`MECHANIC` warning): once there are ≥ 20 Tier I–X vehicles, at most 20 % may be special (a
   non-Single top gun or SiegeMode / Hydropneumatic / Wheeled).
-- `arcSectors?`: per-yaw depression/elevation limits (rear-deck hump). Yaw 0 = forward, + = clockwise. A sector only
-  limits: its depression/elevation never exceed any of the vehicle's guns' arcs.
-- `slots?`, `economy?`, `camouflage?`, `audio?`: overrides of tier/role/class/engine defaults.
+- `arcSectors?`: per-yaw depression/elevation limits (rear-deck hump). Yaw 0 = forward, + = clockwise, and a sector
+  is swept **clockwise from `fromDeg` to `toDeg`** (`{150, -150}` is the 60° rear arc through 180; `fromDeg ≠ toDeg`).
+  A sector only limits: its depression/elevation never exceed any of the vehicle's guns' arcs.
+- `slots?`, `economy?`, `camouflage?`, `audio?`: overrides of tier/role/class/engine defaults (`slots.categorySlot`
+  only from Tier VI).
+- **Field Kits** (`FIELD_KIT`): a Tier VI–X vehicle's role must define at least as many `fieldKit` levels as the tier
+  grants (VI–VII 3, VIII 4, IX–X 5). There is no class-wide fallback.
 - `balanceException?`: written reason a stat may leave the lint envelope.
 
 ### 5.6 Tier XI (Apex)
@@ -454,8 +475,10 @@ visual = {
   sides above the tracks (inside the sponsons when `hull.sponsons`, against the side walls otherwise), `Sides` fuel
   sits behind the side plates, the cupola optics are a thin-roofed bump. Several racks or tanks are several volumes
   of ONE module (one HP pool). Crew seats follow the roles (driver hull-front, turret crew in the turret, all-hull for
-  casemates). `layout.overrides` (explicit `InternalVolumeSpec`s) and `crewSeats` (each seat placed at most once,
-  `LAYOUT`) are for the rare vehicle a preset cannot express.
+  casemates). `layout.overrides` (explicit `InternalVolumeSpec`s) and `crewSeats` (`CrewSeatSpec`: each seat placed
+  at most once; `group` "Hull"/"Turret" picks the space of `centerM`, default Hull for the Driver and casemates,
+  Turret otherwise; the Driver never sits in the turret and casemates have no turret seats, `LAYOUT`) are for the rare
+  vehicle a preset cannot express.
 - **Sanity** (`VISUAL`): clearance below the roof, ring narrower than the hull, superstructure shorter than the hull,
   detail counts in range.
 
@@ -468,7 +491,8 @@ visual = {
   `world = turretWorld * pivots.gunTrunnion * CFrame.Angles(elevation, 0, 0) * p`.
 - Casemate: turret group fixed (yaw 0); the gun yaws within `yawLimitsDeg` about the trunnion Y axis, then elevates:
   `world = hullCFrame * pivots.turretRing * pivots.gunTrunnion * CFrame.Angles(0, -gunYaw, 0) * CFrame.Angles(elevation, 0, 0) * p`.
-- Yaw bearings (arc sectors, yaw limits) are hull-relative degrees in (−180, 180], 0 = forward, + = clockwise.
+- Yaw bearings (arc sectors, yaw limits) are hull-relative degrees in (−180, 180], 0 = forward, + = clockwise; arc
+  sectors sweep clockwise from `fromDeg` to `toDeg`; `yawLimitsDeg {left, right}` are positive magnitudes.
 - `ArmorModel`/`VehiclePivots` are in **studs**; `InternalVolumeSpec` (authored) is in metres with the same axes.
 - `ArmorFace`: points inside satisfy `normal:Dot(p) <= distance`; a volume is the intersection of its faces (≥ 4).
 
@@ -512,6 +536,10 @@ label, module) as Combat, so what it shows is what the server resolves.
    and only the balance lint reads them.
 6. `VehicleStats.mechanics` holds resolved copies of the vehicle's mechanics with the Apex `mechanic*` StatKeys
    applied (final node: charge 1.5 → 1.2 s is `{ stat = "mechanicChargeTime", op = "mul", value = 0.8 }`).
+7. **Every StatKey has exactly one home** (table in the `VehicleStats` comment, checked by `Types/Vehicle.spec`):
+   e.g. `damageRollMin` / `penetrationRollMin` → `gun.damageRollMinAdd` / `penetrationRollMinAdd` (fraction of the
+   mean added to the roll's lower bound), `damagedModulePenalty` → `modules[kind].damagedPenaltyMul`, `crewXp` →
+   `crewXpMul` (Scoring reads it). A new StatKey needs a home in the same change.
 
 Crew-perk mapping (00-DECISIONS §12 starters) — every starter is expressible with today's StatKeys: Recon
 `viewRange` + `damagedModulePenalty` (module `Optics`), Practicality `consumableCooldown`, Mentor `crewXp`, Snap Shot
@@ -530,18 +558,18 @@ fixtures of each to prove the validators.
 
 | Kind | Key rules |
 |---|---|
-| `EquipmentDefinition` | `categories` 1–4, `grade` Standard (credit price) / Refined (Campaign Token price), `tiers` band, `exclusiveGroup`, `effects` (non-empty unless `effectsByClass`), `compatibility` (classes, roles, turret, mass, `excludeMechanics`, `excludeReload` — rammers exclude `Magazine`), price never Bullion-only (`PRICE`) |
-| `ConsumableDefinition` | `activation` Manual/Automatic/Passive; Manual/Automatic need `cooldownS` (and `durationS` when they have `effects`); only Automatic has `triggerDelayS`; `charges` = uses per battle (nil = unlimited, never on Passive); RepairKit/MedKit/Extinguisher repair modules/crew/fire; always a credit price; Bullion never undercuts credits at 1:200 |
+| `EquipmentDefinition` | `categories` 1–4, `grade` Standard (credit price) / Refined (Campaign Token price), `tiers` band inside ONE `equipmentBand` (C/B/A), `exclusiveGroup`, `effects` (non-empty unless `effectsByClass`), `compatibility` (classes, roles, turret, mass with min ≤ max, `excludeMechanics`, `excludeReload` — rammers exclude `Magazine`), price never Bullion-only (`PRICE`) |
+| `ConsumableDefinition` | `activation` Manual/Automatic/Passive; Manual/Automatic need `cooldownS` (and `durationS` when they have `effects`); only Automatic has `triggerDelayS`; `charges` = uses per battle (nil = unlimited, never on Passive); RepairKit/MedKit/Extinguisher repair modules/crew/fire; Smoke is `eventOnly`; always a credit price > 0 (`PRICE`); Bullion never undercuts credits at 1:200 |
 | `CrewSkillDefinition` | `roles`, `kind` Individual/Group, `effects` at 100 % training (perk mapping: §7) |
 | `CrewBookDefinition`, `BoosterDefinition` | Booster needs `durationS` or `battles` |
 | `CustomizationDefinition` | `kind` Paint, Camouflage, Emblem, Inscription, Decal, Attachment (3-D add-on, never armour), Effect (shot/tracer/destruction), Style, GunSleeve, StatTracker; `rarity`, `scope`, `source`; `colors` for Paint/Camouflage; `camoBonus` (flat paint camo bonus, 0 in competitive modes) only on Paint/Camouflage/Style |
-| `MissionDefinition` | `cadence`; `difficulty` exactly on Daily missions; `match` All/Any over `conditions` (`stat` + `atLeast`/`atMost`, `aggregate` SingleBattle/Cumulative; `teamXpRank` is SingleBattle + `atMost` only; `against.classes` only on damageDealt, kills, spotted, assistTotal, damagePlusAssist), `scope`, `rewards`, `honors?`; Campaign missions need a `campaign` block whose (campaign, operation, series, index) slot is unique; Event missions name their event and the event lists them — both directions (`MISSION`) |
-| `AchievementDefinition` | `rule` names an evaluator in `Shared/Progression/Achievements` (checked when `validate({ achievementRules })` gets the catalogue), `stat` + `params` its arguments, `thresholds` strictly increase (required for Milestone and Streak), Mastery/Marks are `perVehicle`, `scope` tiers ordered, `rewards` (`{}` when none) |
-| `Reward` | `{ kind, id?, amount }`; `id` required for item kinds and `EventTokens`, and must reference the right kind; a Vehicle is granted with `amount = 1` (`REWARD`) |
-| `StoreItem` | Exactly one of `price` or `robux` (Robux prices are never stored — Managed Pricing); Bullion packs are `DeveloperProduct`s; each kind grants what it sells (BullionPack → Bullion, PremiumTime → PremiumDays, PremiumVehicle → exactly one Premium vehicle, …); vehicles granted by any item are Premium or Event only; an event-token price means the item is in that event's shop; fixed grants only, no paid random items (`STORE`) |
-| `EventDefinition` | Window `startsAt < endsAt`, `shopClosesAt ≥ endsAt`; missions/maps/vehicles/shop refs; every shop item is priced in this event's tokens (`STORE`); `modes` with unique ids, mode-only abilities (never on vehicles), `battleTypes` the mode plays (its maps must have them, `SCHEDULE`), `competitive`, `classCaps`; kind `Ranked` = exactly one mode with a `ladder`, and only Ranked events have one (`SEASON`) |
+| `MissionDefinition` | `cadence`; `difficulty` exactly on Daily missions; `match` All/Any over `conditions` (`stat` + `atLeast`/`atMost`, `aggregate` SingleBattle/Cumulative; `teamXpRank` is SingleBattle + `atMost` only, `roleScore` SingleBattle only; `against.classes` only on damageDealt, kills, spotted, assistTotal, damagePlusAssist; `medal` narrows stat `medals` to one BattleMedal), `scope`, `rewards`, `honors?`; Campaign missions need a `campaign` block whose (campaign, operation, series, index) slot is unique; Event missions name their event and the event lists them — both directions (`MISSION`). `BattleStatKey` names every `BattleStats` counter (hits/pens/ricochets received, stuns, fires, time alive, Role Score, sole-spotter and later-killed counts…) |
+| `AchievementDefinition` | `rule` names an evaluator in `Shared/Progression/Achievements` (checked when `validate({ achievementRules })` gets the catalogue), `stat` + `params` its arguments, `thresholds` strictly increase (required for Milestone and Streak), Mastery/Marks are `perVehicle` and filed under the category of the same name, `scope` tiers ordered, `rewards` (`{}` when none) |
+| `Reward` | `{ kind, id?, amount }`; `id` required for item kinds and `EventTokens`, and must reference the right kind; a Vehicle is granted with `amount = 1` and is never a tech-tree vehicle (`REWARD`) |
+| `StoreItem` | Exactly one of `price` or `robux` (Robux prices are never stored — Managed Pricing); Bullion packs are `DeveloperProduct`s; a `GamePass` is owned once, so only `purchaseLimit = 1` items use one; each kind grants what it sells (BullionPack → Bullion, PremiumTime → PremiumDays, PremiumVehicle → exactly one Premium vehicle, …); vehicles granted by any item are Premium or Event only; an event-token price means the item is in that event's shop; fixed grants only, no paid random items (`STORE`) |
+| `EventDefinition` | Window `startsAt < endsAt`, `shopClosesAt ≥ endsAt`; missions/maps/vehicles/shop refs; every shop item is priced in this event's tokens (`STORE`); `modes` with unique ids, mode-only abilities with unique ids (never on vehicles), `battleTypes` the mode plays (its maps must have them, `SCHEDULE`), `competitive` (never allows artillery in `classCaps`), `classCaps`; kind `Ranked` = exactly one mode with a `ladder`, and only Ranked events have one (`SEASON`) |
 | `RankLadder` (in a Ranked mode) | `ranks` lowest first (unique ids; every rank but the top needs `pointsToAdvance > 0`, the top has 0; `protected` ranks cannot be lost; per-rank promotion `rewards`), `points` by team XP rank (ascending, `loss` may be negative), `finalRewards`. Player standing: `Profile.events[eventId].ranked` |
-| `SeasonDefinition` | Chapters (unique ids), ascending `pointsByRank`, stages within the chapter, one reward per (stage, track), Paid rewards only with a `paidUnlock` that is a SeasonPass store item (`SEASON`) |
+| `SeasonDefinition` | Chapters (unique ids), ascending `pointsByRank`, stages within the chapter, one reward per (stage, track), Paid rewards only with a `paidUnlock` that is a SeasonPass store item; seasons never overlap (`Profile.pass` tracks one) (`SEASON`) |
 
 ---
 
@@ -580,7 +608,11 @@ One file per map. `Maps/ProvingGrounds.luau` is the exemplar (800 m, Tiers I–I
 | `props`, `water?` | Builder props (`PropKind` owned by the map builder; bridges, large buildings and rocks are `destructible = "Permanent"` structures), water bodies |
 | `variants` | ≥ 1 cosmetic lighting/weather variant (no gameplay weather) |
 | `randomEvents?` | Reserved layout-event hook (none at launch); its props are validated like map props |
-| `audio`, `thumbnail?`, `tips`, `revision` | Bump `revision` on every geometry change |
+| `audio`, `thumbnail?`, `minimap?`, `tips`, `revision` | `minimap` = top-down image of the playable square (nil = rendered from the terrain recipe). Bump `revision` on every geometry change |
+
+Local ids (bases, lanes, positions, water bodies, variants, random events) are unique within their list. Encounter
+and Assault start at Tier IV in Random battles, so a map below Tier IV that lists them warns unless an event mode
+plays that battle type on it (`MAP_BASES` warning).
 
 Spawn facing: 0° = north (−z), clockwise.
 
@@ -631,52 +663,53 @@ use `Reward` records; event-token prices and rewards name the event.
 | `DUPLICATE_ID` | E | Id used twice in a kind (module ids: across all four module kinds) |
 | `MISSING_FIELD` | E | Required field absent |
 | `UNKNOWN_FIELD` | E | Field not in the schema at any depth (typo protection) |
-| `BAD_VALUE` | E/W | Out of range, wrong enum, not snake_case (registry or local id), bad or reused prefix, non-finite number, Field Kit outside VI–X, category slot below VI, clip larger than the ammo rack, arc sector wider than the gun, reverse faster than forward, module qualifier on a stat without modules |
+| `BAD_VALUE` | E/W | Out of range, wrong enum, not snake_case (registry or local id), duplicate local id, bad or reused prefix, non-finite number, Field Kit outside VI–X, category slot (tier or vehicle override) below VI, clip larger than the ammo rack, dual gun with < 2 rounds, arc sector wider than the gun or with equal ends, reverse faster than forward, module qualifier on a stat without modules, equipment spanning two price bands, inverted compatibility masses, non-event smoke, competitive mode with artillery, Mastery/Marks kind and category apart, vehicle id equal to a branch id; autoreloader whose first refill is not the longest (W) |
 | `DANGLING_REF` | E | Reference to an id that does not exist (incl. a position's lane, an achievement rule missing from the supplied catalogue) |
 | `WRONG_KIND` | E | Reference resolves to the wrong kind (a turret listed as a gun) |
 | `LOCKED_SET` | E | Factions/classes/roles/tiers differ from the locked sets |
 | `ROLE_CLASS` | E | Role does not belong to the class |
 | `ROLE_SCORE` | E | Role Score weights do not sum to 1 |
 | `TIER_RANGE` | E/W | Class or branch outside its tier range; one-sided tier matchmaking range; module tier more than one tier from the vehicle's (W) |
-| `SHELL_KIND` | E | Field not valid for the shell kind or gun (HE falloff, AP explosion radius, stun on a direct-fire gun's shell, artillery shell without maxRangeM ≥ 900) |
+| `SHELL_KIND` | E | Field not valid for the shell kind or gun (HE falloff, AP explosion radius, ricochet angle on HE/HESH, stun on a direct-fire gun's shell, artillery shell without maxRangeM ≥ 900, kinetic/HEAT shell on an artillery gun) |
 | `SHELL_COUNT` | E | Gun has 0 or more than 3 shells, or duplicates |
 | `SHELL_CALIBER` | E | Shell calibre differs from the gun's |
 | `SHELL_ORDER` | E | The first shell is a special round (the first must be the standard round) |
-| `ORPHAN` | W | Shell or module nothing uses |
-| `MOUNT` | E | Casemate without yaw limits or Casemate style; casemate on a vehicle that is not TD/SPG |
-| `CONFIG_INVALID` | E | `stock`/`top` names a module not on the vehicle or a gun the turret cannot mount |
+| `ORPHAN` | W | Shell or module nothing uses; Reward/Event vehicle nothing hands out |
+| `MOUNT` | E | Casemate without yaw limits or Casemate style (or Casemate style on a rotating turret); casemate on a vehicle that is not TD/SPG; casemate mount without a superstructure or Casemate hull; rotating turret on a Casemate hull; one vehicle mixing both mounts |
+| `CONFIG_INVALID` | E/W | `stock`/`top` names a module not on the vehicle or a gun the turret cannot mount; `top` keeps a stock module although an upgrade exists (W) |
 | `OVER_LOAD_LIMIT` | E | Configuration heavier than its tracks' load limit |
 | `LOAD_ORDER` | W | Stock tracks can already carry the top turret + gun, or have more than 5 % spare load on the stock configuration |
 | `MODULE_TREE` | E | Tree node is not one of the vehicle's modules, is stock, appears twice, costs no research XP / credits, `requires` itself / a foreign module, or cannot be mounted with the stock modules + its prerequisites |
 | `MODULE_UNREACHABLE` | E | A listed module is neither stock nor in `moduleTree` |
 | `MODULE_CYCLE` | E | Module tree has a cycle |
 | `TURRET_GUNS` | E | A gun fits none of the vehicle's turrets, or a turret mounts none of its guns |
-| `UNLOCK_EDGE` | E | Cross-faction, tier skip, non-tech-tree target, duplicate, bad `requires` |
+| `UNLOCK_EDGE` | E/W | Cross-faction, tier skip, non-tech-tree target, duplicate, bad `requires`; `requires` a stock module (W) |
 | `TECH_TREE_CYCLE` | E | Research graph has a cycle |
 | `NO_ROOT` | E | A faction with vehicles has no Tier I tech-tree vehicle |
 | `UNREACHABLE_VEHICLE` | E | Tech-tree vehicle not reachable from a Tier I root of its faction |
 | `TREE_POSITION` | E | Two tech-tree vehicles share faction + tier + row |
-| `BRANCH` | E | Vehicle's branch belongs to another faction, lacks its class, or excludes its tier; tech-tree vehicle without a branch |
+| `BRANCH` | E | Vehicle's branch belongs to another faction, lacks its class, excludes its tier, or sits on another row; tech-tree vehicle without a branch |
+| `FIELD_KIT` | E | A Tier VI–X vehicle's role defines fewer Field Kit levels than the tier grants |
 | `CREW_COMPOSITION` | E | Seat count, Commander count, Driver seat count, duty coverage, Driver doubling or driving as a secondary duty |
 | `ACQUISITION` | E/W | Research/price/currency rules per acquisition kind (§5.4) |
-| `MECHANIC` | E/W | Mechanic on the wrong class/role/tier, duplicate, wheeled mismatch, reload kind not allowed, Tier I–X mechanic on an Apex, AdaptiveMagazine without a Magazine gun, two mechanics on the one mechanic key, ChargedShot factor of the other effect; roster special share > 20 % (W) |
+| `MECHANIC` | E/W | Mechanic on the wrong class/role/tier, duplicate, wheeled mismatch (tracks, suspension visual, wheel pairs vs road wheels, pivot), reload kind not allowed, Tier I–X mechanic on an Apex, AdaptiveMagazine without a Magazine gun, ChargedShot on a non-Single gun, two mechanics on the one mechanic key, ChargedShot factor of the other effect; roster special share > 20 % (W) |
 | `APEX` | E | Tier XI track missing/misshapen (exactly 6 Small, 3 Large, 1 Final), an apex track below XI, more than one module per kind or a module tree at XI |
-| `VISUAL` | E/W | Impossible proportions; detail counts out of range |
+| `VISUAL` | E/W | Impossible proportions (incl. a rotating turret smaller than its ring); detail counts out of range |
 | `ARMOR` | E | Skirts or superstructure without their armour, or their armour without them |
-| `LAYOUT` | E | Ammo racks or internal volumes the shape cannot hold (bustle rack without a bustle); crew seat placed twice |
-| `PRICE` | E | Bullion-only equipment, Standard equipment without credits, Refined without Campaign Tokens, consumable without credits, Bullion undercutting credits |
-| `REWARD` | E | Reward kind without the id it needs, id of the wrong kind, vehicle granted more than once |
-| `MISSION` | E | Condition without bounds, inverted bounds or tiers, rank stat counted cumulatively, `against` on a stat that cannot be split, difficulty on the wrong cadence, missing campaign/event block, campaign slot reused, event ↔ mission link one-sided |
+| `LAYOUT` | E | Ammo racks or internal volumes the shape cannot hold (bustle rack without a bustle); crew seat placed twice, Driver or casemate crew seated in the turret |
+| `PRICE` | E | Bullion-only equipment, Standard equipment without credits, Refined without Campaign Tokens, consumable without a credit price, Bullion undercutting credits |
+| `REWARD` | E | Reward kind without the id it needs, id of the wrong kind, vehicle granted more than once, tech-tree vehicle granted |
+| `MISSION` | E | Condition without bounds, inverted bounds or tiers, rank/Role Score stat counted cumulatively, `against` on a stat that cannot be split, `medal` filter off stat `medals` or naming a non-medal, difficulty on the wrong cadence, missing campaign/event block, campaign slot reused, event ↔ mission link one-sided |
 | `MAP_SPAWNS` | E | Too few slots or rear slots, slots closer than 10 m, slot inside a water body |
 | `MAP_BOUNDS` | E | Spawn, base, lane or foliage point outside the playable square; terrain feature, prop or water point outside the square plus skirt |
 | `MAP_SEPARATION` | E | Team spawn centroids closer than 0.7 × size |
-| `MAP_BASES` | E/W | Missing/extra bases for a battle type, base within 60 m of the edge, base on the enemy's side; Encounter base not equidistant (W) |
+| `MAP_BASES` | E/W | Missing/extra bases for a battle type, base within 60 m of the edge, base on the enemy's side; Encounter base not equidistant (W); Encounter/Assault on a map below Tier IV that no event mode plays (W) |
 | `MAP_LANES` | E | Missing Heavy, Flex or Open lane |
 | `MAP_POSITIONS` | E | A team without 3 HullDown / 1 Sniper / 1 Scout positions (+ 1 Artillery pit when SPGs play), bad team, duplicate id |
 | `MAP_TERRAIN` | E | Not exactly one Default material rule, bad or missing rule bounds, single-point road/riverbed |
-| `STORE` | E | Not exactly one of price/robux; Bullion pack not a developer product; item not granting what its kind sells; TechTree/Reward vehicle sold; event-token price outside that event's shop or shop item not in its tokens |
+| `STORE` | E | Not exactly one of price/robux; Bullion pack not a developer product; GamePass on an item without `purchaseLimit = 1`; item not granting what its kind sells; TechTree/Reward vehicle sold; event-token price outside that event's shop or shop item not in its tokens |
 | `SCHEDULE` | E | Window inverted, token shop closing before the event ends, event mode on a map without its battle type |
-| `SEASON` | E | Pass/ladder points not ascending, reward stage beyond the chapter, stage rewarded twice, Paid reward without a paid unlock, bad paid unlock, duplicate chapter/rank id, ladder on a non-Ranked event or a Ranked event without exactly one ladder, ladder top rank with points to advance |
+| `SEASON` | E | Pass/ladder points not ascending, reward stage beyond the chapter, stage rewarded twice, Paid reward without a paid unlock, bad paid unlock, duplicate chapter/rank id, ladder on a non-Ranked event or a Ranked event without exactly one ladder, ladder top rank with points to advance, overlapping seasons |
 | `ASSET_KEY` | E | Icon or sound key malformed, or missing from the supplied catalogue |
 
 `ContentRegistry.spec` has a "covers every issue code" test: adding a new code without a failing test case fails the
@@ -691,8 +724,11 @@ fixed maximum (`Profile.LIMITS`): 20 battle-history entries, 200 processed battl
 request ids, 10 pending battles, 500 claimed missions, 50 purchases, 10 active boosters, 400 crews, 5 skills per crew
 member, 2 blacklisted maps. Besides garage, crews, inventory, missions, pass and achievements it stores the
 matchmaking preferences (`matchmaking.mapBlacklist`, `battleTypeOptOuts`), the Plus state (`account.plusVehicleId`,
-the daily Plus crew-XP counter) and, per Ranked event, the ladder standing (`events[id].ranked`). Crew members store skill ids plus total crew XP (training is derived), which keeps a vehicle record at
-≈ 2.7 KB. A maxed profile with 150 vehicles encodes to ≈ 460 KB (target 200 KB, warn 512 KB, fail 2 MB — the profile
+the daily Plus crew-XP counter) and, per Ranked event, the ladder standing (`events[id].ranked`). Each vehicle record
+keeps the non-stock modules already bought for it (`ownedModules`: remounting is free, a module is paid once per
+vehicle), and each joined event records when its end-of-event settlement ran (`settledAt`: Ranked final rewards and
+token conversion are granted exactly once). Crew members store skill ids plus total crew XP (training is derived), which keeps a vehicle record at
+≈ 2.8 KB. A maxed profile with 150 vehicles encodes to ≈ 480 KB (target 200 KB, warn 512 KB, fail 2 MB — the profile
 spec measures this every run). Migrations bump `SCHEMA_VERSION`.
 
 **Battle ledger** (`Types/Battle.luau`): the battle server emits `BattleEvent`s (Started, Spotted, Shot with the
@@ -704,6 +740,9 @@ every credit/XP line (`LedgerLine`) so the results screen shows exactly how rewa
 - Each `BattleParticipant` carries `maxHp` and, for humans, the `RewardContext` the Hub snapshotted at enqueue
   (Premium Time, Plus and its boosted vehicle, Roblox Premium, first win available, active boosters, events): battle
   servers never read profiles, so this is how Scoring fills the bonus lines.
+- Credit boosters have their own line (`boosterBonus`, `BoosterCredits`); FreeXP/CrewXP boosters and the crew's
+  `crewXpMul` are folded into `freeXp` / `crewXp`, whose lines carry the multiplier. `ResultRow.platoonId` drives the
+  Team tab's platoon badges.
 - `CreditReport` splits ownership: the battle server fills earnings and `repairCost`; the Hub's RewardService fills
   `missionRewards`, `ammoCost` / `consumableCost` (resupply depends on depot stock and auto-resupply) and
   `debtWaived` (credit balance), appends their lines and recomputes `net`.

@@ -32,7 +32,8 @@ export type Canvas = {
 }
 
 --- Colours a glyph builder receives. `fg` is the tint for monochrome glyphs; `detail` draws interior marks
---- (engravings); material glyphs use highlight/base/shade.
+--- (engravings); material glyphs use highlight/base/shade. `tinted` is true when the caller passed a colour (a
+--- multi-material glyph then folds every material into that tint instead of its brand materials).
 export type Palette = {
 	fg: Paint,
 	detail: Paint,
@@ -41,6 +42,7 @@ export type Palette = {
 	shade: Paint,
 	ink: Paint,
 	accent: Paint,
+	tinted: boolean,
 }
 
 export type PrimitiveOptions = {
@@ -445,7 +447,9 @@ function Glyph.arrow(
 	end
 end
 
---- Text drawn in the glyph (numerals and stencil letters only, per the icon grammar).
+--- Text drawn in the glyph (numerals and stencil letters only, per the icon grammar). The size is pinned with a
+--- UITextSizeConstraint so the player's PreferredTextSize never pushes a numeral out of its plate (icons scale with
+--- the icon size, not with the text setting).
 function Glyph.text(
 	c: Canvas,
 	text: string,
@@ -469,7 +473,20 @@ function Glyph.text(
 		TextYAlignment = Enum.TextYAlignment.Center,
 		ZIndex = nextZ(c),
 		Parent = c.root,
+		[Create.Children] = {
+			Create.UITextSizeConstraint({
+				MaxTextSize = State.Computed(function(): number
+					return math.max(1, math.floor(math.max(height * c.scale:get(), 6) + 0.5))
+				end),
+			}),
+		},
 	})
+end
+
+--- Teardrop (a 90° point above a disc): disc of radius r at (cx, cy), point at (cx, cy - r·√2). Flames and drops.
+function Glyph.drop(c: Canvas, cx: number, cy: number, r: number, paint: Paint)
+	Glyph.circle(c, cx, cy, r, paint, { name = "DropBody" })
+	Glyph.box(c, cx, cy - r * 0.7071, r, r, paint, { rotation = 45, name = "DropPoint" })
 end
 
 --- "!" mark (bar + dot) centred on (cx, cy) with total height h.

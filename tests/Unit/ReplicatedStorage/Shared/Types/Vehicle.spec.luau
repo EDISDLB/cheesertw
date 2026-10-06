@@ -215,14 +215,14 @@ describe("Types/Vehicle: input, loadout, stats", function()
 			massKg = 10020,
 			dimensionsM = Vector3.new(2.3, 2.05, 4.4),
 			modules = {
-				Engine = { maxHp = 40, repairS = 14 },
-				AmmoRack = { maxHp = 36, repairS = 10 },
-				FuelTank = { maxHp = 40, repairS = 10 },
-				Gun = { maxHp = 40, repairS = 12 },
-				TurretRing = { maxHp = 40, repairS = 12 },
-				Optics = { maxHp = 32, repairS = 8 },
-				TrackLeft = { maxHp = 56, repairS = 10 },
-				TrackRight = { maxHp = 56, repairS = 10 },
+				Engine = { maxHp = 40, repairS = 14, damagedPenaltyMul = 1 },
+				AmmoRack = { maxHp = 36, repairS = 10, damagedPenaltyMul = 1 },
+				FuelTank = { maxHp = 40, repairS = 10, damagedPenaltyMul = 1 },
+				Gun = { maxHp = 40, repairS = 12, damagedPenaltyMul = 1 },
+				TurretRing = { maxHp = 40, repairS = 12, damagedPenaltyMul = 1 },
+				Optics = { maxHp = 32, repairS = 8, damagedPenaltyMul = 1 },
+				TrackLeft = { maxHp = 56, repairS = 10, damagedPenaltyMul = 1 },
+				TrackRight = { maxHp = 56, repairS = 10, damagedPenaltyMul = 1 },
 			},
 			fireChance = 0.12,
 			fireDurationS = 8,
@@ -264,6 +264,8 @@ describe("Types/Vehicle: input, loadout, stats", function()
 				camoAfterShotMul = 0.34,
 				shellSwapS = 2.64,
 				indirect = false,
+				damageRollMinAdd = 0,
+				penetrationRollMinAdd = 0,
 			},
 			viewRangeM = 300,
 			signalRangeM = 600,
@@ -275,6 +277,7 @@ describe("Types/Vehicle: input, loadout, stats", function()
 			crewLevels = { Commander = 100, Gunner = 100, Driver = 100, Loader = 100 },
 			consumableSlots = 3,
 			consumableCooldownMul = 1,
+			crewXpMul = 1,
 			mechanics = {},
 			conditionalModifiers = {},
 		}
@@ -283,10 +286,76 @@ describe("Types/Vehicle: input, loadout, stats", function()
 		expect(TypeSource.shapeProblems(stats.gun.bloom :: any, SOURCE, "BloomStats")).toEqual({})
 		expect(TypeSource.shapeProblems(stats.camo :: any, SOURCE, "CamoStats")).toEqual({})
 		expect(TypeSource.shapeProblems(stats.crew[1] :: any, SOURCE, "CrewSlotStats")).toEqual({})
+		expect(TypeSource.shapeProblems(stats.modules.Engine :: any, SOURCE, "ModuleStats")).toEqual({})
 		-- module stats are keyed by every internal module kind
 		expect(TypeSource.sortedKeys(stats.modules :: any)).toEqual(
 			TypeSource.unionMembers(TypeSource.read("Content"), "InternalModuleKind")
 		)
+	end)
+
+	it("every StatKey has a home in VehicleStats (StatsCalculator can apply every modifier)", function()
+		-- StatKey -> { declaring type, field } the resolved value lands in (Types/Vehicle VehicleStats comment).
+		local TARGETS: { [string]: { string } } = {
+			damage = { "ShellStats", "damage" },
+			damageRollMin = { "GunStats", "damageRollMinAdd" },
+			penetration = { "ShellStats", "penetrationMm" },
+			penetrationRollMin = { "GunStats", "penetrationRollMinAdd" },
+			reloadTime = { "GunStats", "reload" },
+			aimTime = { "GunStats", "aimTimeS" },
+			dispersion = { "GunStats", "dispersionM100" },
+			bloomMovement = { "BloomStats", "movementPerKmh" },
+			bloomHullTraverse = { "BloomStats", "hullTraversePerDegS" },
+			bloomTurretTraverse = { "BloomStats", "turretTraversePerDegS" },
+			bloomAfterShot = { "BloomStats", "afterShot" },
+			shellVelocity = { "ShellStats", "velocityMps" },
+			shellSwapTime = { "GunStats", "shellSwapS" },
+			ammoCapacity = { "GunStats", "ammoCapacity" },
+			turretTraverse = { "VehicleStats", "turretTraverseDegS" },
+			gunDepression = { "GunStats", "depressionDeg" },
+			gunElevation = { "GunStats", "elevationDeg" },
+			enginePower = { "VehicleStats", "enginePowerHp" },
+			topSpeed = { "VehicleStats", "topSpeedKmh" },
+			reverseSpeed = { "VehicleStats", "reverseSpeedKmh" },
+			hullTraverse = { "VehicleStats", "hullTraverseDegS" },
+			terrainResistance = { "VehicleStats", "terrainResistance" },
+			loadLimit = { "VehicleStats", "loadLimitKg" },
+			hp = { "VehicleStats", "hp" },
+			moduleHp = { "ModuleStats", "maxHp" },
+			repairTime = { "ModuleStats", "repairS" },
+			damagedModulePenalty = { "ModuleStats", "damagedPenaltyMul" },
+			fireChance = { "VehicleStats", "fireChance" },
+			fireDuration = { "VehicleStats", "fireDurationS" },
+			crewInjuryChance = { "VehicleStats", "crewInjuryChanceMul" },
+			spallFactor = { "VehicleStats", "spallFactor" },
+			stunDuration = { "VehicleStats", "stunDurationMul" },
+			ramDamageDealt = { "VehicleStats", "ramDamageDealtMul" },
+			ramDamageTaken = { "VehicleStats", "ramDamageTakenMul" },
+			fallDamage = { "VehicleStats", "fallDamageMul" },
+			viewRange = { "VehicleStats", "viewRangeM" },
+			camoStationary = { "CamoStats", "stationary" },
+			camoMoving = { "CamoStats", "moving" },
+			camoAfterShot = { "CamoStats", "afterShotMul" },
+			camoNet = { "CamoStats", "net" },
+			signalRange = { "VehicleStats", "signalRangeM" },
+			crewLevel = { "CrewSlotStats", "level" },
+			consumableCooldown = { "VehicleStats", "consumableCooldownMul" },
+			crewXp = { "VehicleStats", "crewXpMul" },
+			mechanicChargeTime = { "VehicleStats", "mechanics" },
+			mechanicCooldown = { "VehicleStats", "mechanics" },
+			mechanicDuration = { "VehicleStats", "mechanics" },
+			mechanicCharges = { "VehicleStats", "mechanics" },
+			mechanicFactor = { "VehicleStats", "mechanics" },
+		}
+		local statKeys = TypeSource.unionMembers(TypeSource.read("Content"), "StatKey")
+		expect(TypeSource.sortedKeys(TARGETS)).toEqual(statKeys)
+		for key, target in TARGETS do
+			local fields = TypeSource.fieldNames(SOURCE, target[1], true)
+			if table.find(fields, target[2]) == nil then
+				error(`StatKey {key}: {target[1]} has no field {target[2]}`)
+			end
+			-- the VehicleStats comment documents the same home
+			expect(string.find(SOURCE, key, 1, true)).never.toBeNil()
+		end
 	end)
 
 	it("ModuleState matches the battle event module states", function()

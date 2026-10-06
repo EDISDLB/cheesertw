@@ -248,6 +248,7 @@ export type LedgerLineKey =
 	| "PremiumVehicleBonus"
 	| "RobloxPremiumBonus"
 	| "PlusBonus"
+	| "BoosterCredits"
 	| "EventBonus"
 	| "AwardRewards"
 	| "MissionRewards"
@@ -292,6 +293,7 @@ export type CreditReport = {
 	premiumVehicleBonus: number,
 	robloxPremiumBonus: number,
 	plusBonus: number,
+	boosterBonus: number, -- active Credits boosters (RewardContext.boosters with target "Credits")
 	eventBonus: number,
 	awardRewards: number, -- medal credit rewards
 	--- Hub-filled fields: the battle server writes 0 for missionRewards, ammoCost, consumableCost and debtWaived,
@@ -316,11 +318,11 @@ export type XpReport = {
 	firstWinBonus: number,
 	premiumTimeBonus: number,
 	plusBonus: number,
-	boosterBonus: number,
+	boosterBonus: number, -- VehicleXP boosters
 	eventBonus: number,
 	total: number, -- vehicle XP credited to the vehicle
-	freeXp: number,
-	crewXp: number,
+	freeXp: number, -- incl. FreeXP boosters (the FreeXP line carries their multiplier)
+	crewXp: number, -- incl. CrewXP boosters and VehicleStats.crewXpMul (the CrewXP line carries the multiplier)
 }
 export type RewardBreakdown = {
 	credits: CreditReport,
@@ -397,6 +399,7 @@ export type ResultRow = {
 	xp: number, -- vehicle XP (Scoring); 0 for bots
 	roleScore: number?,
 	medals: number,
+	platoonId: string?, -- platoon badge on the Team tab (BattleParticipant.platoonId)
 }
 --- The receiving player's exchanges with one other vehicle (Results "Team" row -> per-enemy hits, 00-DECISIONS §14).
 export type Interaction = {

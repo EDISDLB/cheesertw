@@ -2,17 +2,20 @@
 --[[
 	Kit/Router — screen registry, navigation stack, modal layer, transitions, Back handling and deep links.
 
-	Purpose:          Owns the UI layers (one ScreenGui per layer: Background3D, HUD, Screens, TopBar, Modals, Toasts,
-	                  Tooltip, Debug — DisplayOrder from Theme, ResetOnSpawn off, Sibling ZIndex, SafeAreaCompatibility
-	                  None, CoreUISafeInsets for interactive layers, TopbarSafeInsets for TopBar, None + IgnoreGuiInset
-	                  for Background3D/Debug) with a scaled Layout root each, and a stack of screens. A screen module is `{ new(ctx) -> Screen }`;
+	Purpose:          Owns the UI layers (one ScreenGui per layer, ui-ux §1.1: Background3D, HUD, HUDInput, Screens,
+	                  TopBar, Modals, Toasts, Tooltip, Debug — DisplayOrder from Theme, ResetOnSpawn off, Sibling
+	                  ZIndex, SafeAreaCompatibility None; CoreUISafeInsets for interactive layers, TopbarSafeInsets for
+	                  TopBar, DeviceSafeInsets for the HUD gauges, None + IgnoreGuiInset for Background3D/Debug) with a
+	                  scaled Layout root each, and a stack of screens. A screen module is `{ new(ctx) -> Screen }`;
 	                  Screen = { mount(parent), show(params, info), hide(), destroy(), onBack()? }. push/pop/replace/
 	                  reset/openModal/closeModal/back/navigate drive the lifecycle:
 	                    create (new) -> mount (once, into a host Frame) -> show (each time it becomes visible)
 	                    -> hide (covered by a full screen, or popped) -> destroy (popped/reset, unless keepAlive).
 	                  Modals stay above the screen beneath (which keeps rendering) with a scrim and a trapped focus
 	                  scope. Back (gamepad B / Backspace via Kit/UIInput; Esc is reserved by Roblox) asks the top screen's
-	                  onBack first, then closes the top modal or pops.
+	                  onBack first, then closes the top modal or pops; at the root it fires `rootBack` / calls
+	                  `onRootBack` (the Garage opens the Game menu, ui-ux §1.2). Exits are cuts: the revealed screen
+	                  plays its "return" entrance; the modal scrim fades out.
 	Dependencies:     Kit/State, Kit/Create, Kit/Theme, Kit/Layout, Kit/Motion, Kit/Focus, Kit/UIInput, Kit/Layers,
 	                  Kit/Sound, Kit/Services, Core/Signal, Core/Trove, Core/Log.
 	State:            Registry (name -> module/options), stack of entries, keep-alive cache, layer ScreenGuis.
@@ -67,6 +70,8 @@ export type Screen = {
 	initialFocus: ((self: any) -> GuiObject?)?,
 	--- LB/RB handler (tab bars).
 	onShoulder: ((self: any, direction: number) -> ())?,
+	--- LT/RT handler; replaces the default scroll paging (e.g. tech-tree zoom).
+	onPage: ((self: any, direction: number) -> ())?,
 }
 
 export type ScreenModule = { new: (ctx: ScreenContext) -> Screen }
@@ -80,8 +85,8 @@ export type ScreenOptions = {
 	dismissible: boolean?,
 	--- Keep the instance after pop and reuse it on the next push (expensive screens: garage, tech tree).
 	keepAlive: boolean?,
-	--- Entrance transition (default "slide" for screens, "pop" for modals).
-	transition: ("slide" | "fade" | "pop" | "none")?,
+	--- Entrance transition (default "slide" for screens, "pop" for modals; "sheet" slides a Compact modal up).
+	transition: ("slide" | "fade" | "pop" | "sheet" | "none")?,
 	--- Manage gamepad focus (default true).
 	focus: boolean?,
 }
@@ -103,6 +108,8 @@ export type RouterOptions = {
 	backSignal: any?,
 	--- Register the layer roots in Kit/Layers (default true).
 	registerLayers: boolean?,
+	--- Called when Back reaches the root screen with nothing to close (open the Game menu, ui-ux §1.2).
+	onRootBack: (() -> ())?,
 }
 
 export type Link = { screens: { string }, params: { [string]: any } }
@@ -110,6 +117,8 @@ export type Link = { screens: { string }, params: { [string]: any } }
 export type Router = {
 	--- Fires (current, previous) after every navigation (names of the top entry, modals included).
 	changed: Signal.Signal<string?, string?>,
+	--- Fires (root screen name) when Back has nothing left to close or pop.
+	rootBack: Signal.Signal<string>,
 	register: (self: Router, name: string, module: ScreenModule, options: ScreenOptions?) -> (),
 	isRegistered: (self: Router, name: string) -> boolean,
 	push: (self: Router, name: string, params: any?) -> boolean,
@@ -134,8 +143,23 @@ export type Router = {
 
 local log = Log.scope("UI.Router")
 
-local LAYERS: { Layer } = { "Background3D", "HUD", "Screens", "TopBar", "Modals", "Toasts", "Tooltip", "Debug" }
+local LAYERS: { Layer } =
+	{ "Background3D", "HUD", "HUDInput", "Screens", "TopBar", "Modals", "Toasts", "Tooltip", "Debug" }
 local NON_INTERACTIVE: { [string]: boolean } = { Background3D = true, Debug = true }
+
+-- (ScreenInsets, IgnoreGuiInset, TV safe-area padding) for a layer (ui-ux §1.1).
+local function layerInsets(name: string): (Enum.ScreenInsets, boolean, boolean)
+	if NON_INTERACTIVE[name] then
+		return Enum.ScreenInsets.None, true, false
+	elseif name == "HUD" then
+		-- Gauges clear notches but may use the top-bar row; touch controls live in HUDInput.
+		return Enum.ScreenInsets.DeviceSafeInsets, true, true
+	elseif name == "TopBar" then
+		-- The top-bar row is already inside the engine's safe area; no extra TV margin there.
+		return Enum.ScreenInsets.TopbarSafeInsets, false, false
+	end
+	return Enum.ScreenInsets.CoreUISafeInsets, false, true
+end
 
 type Registration = { module: ScreenModule, options: ScreenOptions }
 
@@ -154,6 +178,9 @@ type EntryImpl = {
 
 type RouterImpl = {
 	changed: Signal.Signal<string?, string?>,
+	rootBack: Signal.Signal<string>,
+	_onRootBack: (() -> ())?,
+	_scrimToken: number,
 	_registry: { [string]: Registration },
 	_stack: { EntryImpl },
 	_alive: { [string]: EntryImpl },
@@ -242,8 +269,7 @@ end
 --------------------------------------------------------------------------------
 
 local function createLayer(self: RouterImpl, name: Layer, parent: Instance?, prefix: string)
-	local nonInteractive = NON_INTERACTIVE[name] == true
-	local topBar = name == "TopBar"
+	local insets, ignoreInset, safeArea = layerInsets(name)
 	local gui = Create.ScreenGui({
 		Name = `{prefix}_{name}`,
 		DisplayOrder = Theme.layer(name),
@@ -253,13 +279,9 @@ local function createLayer(self: RouterImpl, name: Layer, parent: Instance?, pre
 	})
 	-- IgnoreGuiInset and ScreenInsets are coupled in the engine (writing one updates the other), so they are written
 	-- in a fixed order with ScreenInsets last instead of through a props table (hash order is unspecified).
-	gui.IgnoreGuiInset = nonInteractive
-	gui.ScreenInsets = if nonInteractive
-		then Enum.ScreenInsets.None
-		elseif topBar then Enum.ScreenInsets.TopbarSafeInsets
-		else Enum.ScreenInsets.CoreUISafeInsets
-	-- The top-bar row is already inside the engine's safe area; no extra TV margin there.
-	local root = Layout.root({ Name = "Root", safeArea = not nonInteractive and not topBar })
+	gui.IgnoreGuiInset = ignoreInset
+	gui.ScreenInsets = insets
+	local root = Layout.root({ Name = "Root", safeArea = safeArea })
 	root.Parent = gui
 	gui.Parent = parent
 	self._guis[name] = gui
@@ -278,6 +300,9 @@ function Router.new(options: RouterOptions?): Router
 	local opts: RouterOptions = options or {}
 	local self: RouterImpl = setmetatable({
 		changed = Signal.new(),
+		rootBack = Signal.new(),
+		_onRootBack = opts.onRootBack,
+		_scrimToken = 0,
 		_registry = {},
 		_stack = {},
 		_alive = {},
@@ -368,12 +393,22 @@ local function updateScrim(self: RouterImpl)
 		end
 	end
 	local scrim = self._scrim
+	self._scrimToken += 1
+	local token = self._scrimToken
 	if topModal == nil then
-		scrim.Visible = false
+		if scrim.Visible then
+			-- Fade out, then hide (unless a modal opened meanwhile).
+			local tween = Motion.tween(scrim, { BackgroundTransparency = 1 }, { duration = "fast", kind = "fade" })
+			Motion.onComplete(tween, function()
+				if self._scrimToken == token then
+					scrim.Visible = false
+				end
+			end)
+		end
 		return
 	end
 	scrim.ZIndex = topModal.host.ZIndex - 1
-	if not scrim.Visible then
+	if not scrim.Visible or scrim.BackgroundTransparency >= 1 then
 		scrim.Visible = true
 		scrim.BackgroundTransparency = 1
 		Motion.tween(
@@ -391,6 +426,11 @@ local function playEntrance(entry: EntryImpl, reason: ShowReason)
 	end
 	if transition == "pop" then
 		Motion.pop(entry.host, { duration = "base" })
+		return
+	end
+	if transition == "sheet" then
+		entry.host.Position = UDim2.new()
+		Motion.slideIn(entry.host, "bottom", 64, { duration = "slow" })
 		return
 	end
 	-- Veil: a full-size bg.base frame fading out over the incoming screen (fades without a CanvasGroup).
@@ -473,6 +513,14 @@ local function makeFocusScope(entry: EntryImpl): Focus.FocusScope?
 				handler(screen, direction)
 			end
 		end,
+		onPage = if screen.onPage ~= nil
+			then function(direction: number)
+				local handler = screen.onPage
+				if handler ~= nil then
+					handler(screen, direction)
+				end
+			end
+			else nil,
 	})
 end
 
@@ -715,8 +763,8 @@ function RouterClass.reset(self: RouterImpl, name: string, params: any?): boolea
 	return true
 end
 
---- Back: the top screen's onBack first (true = handled), then close the top modal (if dismissible) or pop.
---- Returns true if anything handled it.
+--- Back: the top screen's onBack first (true = handled), then close the top modal (if dismissible) or pop; at the
+--- root, `rootBack` fires and `onRootBack` runs (Game menu). Returns true if anything handled it.
 function RouterClass.back(self: RouterImpl): boolean
 	local top = topEntry(self)
 	if top == nil then
@@ -737,6 +785,15 @@ function RouterClass.back(self: RouterImpl): boolean
 	end
 	if #self._stack > 1 then
 		return RouterClass.pop(self)
+	end
+	self.rootBack:Fire(top.name)
+	local onRootBack = self._onRootBack
+	if onRootBack ~= nil then
+		local ok, err = pcall(onRootBack :: any)
+		if not ok then
+			log:error("onRootBack failed: %s", tostring(err))
+		end
+		return true
 	end
 	return false
 end
@@ -853,6 +910,7 @@ function RouterClass.destroy(self: RouterImpl)
 	end
 	self._trove:Destroy()
 	self.changed:DisconnectAll()
+	self.rootBack:DisconnectAll()
 end
 
 --------------------------------------------------------------------------------
@@ -867,6 +925,7 @@ export type DefineSpec = {
 	onBack: ((ctx: ScreenContext) -> boolean?)?,
 	initialFocus: ((ctx: ScreenContext) -> GuiObject?)?,
 	onShoulder: ((ctx: ScreenContext, direction: number) -> ())?,
+	onPage: ((ctx: ScreenContext, direction: number) -> ())?,
 }
 
 --- Turns a build function into a ScreenModule: mount builds the root (Size 1,1) into the host, show/hide toggle
@@ -917,6 +976,12 @@ function Router.define(spec: DefineSpec): ScreenModule
 			local onShoulder = spec.onShoulder
 			screen.onShoulder = function(_self: any, direction: number)
 				onShoulder(ctx, direction)
+			end
+		end
+		if spec.onPage ~= nil then
+			local onPage = spec.onPage
+			screen.onPage = function(_self: any, direction: number)
+				onPage(ctx, direction)
 			end
 		end
 		return (screen :: any) :: Screen

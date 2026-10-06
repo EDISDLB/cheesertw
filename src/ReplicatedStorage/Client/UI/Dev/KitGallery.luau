@@ -3,11 +3,12 @@
 	Dev/KitGallery — every kit component in every state, under every theme setting (Studio / dev builds).
 
 	Purpose:          A Router screen for designers and screen authors: pick a section with the tab bar (LB/RB on
-	                  gamepad), flip the colour-blind scheme, high contrast, reduced motion, text scale and the input
-	                  mode preview in the header, and check each component's idle / hover / pressed / disabled /
-	                  loading / selected states, sizes and variants. Sections are built lazily the first time they
-	                  are opened. Register it with `KitGallery.register(router)` and open it with
-	                  `router:push("KitGallery")` (dev menu / Studio command bar).
+	                  gamepad), flip the colour-blind scheme, high contrast, reduced motion, text scale, the input
+	                  mode preview and the layout preview (Compact / Regular / TV) in the header, and check each
+	                  component's idle / hover / pressed / disabled / loading / selected / hold states, sizes and
+	                  variants. Sections are built lazily the first time they are opened. Register it with
+	                  `KitGallery.register(router)` and open it with `router:push("KitGallery")` (dev menu / Studio
+	                  command bar).
 	Dependencies:     Client/UI/Kit (core + components), Icons/Registry.
 	State:            Section selection and theme-control Values (scoped to the screen); the theme settings it
 	                  changes are global on purpose (that is what the gallery previews).
@@ -298,7 +299,7 @@ end
 
 local function buttons(_scope: Trove): { Instance }
 	local rows: { Instance } = {}
-	for _, variant in { "primary", "secondary", "ghost", "danger", "battle" } do
+	for _, variant in { "primary", "secondary", "ghost", "danger", "premium", "battle" } do
 		local v = variant :: Button.Variant
 		table.insert(rows, caption(variant))
 		table.insert(
@@ -312,6 +313,15 @@ local function buttons(_scope: Trove): { Instance }
 			})
 		)
 	end
+	table.insert(rows, caption("pending label (keeps width) and hold-to-confirm (gamepad / touch: hold A or finger)"))
+	table.insert(
+		rows,
+		row({
+			Button.new({ text = "Research", loadingText = "Researching", loading = true, variant = "primary" }),
+			Button.new({ text = "Sell", variant = "danger", hold = true, icon = "ui/warning" }),
+			Button.new({ text = "Buy 1,250", variant = "premium", icon = "currency/bullion", hold = 0.8 }),
+		})
+	)
 	table.insert(rows, caption("sizes"))
 	table.insert(
 		rows,
@@ -445,6 +455,7 @@ local function inputs(scope: Trove): { Instance }
 					{ action = "Back", label = "Back" },
 				},
 				align = "left",
+				keyboard = true,
 			}),
 		}),
 	}
@@ -587,6 +598,18 @@ local function feedback(scope: Trove): { Instance }
 			end,
 		})
 	)
+	for _, currency in { "credits", "bullion", "vehicle_xp" } do
+		table.insert(
+			toastButtons,
+			Button.new({
+				text = "Reward " .. currency,
+				size = "compact",
+				onActivated = function()
+					Toast.reward({ currency = currency :: any, amount = 1250, title = "Mission complete" })
+				end,
+			})
+		)
+	end
 	local tooltipTarget = Button.new({ text = "Hover / focus / long-press me" })
 	Tooltip.attach(tooltipTarget, { title = "Reload time", body = "Time to load the next round with a full crew." })
 	return {
@@ -856,12 +879,19 @@ function KitGallery.buildSection(id: SectionId, scope: Trove): ScrollingFrame
 	})
 end
 
+local LAYOUT_PREVIEWS: { [string]: Layout.Environment } = {
+	compact = { viewport = Vector2.new(844, 390), tenFoot = false, displaySize = Enum.DisplaySize.Small },
+	regular = { viewport = Vector2.new(1920, 1080), tenFoot = false, displaySize = Enum.DisplaySize.Medium },
+	tv = { viewport = Vector2.new(1920, 1080), tenFoot = true, displaySize = Enum.DisplaySize.Large },
+}
+
 local function controls(scope: Trove): Frame
 	local scheme = State.Value(Theme.state.scheme:peek() :: string, { scope = scope })
 	local highContrast = State.Value(Theme.state.highContrast:peek(), { scope = scope })
 	local reduced = State.Value(Theme.state.reducedMotion:peek(), { scope = scope })
 	local textScale = State.Value(Theme.state.textScale:peek(), { scope = scope })
 	local inputPreview = State.Value(InputMode.mode:peek() :: string, { scope = scope })
+	local layoutPreview = State.Value("live", { scope = scope })
 	State.observe(scheme, function(value: string)
 		Theme.set({ scheme = value :: any })
 	end, { scope = scope })
@@ -869,7 +899,7 @@ local function controls(scope: Trove): Frame
 		Theme.set({ highContrast = value })
 	end, { scope = scope })
 	State.observe(reduced, function(value: boolean)
-		Theme.set({ reducedMotion = value })
+		Theme.set({ reducedMotion = if value then true else "system" })
 	end, { scope = scope })
 	State.observe(textScale, function(value: number)
 		Theme.set({ textScale = value })
@@ -877,6 +907,23 @@ local function controls(scope: Trove): Frame
 	State.observe(inputPreview, function(value: string)
 		InputMode.set(value :: any)
 	end, { scope = scope })
+	-- Layout preview (global on purpose): authored-size and type-minimum checks for Compact and TV without a device.
+	-- The live environment is restored when the gallery closes.
+	local live: Layout.Environment = {
+		viewport = Layout.state.viewport:peek(),
+		tenFoot = Layout.state.tenFoot:peek(),
+	}
+	local previewing = false
+	State.observe(layoutPreview, function(value: string)
+		local preset = LAYOUT_PREVIEWS[value]
+		previewing = preset ~= nil
+		Layout.setEnvironment(if preset ~= nil then preset else live)
+	end, { scope = scope })
+	scope:Add(function()
+		if previewing then
+			Layout.setEnvironment(live)
+		end
+	end)
 	local schemeTabs = {}
 	for _, name in Theme.SCHEMES do
 		table.insert(schemeTabs, { id = name :: string, label = SCHEME_LABELS[name] })
@@ -922,6 +969,18 @@ local function controls(scope: Trove): Frame
 				selected = inputPreview,
 				width = 220,
 				LayoutOrder = 5,
+			}),
+			Dropdown.new({
+				Name = "LayoutPreview",
+				options = {
+					{ value = "live", label = "Layout: live" },
+					{ value = "compact", label = "Compact 844×390" },
+					{ value = "regular", label = "Regular 1920×1080" },
+					{ value = "tv", label = "TV 1920×1080" },
+				},
+				selected = layoutPreview,
+				width = 220,
+				LayoutOrder = 6,
 			}),
 		},
 	})

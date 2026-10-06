@@ -392,7 +392,10 @@ export type RoleDefinition = {
 	roleScore: { [RoleScoreComponent]: number }, -- weights sum to 1
 	group: RoleGroup,
 	badge: IconKey, -- "roles/<id>"
-	fieldKit: FieldKit?, -- role-specific Field Kit levels (nil = class-wide defaults only)
+	--- The role's Field Kit levels (Elite Tier VI–X; level i = fieldKit[i]). There is no class-wide fallback: nil is
+	--- legal only while no Tier VI–X vehicle has this role, and a role with Tier VI–X vehicles needs at least as many
+	--- levels as their tiers grant (TierDefinition.fieldKit.levels; FIELD_KIT).
+	fieldKit: FieldKit?,
 }
 
 --- The Medium-tank reference row of a tier (00-DECISIONS §7.4).
@@ -484,6 +487,9 @@ export type ShellDefinition = {
 --------------------------------------------------------------------------------
 
 --- Reload model (GunState). Magazine/Autoreloader/DualGun are the Tier I–X special guns (00-DECISIONS §4).
+--- Autoreloader `perShellReloadS` lists one timer per slot in refill order after the magazine empties; the first
+--- refill is the longest (00-DECISIONS §4), so the list never starts with a shorter timer than the rest. DualGun
+--- needs ammoCapacity >= 2 (a volley fires both barrels).
 export type ReloadSpec =
 	{ kind: "Single", reloadS: number }
 	| { kind: "Magazine", size: number, intraClipS: number, reloadS: number }
@@ -536,7 +542,9 @@ export type GunDefinition = {
 	bloom: GunBloom?,
 	camoAfterShotMul: number?, -- default clamp(0.40 − 0.0025·(cal − 20), 0.05, 0.40)
 	shellSwapS: number?, -- default = one reload (00-DECISIONS §4)
-	indirect: boolean?, -- artillery howitzer (strategic view, arcs >= 45°); required for artillery vehicles
+	--- Artillery howitzer (strategic view, elevation >= 45°): required for artillery vehicles, never on others; its
+	--- shells are HE/HESH only (standard + special HE, roster.md §0.2) with maxRangeM >= 900.
+	indirect: boolean?,
 	visual: GunVisual,
 	audio: GunAudioFamily,
 }
@@ -580,15 +588,21 @@ export type TurretDefinition = {
 	massKg: number,
 	priceCredits: number,
 	researchXp: number,
-	--- "Casemate" = turretless TD: the superstructure is fixed to the hull and only the gun yaws within
-	--- `yawLimitsDeg` (required). Its armor is the casemate face.
+	--- "Turret" = a rotating turret (Turret group yaws about pivots.turretRing). "Casemate" = turretless TD/SPG: the
+	--- module is the fixed GUN MOUNT set into the vehicle's fighting compartment, which belongs to the HULL — either
+	--- `HullVisual.superstructure` (armor `superstructureFront/Side`, zones Superstructure*) or a `HullStyle`
+	--- "Casemate" hull (MOUNT). The mount's `visual` is the gun housing (style "Casemate", sized to the housing, not
+	--- the compartment), `armor.front` its gun shield and `armor.mantlet` the mantlet; it sits at `turretRing`, never
+	--- yaws, and only the gun yaws within `yawLimitsDeg` (required). A vehicle never mixes the two mounts.
 	mount: TurretMount,
 	armor: TurretArmor,
 	traverseDegS: number, -- turret (or casemate gun) traverse speed at crew level 100
 	viewRangeM: number, -- base view range before class factor, crew, equipment
 	hpBonus: number, -- added to hull HP
 	guns: { ModuleId }, -- guns this turret can mount (>= 1)
-	yawLimitsDeg: { left: number, right: number }?, -- nil = 360°; casemate default ±11
+	--- Traverse limits as positive magnitudes from hull-forward: `left` counter-clockwise, `right` clockwise
+	--- (degrees, 0..180). nil = 360°; casemate default ±11.
+	yawLimitsDeg: { left: number, right: number }?,
 	visual: TurretVisual,
 }
 
@@ -672,9 +686,13 @@ export type MobilityDefinition = {
 	pivot: boolean?, -- neutral steer (default true for tracks, false for wheels)
 }
 --- Per-yaw gun-arc limits (rear deck etc.). Yaw is the turret bearing relative to the hull, 0 = forward,
---- positive = clockwise (right); a sector spans fromDeg..toDeg (may wrap through 180).
+--- positive = clockwise (right), in (−180, 180]. A sector is swept CLOCKWISE from fromDeg to toDeg, so
+--- { fromDeg = 150, toDeg = -150 } is the 60° rear sector through 180 and { fromDeg = -150, toDeg = 150 } is the 300°
+--- around the front. fromDeg ~= toDeg. Within a sector the gun's arcs are capped (a sector never widens them).
 export type ArcSector = { fromDeg: number, toDeg: number, depressionDeg: number?, elevationDeg: number? }
 
+--- "Casemate" = the whole hull is the fighting compartment of a casemate TD/SPG (no superstructure needed); it
+--- is used only with Casemate gun mounts, and a Casemate mount needs this style or a `superstructure` (MOUNT).
 export type HullStyle = "Boxy" | "Stepped" | "Sloped" | "Pike" | "Rounded" | "Wedge" | "Slab" | "Casemate" | "LowProfile"
 --- Turret ring placement on this hull (a turret module may be shared by hulls with different rings).
 export type TurretRingSpec = {
@@ -682,7 +700,9 @@ export type TurretRingSpec = {
 	diameterM: number,
 	heightOffsetM: number?, -- ring above the hull roof (default 0)
 }
---- Raised superstructure / casemate box on top of the hull (casemate TDs, fighting compartments).
+--- Raised superstructure / casemate box on top of the hull (casemate TDs, SPG fighting compartments). It is part
+--- of the Hull group (zones SuperstructureFront/Side, HullArmor.superstructure*); a Casemate gun mount sits in its
+--- front plate.
 export type SuperstructureVisual = {
 	lengthM: number,
 	heightM: number,
@@ -742,6 +762,10 @@ export type InternalVolumeSpec = {
 	centerM: Vector3,
 	sizeM: Vector3,
 }
+--- Explicit crew seat (overrides the preset placement of one seat). `centerM` is in metres in the space of `group`
+--- (default: "Hull" for the Driver and for casemate vehicles, "Turret" otherwise, so turret crew turn with the
+--- turret). The Driver always sits in the hull, and casemate vehicles have no turret seats (LAYOUT).
+export type CrewSeatSpec = { slot: number, centerM: Vector3, group: ("Hull" | "Turret")? }
 --- Where the internal modules sit. The Blueprint turns presets into module volumes; crew seats follow the crew
 --- roles (driver hull-front, gunner/commander/loader in the turret, or all in the hull for casemates). Weak
 --- points emerge from this layout (front transmission behind the lower plate, bustle racks, side fuel…).
@@ -752,7 +776,7 @@ export type InternalLayout = {
 	fuel: "Rear" | "Front" | "Sides" | "Middle",
 	optics: ("Cupola" | "TurretRoof" | "HullRoof")?, -- default Cupola for turreted, HullRoof for casemates
 	overrides: InternalVolumes?,
-	crewSeats: { { slot: number, centerM: Vector3 } }?, -- explicit crew seat centres (hull space)
+	crewSeats: CrewSeats?, -- explicit crew seats, each slot at most once
 }
 export type VehiclePalette = { base: Color3?, secondary: Color3?, accent: Color3? }
 --- Everything the Blueprint needs besides module visuals (turret/gun/tracks/engine carry their own).
@@ -789,13 +813,17 @@ export type SpecialMechanic =
 		settleS: number,
 	}
 	| {
+		--- Needs wheeled tracks (TracksDefinition.wheeled), RunningGearVisual.suspension "Wheeled" with
+		--- roadWheels = wheelPairs, and no neutral steer (mobility.pivot ~= true) (MECHANIC).
 		kind: "Wheeled",
-		wheelPairs: number,
+		wheelPairs: number, -- per side; = visual.running.roadWheels
 		speedModeTopSpeedMul: number, -- 1.30
 		speedModeSteeringMul: number, -- 0.60
 		speedModeReverseMul: number, -- 0.70
 		toggleS: number, -- 1.0
-		lostPairSpeedMul: number, -- 0.75 per destroyed wheel pair
+		--- × top speed per destroyed wheel SIDE (TrackLeft / TrackRight module: a side holds all its wheel pairs,
+		--- one HP pool); wheel damage never immobilises a wheeled vehicle.
+		lostPairSpeedMul: number, -- 0.75
 		movingDispersionMul: number, -- 1.15
 		turnRadiusM: number,
 	}
@@ -808,6 +836,8 @@ export type SpecialMechanic =
 		cooldownS: number,
 	}
 	| {
+		--- Rides the fire trigger (hold to charge), so every gun of the vehicle must be a Single reload gun (a
+		--- DualGun volley and a magazine burst would fight over the same trigger; MECHANIC).
 		kind: "ChargedShot",
 		chargeTimeS: number,
 		effect: "Accuracy" | "Damage",
@@ -849,6 +879,7 @@ export type ApexNode = {
 export type ApexTrack = { nodes: { ApexNode } }
 
 --- Slot overrides (defaults: TierDefinition.equipmentSlots/consumableSlots, RoleDefinition.categorySlot from VI).
+--- `categorySlot` overrides the role's category and is only legal from Tier VI (the slot exists from VI).
 export type VehicleSlots = { equipment: number?, consumables: number?, categorySlot: EquipmentCategory? }
 --- Economy overrides (defaults: tier economy; premiums use TierEconomy.premiumCreditMul and crew XP ×1.5).
 export type VehicleEconomy = { creditMul: number?, xpMul: number?, crewXpMul: number?, repairMul: number? }
@@ -865,10 +896,11 @@ export type BranchDefinition = {
 	description: string, -- identity line (roster.md branch tables)
 	classes: { VehicleClass }, -- classes its vehicles may have
 	tiers: Range, -- full design range
+	row: number, -- fixed tech-tree lane (roster.md §2.11; 2 = the spine); its tech-tree vehicles sit on this row
 }
 
 export type VehicleDefinition = {
-	id: VehicleId,
+	id: VehicleId, -- "<faction idPrefix>_<name>"; never equal to a BranchId
 	name: string, -- full designation (<= 32 chars)
 	shortName: string, -- markers / kill feed (<= 12 chars, REG-MRK-03)
 	faction: FactionId,
@@ -886,7 +918,9 @@ export type VehicleDefinition = {
 	crew: { CrewSlot }, -- 2..6 seats, exactly one Commander; Gunner, Driver and Loader duties covered
 	modules: { guns: { ModuleId }, turrets: { ModuleId }, engines: { ModuleId }, tracks: { ModuleId } },
 	stock: Configuration, -- what the vehicle arrives with
-	top: Configuration, -- fully upgraded configuration (balance lint, Compare "top")
+	--- Fully upgraded configuration (balance lint, Compare "top"): in every slot where the vehicle lists a
+	--- researchable module, top mounts one of them, not the stock module (CONFIG_INVALID warning).
+	top: Configuration,
 	moduleTree: { ModuleNode }, -- every non-stock module exactly once
 	unlocks: { VehicleUnlock },
 	researchXp: number?, -- tech tree tier >= II only
@@ -916,7 +950,7 @@ export type EquipmentDefinition = {
 	icon: IconKey, -- "equipment/<file>"
 	categories: { EquipmentCategory }, -- 1..4; the category slot bonus applies when any matches
 	grade: "Standard" | "Refined", -- Refined ≈ 1.2 × effect, Campaign Tokens only
-	tiers: Range, -- mountable tier band (C: II–IV, B: V–VII, A: VIII–XI)
+	tiers: Range, -- mountable tier band inside ONE TierDefinition.equipmentBand (C: II–IV, B: V–VII, A: VIII–XI)
 	exclusiveGroup: string, -- at most one item per group per vehicle (same family; lenses vs mast)
 	effects: { StatModifier },
 	categorySlotEffects: Modifiers?, -- explicit category-slot values; default each delta × 1.15
@@ -925,7 +959,7 @@ export type EquipmentDefinition = {
 		classes: VehicleClasses?,
 		roles: RoleIds?,
 		requiresTurret: boolean?,
-		minMassKg: number?,
+		minMassKg: number?, -- <= maxMassKg
 		maxMassKg: number?,
 		excludeMechanics: MechanicKinds?,
 		excludeReload: ReloadKinds?, -- e.g. rammers do not fit Magazine guns
@@ -933,6 +967,7 @@ export type EquipmentDefinition = {
 	price: Price, -- credits or campaign tokens; never Bullion-only (00-DECISIONS §13)
 }
 
+--- "Smoke" is event-only (no smoke in Random battles, 00-DECISIONS §5): a Smoke consumable sets eventOnly = true.
 export type ConsumableKind = "RepairKit" | "MedKit" | "Extinguisher" | "Ration" | "Fuel" | "Smoke" | "Utility"
 export type ConsumableDefinition = {
 	id: ConsumableId,
@@ -955,7 +990,9 @@ export type ConsumableDefinition = {
 	tiers: Range?,
 	classes: VehicleClasses?,
 	eventOnly: boolean?, -- event-mode consumables (smoke)
-	price: Price, -- resupply is charged once per battle if used (00-DECISIONS §13)
+	--- Always carries a credit price (resupply is charged once per battle if used, 00-DECISIONS §13); an optional
+	--- Bullion price never undercuts it at 1 Bullion = 200 credits (PRICE).
+	price: Price,
 }
 
 export type CrewSkillDefinition = {
@@ -1026,41 +1063,59 @@ export type CustomizationDefinition = {
 -- Missions, achievements, rewards
 --------------------------------------------------------------------------------
 
---- Per-battle stats that missions/achievements count (BattleStats fields plus derived totals).
+--- Per-battle stats that missions/achievements count: every numeric/boolean Types/Battle BattleStats counter
+--- (booleans count 1/0) plus battles, wins, xp, medals and the derived totals damageDealtPlusBlocked,
+--- assistTotal (spotting + tracking + stun) and damagePlusAssist. Battle Hero rules read the hit/spot counters
+--- (Steel Wall: hitsReceived, Patrol Duty: soleSpotterDamaged, Confederate: hitsOnLaterKilled).
 export type BattleStatKey =
 	"battles"
 	| "wins"
 	| "survived"
 	| "xp"
 	| "teamXpRank" -- 1 = best on the team; use atMost
+	| "roleScore" -- normalised Role Score (1.0 = class × tier median); SingleBattle only
 	| "damageDealt"
 	| "damageBlocked"
 	| "damageDealtPlusBlocked"
 	| "damageReceived"
+	| "potentialDamageReceived"
 	| "assistSpotting"
 	| "assistTracking"
 	| "assistStun"
 	| "assistTotal"
 	| "damagePlusAssist"
+	| "stuns"
 	| "kills"
 	| "spotted"
 	| "shotsFired"
 	| "hits"
 	| "penetrations"
 	| "criticalHits"
+	| "hitsReceived"
+	| "penetrationsReceived"
+	| "ricochetsReceived"
+	| "nonPensReceived"
 	| "capturePoints"
 	| "defensePoints"
+	| "ramDamageDealt"
+	| "firesStarted"
 	| "distanceM"
+	| "timeAliveS"
 	| "firstBlood"
+	| "firstContactDamage"
+	| "soleSpotterDamaged"
+	| "hitsOnLaterKilled"
 	| "medals"
---- `teamXpRank` is a per-battle rank: SingleBattle with atMost only. `against` narrows damageDealt, kills,
---- spotted, assistTotal and damagePlusAssist to enemies of these classes (BattleStats.byTargetClass).
+--- `teamXpRank` is a per-battle rank: SingleBattle with atMost only; `roleScore` is SingleBattle only. `against`
+--- narrows damageDealt, kills, spotted, assistTotal and damagePlusAssist to enemies of these classes
+--- (BattleStats.byTargetClass). `medal` narrows stat "medals" to one BattleMedal achievement ("earn Steel Wall").
 export type MissionCondition = {
 	stat: BattleStatKey,
 	atLeast: number?, -- one of atLeast / atMost is required
 	atMost: number?,
 	aggregate: "SingleBattle" | "Cumulative",
 	against: { classes: VehicleClasses? }?, -- only count the stat against enemies of these classes
+	medal: AchievementId?, -- stat "medals" only: count this BattleMedal achievement only
 }
 export type MissionCadence = "Daily" | "Weekly" | "Campaign" | "Event" | "Tutorial" | "Special"
 export type MissionScope = {
@@ -1128,7 +1183,7 @@ export type AchievementDefinition = {
 	name: string,
 	description: string,
 	icon: IconKey,
-	category: AchievementCategory,
+	category: AchievementCategory, -- kind Mastery <=> category Mastery, kind Marks <=> category Marks
 	kind: AchievementKind,
 	--- Evaluator key implemented in Shared/Progression/Achievements (e.g. "mostOnTeam", "threshold", "lastStand");
 	--- `stat` names the battle stat it reads and `params` its numeric arguments (e.g. { min = 6 }).
@@ -1274,7 +1329,10 @@ export type MapDefinition = {
 	variants: { MapVariant }, -- >= 1
 	randomEvents: MapRandomEvents?,
 	audio: { ambience: SoundKey, music: SoundKey? },
-	thumbnail: IconKey?,
+	thumbnail: IconKey?, -- loading screen / map picker image
+	--- Top-down minimap image covering the playable square (north up, tools pipeline). nil = the client renders the
+	--- minimap from the terrain recipe; either way the A–K × 1–0 grid is derived from sizeM.
+	minimap: IconKey?,
 	tips: { string },
 	revision: number, -- bump on every geometry change (map content hash, REG-MAP-07)
 }
@@ -1294,6 +1352,8 @@ export type StoreItemKind =
 	| "Booster"
 	| "SeasonPass"
 --- Robux-priced items name a Roblox product; the client shows GetProductInfoAsync prices (Managed Pricing).
+--- A GamePass is owned once per account, so only an item with purchaseLimit = 1 may use one (STORE); everything
+--- bought repeatedly (Bullion, Premium Time, pass seasons) is a DeveloperProduct.
 export type RobuxProduct = { kind: "DeveloperProduct" | "GamePass", productId: number }
 --- Fixed grants only: no paid random items, ever (00-DECISIONS §15).
 export type StoreItem = {
@@ -1359,7 +1419,8 @@ export type EventModeDefinition = {
 	--- Competitive rules: Config.Combat COMPETITIVE_SPREAD (±10 % rolls), no paint camo bonus, no SPG, labelled
 	--- bots never fill, > 50 % bot battles never count (00-DECISIONS §1, §5, §8).
 	competitive: boolean?,
-	classCaps: { [VehicleClass]: number }?, -- per-team class limits overriding Config.Matchmaking (0 = banned)
+	--- Per-team class limits overriding Config.Matchmaking (0 = banned); a competitive mode never allows artillery.
+	classCaps: { [VehicleClass]: number }?,
 	ladder: RankLadder?, -- required for EventKind "Ranked"
 }
 export type EventDefinition = {
@@ -1390,6 +1451,7 @@ export type PassChapter = {
 }
 --- Points per battle by team XP rank (00-DECISIONS §14: top 3 8/6, 4–10 6/4, rest 3/2).
 export type PassPointsRule = { maxTeamRank: number, win: number, loss: number }
+--- One Season Pass season. Seasons never overlap (Profile.pass tracks one seasonId at a time; SEASON).
 export type SeasonDefinition = {
 	id: SeasonId,
 	name: string,
@@ -1422,6 +1484,7 @@ export type Mechanics = { SpecialMechanic }
 export type MechanicKinds = { MechanicKind }
 export type ReloadKinds = { ReloadKind }
 export type InternalVolumes = { InternalVolumeSpec }
+export type CrewSeats = { CrewSeatSpec }
 export type FieldKit = { FieldKitLevel }
 export type EventModes = { EventModeDefinition }
 export type EventAbilities = { EventAbility }

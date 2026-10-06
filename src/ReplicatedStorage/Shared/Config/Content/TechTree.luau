@@ -14,7 +14,8 @@
 	Performance notes: Loaded once.
 
 	Ids follow the roster's `<prefix>.<branch>` names in snake_case (`iu.bulwark` -> `iu_bulwark`). Tier ranges are
-	the full design ranges, including the Tier XI Apex where a branch leads to one.
+	the full design ranges, including the Tier XI Apex where a branch leads to one. `row` is the branch's fixed
+	tech-tree lane (roster.md §2.11: row 2 is every faction's spine), so later waves never move a node.
 ]]
 
 local Content = require("../../Types/Content")
@@ -28,6 +29,7 @@ local branches: { Content.BranchDefinition } = {
 		description = "Slow, sturdy starter mediums that teach angling and trading.",
 		classes = { "medium" },
 		tiers = { min = 1, max = 3 },
+		row = 2,
 	},
 	{
 		id = "iu_bulwark",
@@ -36,6 +38,7 @@ local branches: { Content.BranchDefinition } = {
 		description = "The spine: from riveted box to pike nose to twin-gun wall.",
 		classes = { "heavy" },
 		tiers = { min = 4, max = 11 },
+		row = 2,
 	},
 	{
 		id = "iu_hammer",
@@ -44,6 +47,7 @@ local branches: { Content.BranchDefinition } = {
 		description = "Turret-strong, high-alpha mediums that fight like light heavies.",
 		classes = { "medium" },
 		tiers = { min = 4, max = 10 },
+		row = 3,
 	},
 	{
 		id = "iu_ram",
@@ -52,6 +56,7 @@ local branches: { Content.BranchDefinition } = {
 		description = "Rear-casemate destroyers with very high alpha and poor arcs.",
 		classes = { "td" },
 		tiers = { min = 4, max = 10 },
+		row = 1,
 	},
 	-- Crown Industries
 	{
@@ -61,6 +66,7 @@ local branches: { Content.BranchDefinition } = {
 		description = "Precision from the first battle.",
 		classes = { "light", "medium" },
 		tiers = { min = 1, max = 4 },
+		row = 2,
 	},
 	{
 		id = "ci_warden",
@@ -69,6 +75,7 @@ local branches: { Content.BranchDefinition } = {
 		description = "Hull-down heavies; HESH from Tier VIII.",
 		classes = { "heavy" },
 		tiers = { min = 5, max = 10 },
+		row = 2,
 	},
 	{
 		id = "ci_vernier",
@@ -77,6 +84,7 @@ local branches: { Content.BranchDefinition } = {
 		description = "Low precision casemates with HESH.",
 		classes = { "td" },
 		tiers = { min = 4, max = 11 },
+		row = 3,
 	},
 	{
 		id = "ci_herald",
@@ -85,6 +93,7 @@ local branches: { Content.BranchDefinition } = {
 		description = "Fast, accurate scouts with poor alpha.",
 		classes = { "light" },
 		tiers = { min = 5, max = 10 },
+		row = 1,
 	},
 	-- Eastern Armor Group
 	{
@@ -94,6 +103,7 @@ local branches: { Content.BranchDefinition } = {
 		description = "The spine: scouts and flankers, with magazines at Tiers IX–X.",
 		classes = { "light" },
 		tiers = { min = 1, max = 11 },
+		row = 2,
 	},
 	{
 		id = "ea_outrider",
@@ -102,6 +112,7 @@ local branches: { Content.BranchDefinition } = {
 		description = "The fastest vehicles in the game: information, not trades.",
 		classes = { "light" },
 		tiers = { min = 7, max = 10 },
+		row = 3,
 	},
 	{
 		id = "ea_gale",
@@ -110,6 +121,7 @@ local branches: { Content.BranchDefinition } = {
 		description = "Fast, thin, high-alpha single-shot mediums.",
 		classes = { "medium" },
 		tiers = { min = 5, max = 10 },
+		row = 1,
 	},
 	-- Desert Armor Corps
 	{
@@ -119,6 +131,7 @@ local branches: { Content.BranchDefinition } = {
 		description = "Quick-aiming starter mediums.",
 		classes = { "medium" },
 		tiers = { min = 1, max = 3 },
+		row = 2,
 	},
 	{
 		id = "dc_longshot",
@@ -127,6 +140,7 @@ local branches: { Content.BranchDefinition } = {
 		description = "The spine: hull-down long-range mediums with autoreloaders at Tiers VIII–X.",
 		classes = { "medium" },
 		tiers = { min = 4, max = 11 },
+		row = 2,
 	},
 	{
 		id = "dc_sunfall",
@@ -135,6 +149,7 @@ local branches: { Content.BranchDefinition } = {
 		description = "The launch artillery, alternating stun Support and Area control roles.",
 		classes = { "artillery" },
 		tiers = { min = 4, max = 10 },
+		row = 3,
 	},
 	{
 		id = "dc_glint",
@@ -143,6 +158,7 @@ local branches: { Content.BranchDefinition } = {
 		description = "Autoreloader casemates.",
 		classes = { "td" },
 		tiers = { min = 5, max = 10 },
+		row = 1,
 	},
 	-- Mountain Republic
 	{
@@ -152,6 +168,7 @@ local branches: { Content.BranchDefinition } = {
 		description = "Nimble climbing scouts.",
 		classes = { "light" },
 		tiers = { min = 1, max = 3 },
+		row = 2,
 	},
 	{
 		id = "mr_ridgeline",
@@ -160,6 +177,7 @@ local branches: { Content.BranchDefinition } = {
 		description = "The spine: reverse-slope mediums with hydropneumatic suspension at Tiers VIII–X.",
 		classes = { "medium" },
 		tiers = { min = 4, max = 11 },
+		row = 2,
 	},
 	{
 		id = "mr_bastion",
@@ -168,6 +186,7 @@ local branches: { Content.BranchDefinition } = {
 		description = "Turretless siege casemates.",
 		classes = { "td" },
 		tiers = { min = 4, max = 10 },
+		row = 3,
 	},
 	{
 		id = "mr_scree",
@@ -176,6 +195,7 @@ local branches: { Content.BranchDefinition } = {
 		description = "Climbing scouts that spot from the peaks.",
 		classes = { "light" },
 		tiers = { min = 4, max = 10 },
+		row = 1,
 	},
 	-- Northern Federation
 	{
@@ -185,6 +205,7 @@ local branches: { Content.BranchDefinition } = {
 		description = "One rugged starter.",
 		classes = { "medium" },
 		tiers = { min = 1, max = 1 },
+		row = 2,
 	},
 	{
 		id = "nf_glacis",
@@ -193,6 +214,7 @@ local branches: { Content.BranchDefinition } = {
 		description = "The spine: from ambush carriages to assault casemates.",
 		classes = { "td" },
 		tiers = { min = 2, max = 10 },
+		row = 2,
 	},
 	{
 		id = "nf_rimeguard",
@@ -201,6 +223,7 @@ local branches: { Content.BranchDefinition } = {
 		description = "Survival heavies that become breakthrough machines.",
 		classes = { "heavy" },
 		tiers = { min = 4, max = 11 },
+		row = 3,
 	},
 	{
 		id = "nf_aurora",
@@ -209,6 +232,7 @@ local branches: { Content.BranchDefinition } = {
 		description = "The second artillery line, stun Support only.",
 		classes = { "artillery" },
 		tiers = { min = 4, max = 10 },
+		row = 1,
 	},
 }
 

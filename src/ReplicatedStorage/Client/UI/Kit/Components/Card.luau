@@ -94,7 +94,15 @@ function Card.new(props: CardProps): TextButton
 	end
 	local values: { [any]: any } = Common.layout(props, {}, { Size = UDim2.fromOffset(280, 96) })
 	values[Create.Children] = {
-		Chamfer.new({ name = "Surface", corners = "brand", size = CUT, fill = fill, border = border, bevel = true }),
+		Chamfer.new({
+			name = "Surface",
+			corners = "brand",
+			size = CUT,
+			fill = fill,
+			border = border,
+			borderThickness = Theme.borderWidth(),
+			bevel = true,
+		}),
 		Create.Frame({
 			Name = "SelectedEdge",
 			BorderSizePixel = 0,

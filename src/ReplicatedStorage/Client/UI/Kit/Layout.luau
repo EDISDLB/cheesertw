@@ -4,14 +4,17 @@
 
 	Purpose:          Implements the scale decisions (00-DECISIONS §16, brand-art §4.1): screens are authored at a
 	                  reference canvas and a root UIScale maps it to the viewport —
-	                    Regular (viewport height >= 600): scale = clamp(vh / 1080, 0.75, 1.5), x1.25 on TV (10-ft UI)
+	                    Regular (viewport height >= 600): scale = clamp(vh / 1080, 0.75, 1.5), x1.25 on TV (10-ft UI),
+	                                                      capped at 1.2 on tablets
 	                    Compact (viewport height <  600): authored at 844x390, scale = clamp(vh / 390, 0.92, 1.25)
-	                  both multiplied by the player's UI-scale setting (0.8-1.2, Theme). TV gets a 5 % safe margin.
+	                  both multiplied by the player's UI-scale setting (0.8-1.2, Theme). TV = console, a Large display
+	                  or a gamepad on a display >= 1600 px wide (ui-ux §1.1); it gets a 5 % safe margin.
 	                  Also derives the text-size platform profile (pc/console/phone/tablet) and pushes renderScale +
 	                  platform into Theme so text minimums hold after scaling. Helpers build UIPadding / UIListLayout
 	                  (incl. flex) / UIGridLayout / UIFlexItem / constraints from tokens.
-	Dependencies:     Kit/State, Kit/Theme, Kit/Create, Kit/Services (engine reads in `start` only).
-	State:            Module-level Values: viewport, tenFoot, displaySize; Computeds: breakpoint, scale, platform.
+	Dependencies:     Kit/State, Kit/Theme, Kit/Create, Kit/InputMode, Kit/Services (engine reads in `start` only).
+	State:            Module-level Values: viewport, tenFoot, displaySize, gamepad; Computeds: breakpoint, tv, scale,
+	                  platform.
 	Validation:       Viewport sizes <= 0 fall back to the reference size; helper options are checked.
 	Error handling:   `start` tolerates a missing camera (waits for CurrentCamera) and missing engine properties.
 	Performance notes: Recomputes only when the viewport/display/UI-scale changes; one UIScale per layer root.
@@ -23,6 +26,7 @@
 local State = require("./State")
 local Theme = require("./Theme")
 local Create = require("./Create")
+local InputMode = require("./InputMode")
 local Services = require("./Services")
 
 type State<T> = State.State<T>
@@ -30,8 +34,19 @@ type State<T> = State.State<T>
 export type Breakpoint = "Regular" | "Compact"
 export type Platform = Theme.Platform
 export type ScaleOptions = {
+	--- TV layout (×1.25 on Regular).
 	tenFoot: boolean?,
+	--- Tablet profile: Regular scale capped at TABLET_SCALE_MAX (ui-ux §1.14).
+	tablet: boolean?,
 	userScale: number?,
+}
+export type Environment = {
+	viewport: Vector2?,
+	--- GuiService:IsTenFootInterface() (console).
+	tenFoot: boolean?,
+	displaySize: EnumItem?,
+	--- Gamepad is the preferred input (InputMode).
+	gamepad: boolean?,
 }
 export type PaddingSpec = number | {
 	top: number?,
@@ -76,6 +91,10 @@ Layout.CONFIG = table.freeze({
 	COMPACT_SCALE_MIN = 0.92,
 	COMPACT_SCALE_MAX = 1.25,
 	TV_SAFE_MARGIN = 0.05,
+	--- Tablets stay Regular with the root scale capped (ui-ux §1.14).
+	TABLET_SCALE_MAX = 1.2,
+	--- A gamepad on a display at least this wide counts as a 10-ft TV setup (ui-ux §1.1, O).
+	TV_GAMEPAD_MIN_WIDTH = 1600,
 })
 
 local function validViewport(viewport: Vector2?): Vector2
@@ -101,6 +120,9 @@ function Layout.computeScale(viewport: Vector2, options: ScaleOptions?): number
 		scale = math.clamp(size.Y / Layout.COMPACT_REFERENCE.Y, config.COMPACT_SCALE_MIN, config.COMPACT_SCALE_MAX)
 	else
 		scale = math.clamp(size.Y / Layout.REFERENCE.Y, config.SCALE_MIN, config.SCALE_MAX)
+		if opts.tablet then
+			scale = math.min(scale, config.TABLET_SCALE_MAX)
+		end
 		if opts.tenFoot then
 			scale *= config.TV_MULTIPLIER
 		end
@@ -129,6 +151,15 @@ function Layout.platformFor(viewport: Vector2, displaySize: EnumItem?, tenFoot: 
 	return "pc"
 end
 
+--- TV (10-ft) layout: a console (IsTenFootInterface), a Large display (TVs), or a gamepad as the preferred input on
+--- a display at least TV_GAMEPAD_MIN_WIDTH px wide (ui-ux §1.1). Pure.
+function Layout.isTv(tenFootInterface: boolean, displaySize: EnumItem?, gamepad: boolean, viewport: Vector2): boolean
+	if tenFootInterface or displaySize == Enum.DisplaySize.Large then
+		return true
+	end
+	return gamepad and validViewport(viewport).X >= Layout.CONFIG.TV_GAMEPAD_MIN_WIDTH
+end
+
 --- Extra inner margin (fraction of the screen per side) for TV-safe areas; 0 elsewhere.
 function Layout.safeMargin(tenFoot: boolean): number
 	return if tenFoot then Layout.CONFIG.TV_SAFE_MARGIN else 0
@@ -140,22 +171,28 @@ end
 
 local viewportValue = State.Value(Layout.REFERENCE)
 local tenFootValue = State.Value(false)
+local gamepadValue = State.Value(false)
 local displaySizeValue: State.Value<EnumItem?> = State.Value(nil :: EnumItem?) :: any
 
 local breakpointComputed: State<Breakpoint> = State.Computed(function(): Breakpoint
 	return Layout.breakpointFor(viewportValue:get())
 end) :: any
 
-local scaleComputed = State.Computed(function(): number
-	return Layout.computeScale(viewportValue:get(), {
-		tenFoot = tenFootValue:get(),
-		userScale = Theme.state.uiScale:get(),
-	})
+local tvComputed = State.Computed(function(): boolean
+	return Layout.isTv(tenFootValue:get(), displaySizeValue:get(), gamepadValue:get(), viewportValue:get())
 end)
 
 local platformComputed: State<Platform> = State.Computed(function(): Platform
-	return Layout.platformFor(viewportValue:get(), displaySizeValue:get(), tenFootValue:get())
+	return Layout.platformFor(viewportValue:get(), displaySizeValue:get(), tvComputed:get())
 end) :: any
+
+local scaleComputed = State.Computed(function(): number
+	return Layout.computeScale(viewportValue:get(), {
+		tenFoot = tvComputed:get(),
+		tablet = platformComputed:get() == "tablet",
+		userScale = Theme.state.uiScale:get(),
+	})
+end)
 
 local inverseScaleSize = State.Computed(function(): UDim2
 	local scale = scaleComputed:get()
@@ -163,12 +200,16 @@ local inverseScaleSize = State.Computed(function(): UDim2
 end)
 
 local safePadding = State.Computed(function(): UDim
-	return UDim.new(Layout.safeMargin(tenFootValue:get()), 0)
+	return UDim.new(Layout.safeMargin(tvComputed:get()), 0)
 end)
 
 Layout.state = {
 	viewport = State.readonly(viewportValue),
+	--- The engine's IsTenFootInterface flag.
 	tenFoot = State.readonly(tenFootValue),
+	gamepad = State.readonly(gamepadValue),
+	--- TV layout active (Layout.isTv).
+	tv = tvComputed,
 	breakpoint = breakpointComputed,
 	scale = scaleComputed,
 	platform = platformComputed,
@@ -193,12 +234,12 @@ local function pushToTheme()
 	Theme.setSystem({
 		renderScale = scaleComputed:peek(),
 		platform = platformComputed:peek(),
-		layout = Layout.layoutModeFor(breakpointComputed:peek(), tenFootValue:peek()),
+		layout = Layout.layoutModeFor(breakpointComputed:peek(), tvComputed:peek()),
 	})
 end
 
 --- Overrides the environment (tests, gallery previews, the device emulator). `start` keeps it in sync otherwise.
-function Layout.setEnvironment(env: { viewport: Vector2?, tenFoot: boolean?, displaySize: EnumItem? })
+function Layout.setEnvironment(env: Environment)
 	State.batch(function()
 		if env.viewport ~= nil then
 			viewportValue:set(validViewport(env.viewport))
@@ -209,11 +250,15 @@ function Layout.setEnvironment(env: { viewport: Vector2?, tenFoot: boolean?, dis
 		if env.displaySize ~= nil then
 			displaySizeValue:set(env.displaySize)
 		end
+		if env.gamepad ~= nil then
+			gamepadValue:set(env.gamepad)
+		end
 	end)
 	pushToTheme()
 end
 
---- Follows the camera viewport, GuiService display size / 10-ft mode and the UI-scale setting. Returns stop().
+--- Follows the camera viewport, GuiService display size / 10-ft mode, the gamepad input mode (TV rule) and the
+--- UI-scale setting. Returns stop().
 function Layout.start(): () -> ()
 	local connections: { RBXScriptConnection } = {}
 	local cameraConnection: RBXScriptConnection? = nil
@@ -258,6 +303,9 @@ function Layout.start(): () -> ()
 		table.insert(connections, displaySignal:Connect(readEngine))
 	end
 	local uiScaleConnection = Theme.state.uiScale:onChange(pushToTheme)
+	local gamepadConnection = State.observe(InputMode.isGamepad, function(gamepad: boolean)
+		Layout.setEnvironment({ gamepad = gamepad })
+	end, { immediate = true })
 
 	return function()
 		for _, connection in connections do
@@ -267,6 +315,7 @@ function Layout.start(): () -> ()
 			cameraConnection:Disconnect()
 		end
 		uiScaleConnection:Disconnect()
+		gamepadConnection:Disconnect()
 	end
 end
 

@@ -99,7 +99,7 @@ local vehicle: Content.VehicleDefinition = {
 			ammoRacks = { "HullMiddle" },
 			fuel = "Rear",
 		},
-		hooks = { "tractor_chassis" },
+		hooks = { "tractor_chassis", "sagging_track", "riveted_plates" }, -- roster.md §2.9: IU-wide + own
 	},
 	tree = { row = 2, branch = "iu_foundry" },
 	tags = { "starter" },

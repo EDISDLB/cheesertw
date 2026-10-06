@@ -11,7 +11,7 @@
 	State:            A registry is immutable after construction: the bundle is deep-frozen, indexes are built once,
 	                  the content hash is memoised. The shipped registry is built lazily on the first `get()`.
 	Validation:       validate() returns Ok({ errors = {}, warnings }) or Err(INVALID_ARGS, { errors, warnings });
-	                  issue codes, paths and the rules they enforce are listed in docs/design/content-schema.md §9.
+	                  issue codes, paths and the rules they enforce are listed in docs/design/content-schema.md §11.
 	Error handling:   Construction never throws on bad data (bad ids and duplicates become issues; the first
 	                  definition of an id wins). Getters return nil for unknown ids. checkConfiguration returns a
 	                  Result (NOT_FOUND / INVALID_ARGS with a human-readable detail).
@@ -349,25 +349,38 @@ local E = {
 		"survived",
 		"xp",
 		"teamXpRank",
+		"roleScore",
 		"damageDealt",
 		"damageBlocked",
 		"damageDealtPlusBlocked",
 		"damageReceived",
+		"potentialDamageReceived",
 		"assistSpotting",
 		"assistTracking",
 		"assistStun",
 		"assistTotal",
 		"damagePlusAssist",
+		"stuns",
 		"kills",
 		"spotted",
 		"shotsFired",
 		"hits",
 		"penetrations",
 		"criticalHits",
+		"hitsReceived",
+		"penetrationsReceived",
+		"ricochetsReceived",
+		"nonPensReceived",
 		"capturePoints",
 		"defensePoints",
+		"ramDamageDealt",
+		"firesStarted",
 		"distanceM",
+		"timeAliveS",
 		"firstBlood",
+		"firstContactDamage",
+		"soleSpotterDamaged",
+		"hitsOnLaterKilled",
 		"medals",
 	}),
 	aggregate = set({ "SingleBattle", "Cumulative" }),
@@ -490,6 +503,9 @@ local MODULE_STATS = set({ "moduleHp", "repairTime", "damagedModulePenalty" })
 --- Battle stats a mission condition may narrow with `against.classes` (BattleStats.byTargetClass carries them).
 local AGAINST_STATS = set({ "damageDealt", "kills", "spotted", "assistTotal", "damagePlusAssist" })
 
+--- Battle stats that only exist per battle (ranks and normalised scores cannot be summed across battles).
+local SINGLE_BATTLE_STATS = set({ "teamXpRank", "roleScore" })
+
 --------------------------------------------------------------------------------
 -- Known fields (Luau's old solver accepts extra keys in table literals; typos in optional fields would be silently
 -- ignored, so the top level of every definition is checked against these lists).
@@ -512,7 +528,7 @@ local FIELDS: { [string]: { [string]: boolean } } = {
 		"signatures",
 		"builderPreset",
 	}),
-	Branch = set({ "id", "faction", "name", "description", "classes", "tiers" }),
+	Branch = set({ "id", "faction", "name", "description", "classes", "tiers", "row" }),
 	Class = set({
 		"id",
 		"name",
@@ -801,6 +817,7 @@ local FIELDS: { [string]: { [string]: boolean } } = {
 		"randomEvents",
 		"audio",
 		"thumbnail",
+		"minimap",
 		"tips",
 		"revision",
 	}),
@@ -846,6 +863,14 @@ local FIELDS: { [string]: { [string]: boolean } } = {
 	}),
 	-- nested groups commonly written with optional fields
 	Hull = set({ "hp", "massKg", "armor" }),
+	Configuration = set({ "gun", "turret", "engine", "tracks" }),
+	ModuleNode = set({ "module", "requires" }),
+	VehicleUnlock = set({ "vehicle", "requires" }),
+	CrewSlot = set({ "role", "also" }),
+	TreePosition = set({ "row", "branch" }),
+	VisualSpec = set({ "hull", "running", "details", "layout", "palette", "preset", "hooks" }),
+	MapSpawns = set({ "team1", "team2" }),
+	MissionCondition = set({ "stat", "atLeast", "atMost", "aggregate", "against", "medal" }),
 	HullArmor = set({
 		"upperFront",
 		"lowerFront",
@@ -969,7 +994,7 @@ local FIELDS: { [string]: { [string]: boolean } } = {
 	}),
 	VehiclePalette = set({ "base", "secondary", "accent" }),
 	VolumeSpec = set({ "kind", "group", "centerM", "sizeM" }),
-	CrewSeat = set({ "slot", "centerM" }),
+	CrewSeat = set({ "slot", "centerM", "group" }),
 	Apex = set({ "nodes" }),
 	ApexNode = set({ "id", "name", "kind", "xp", "effects" }),
 	VehicleAudio = set({ "engine" }),
@@ -1443,7 +1468,17 @@ local function rewards(ctx: Ctx, path: string, v: any, minLen: number, optional:
 		if enum(ctx, p .. ".kind", r.kind, E.rewardKind) then
 			local refKind: ContentKind? = REWARD_REF[r.kind]
 			if refKind ~= nil then
-				ref(ctx, p .. ".id", r.id, refKind :: ContentKind)
+				local target = ref(ctx, p .. ".id", r.id, refKind :: ContentKind)
+				-- A granted tech-tree vehicle would skip its research (and its parent's XP); missions, medals,
+				-- pass and ladder rewards grant Reward, Event or Premium vehicles only.
+				if r.kind == "Vehicle" and target ~= nil and target.acquisition == "TechTree" then
+					addError(
+						ctx,
+						"REWARD",
+						p .. ".id",
+						`{target.id} is a tech-tree vehicle (researched, never granted)`
+					)
+				end
 			elseif r.id ~= nil then
 				addError(ctx, "REWARD", p .. ".id", `reward kind {r.kind} does not take an id`)
 			end
@@ -1533,6 +1568,9 @@ type RegistryState = {
 
 local Registry = {}
 Registry.__index = Registry
+
+--- The shared empty view (frozen).
+local EMPTY: { any } = table.freeze({})
 
 export type ContentRegistry = typeof(setmetatable({} :: RegistryState, Registry))
 
@@ -1645,6 +1683,9 @@ function ContentRegistry.fromBundle(bundle: ContentBundle): ContentRegistry
 		for ordinal, id in idx.sortedIds do
 			idx.ordinals[id] = ordinal
 		end
+		-- Views hand these arrays out directly: frozen, so a caller's in-place sort cannot reorder the registry.
+		table.freeze(idx.list)
+		table.freeze(idx.sortedIds)
 	end
 
 	-- Tech-tree edges (only edges whose endpoints exist; validate() reports the rest).
@@ -1682,6 +1723,13 @@ function ContentRegistry.fromBundle(bundle: ContentBundle): ContentRegistry
 		local c = children[edge.from] or {}
 		children[edge.from] = c
 		table.insert(c, edge)
+	end
+	table.freeze(edges)
+	for _, list in parents do
+		table.freeze(list)
+	end
+	for _, list in children do
+		table.freeze(list)
 	end
 
 	local state: RegistryState = {
@@ -1842,13 +1890,13 @@ function Registry.branchesByFaction(self: ContentRegistry, faction: string): { C
 			table.insert(out, branch)
 		end
 	end
-	return out
+	return table.freeze(out)
 end
 
 --- Every definition of a kind, in manifest order (frozen).
 function Registry.list(self: ContentRegistry, kind: ContentKind): { any }
 	local idx = self._index[kind]
-	return if idx then idx.list else {}
+	return if idx then idx.list else EMPTY
 end
 function Registry.allVehicles(self: ContentRegistry): { VehicleDefinition }
 	return self:list("Vehicle")
@@ -1886,7 +1934,7 @@ local function filterVehicles(self: ContentRegistry, predicate: (VehicleDefiniti
 		end
 	end
 	table.sort(out, vehicleOrder(self))
-	return out
+	return table.freeze(out)
 end
 
 --- Vehicles of a faction sorted by tier, tree row, id.
@@ -1918,7 +1966,7 @@ function Registry.rolesByClass(self: ContentRegistry, class: string): { Content.
 			end
 		end
 	end
-	return out
+	return table.freeze(out)
 end
 
 --- Tech-tree edges (sorted by from, to), optionally restricted to one faction.
@@ -1933,13 +1981,13 @@ function Registry.techTreeEdges(self: ContentRegistry, faction: string?): { Tech
 			table.insert(out, edge)
 		end
 	end
-	return out
+	return table.freeze(out)
 end
 function Registry.parentsOf(self: ContentRegistry, vehicleId: string): { TechTreeEdge }
-	return self._parents[vehicleId] or {}
+	return self._parents[vehicleId] or EMPTY
 end
 function Registry.childrenOf(self: ContentRegistry, vehicleId: string): { TechTreeEdge }
-	return self._children[vehicleId] or {}
+	return self._children[vehicleId] or EMPTY
 end
 
 --- Total mass (kg) of a vehicle in a configuration, or nil when the vehicle or a module is unknown.
@@ -2061,7 +2109,12 @@ end
 
 --- `value` lies in the authored Range (false when either is malformed).
 local function inRange(value: any, r: any): boolean
-	return isFinite(value) and type(r) == "table" and isFinite(r.min) and isFinite(r.max) and value >= r.min and value <= r.max
+	return isFinite(value)
+		and type(r) == "table"
+		and isFinite(r.min)
+		and isFinite(r.max)
+		and value >= r.min
+		and value <= r.max
 end
 
 local function scopeAdmits(scope: any, vehicle: any): boolean
@@ -2544,12 +2597,14 @@ local function validateBranches(ctx: Ctx, reg: ContentRegistry)
 		str(ctx, p .. ".description", b.description, 200)
 		enumList(ctx, p .. ".classes", b.classes, E.class, 1, 5)
 		range(ctx, p .. ".tiers", b.tiers, 1, 11)
+		num(ctx, p .. ".row", b.row, 0, 20, false, true)
 	end
 end
 
 local function validateClasses(ctx: Ctx, reg: ContentRegistry)
 	local idx = reg._index.Class
 	validateLockedSet(ctx, "classes", idx, CLASS_IDS, "class")
+	local orders = {}
 	for i, c in idx.list do
 		local p = `classes[{i}]({c.id})`
 		fields(ctx, p, c, FIELDS.Class)
@@ -2558,10 +2613,22 @@ local function validateClasses(ctx: Ctx, reg: ContentRegistry)
 		str(ctx, p .. ".description", c.description, 300)
 		icon(ctx, p .. ".icon", c.icon)
 		icon(ctx, p .. ".minimapIcon", c.minimapIcon)
-		num(ctx, p .. ".order", c.order, 1, 5, false, true)
+		if num(ctx, p .. ".order", c.order, 1, 5, false, true) then
+			if orders[c.order] then
+				addError(ctx, "BAD_VALUE", p .. ".order", `order {c.order} is used twice`)
+			end
+			orders[c.order] = true
+		end
 		range(ctx, p .. ".tiers", c.tiers, 1, 11)
 		if list(ctx, p .. ".roles", c.roles, 1, 6) then
+			local seenRoles = {}
 			for j, roleId in c.roles do
+				if keyable(roleId) then
+					if seenRoles[roleId] then
+						addError(ctx, "BAD_VALUE", `{p}.roles[{j}]`, `duplicate {describe(roleId)}`)
+					end
+					seenRoles[roleId] = true
+				end
 				local role = ref(ctx, `{p}.roles[{j}]`, roleId, "Role")
 				if role ~= nil and role.class ~= c.id then
 					addError(
@@ -2611,7 +2678,7 @@ local function validateRoles(ctx: Ctx, reg: ContentRegistry)
 				str(ctx, `{p}.tips[{j}]`, tip, 80)
 			end
 		end
-		enumList(ctx, p .. ".statEmphasis", r.statEmphasis, E.statKey, 1, 4)
+		enumList(ctx, p .. ".statEmphasis", r.statEmphasis, E.statKey, 2, 4)
 		balanceKit(ctx, p .. ".trims", r.trims)
 		enum(ctx, p .. ".categorySlot", r.categorySlot, E.equipmentCategory)
 		enum(ctx, p .. ".group", r.group, E.roleGroup)
@@ -2794,6 +2861,9 @@ local function validateShells(ctx: Ctx, reg: ContentRegistry, used: { [string]: 
 		if kindOk then
 			local explosive = s.kind == "HE" or s.kind == "HESH"
 			local kinetic = s.kind == "AP" or s.kind == "APCR"
+			if explosive and s.ricochetAngleDeg ~= nil then
+				addError(ctx, "SHELL_KIND", p .. ".ricochetAngleDeg", `{s.kind} shells never ricochet`)
+			end
 			if s.explosionRadiusM ~= nil then
 				if explosive then
 					num(ctx, p .. ".explosionRadiusM", s.explosionRadiusM, 0, 15)
@@ -2865,11 +2935,21 @@ local function validateReload(ctx: Ctx, p: string, r: any)
 		local sizeOk = num(ctx, p .. ".size", r.size, 2, 8, false, true)
 		num(ctx, p .. ".intraClipS", r.intraClipS, 0.1, 10)
 		if list(ctx, p .. ".perShellReloadS", r.perShellReloadS, 2, 8) then
+			local allOk = true
 			for j, t in r.perShellReloadS do
-				num(ctx, `{p}.perShellReloadS[{j}]`, t, 0.3, 60)
+				allOk = num(ctx, `{p}.perShellReloadS[{j}]`, t, 0.3, 60) and allOk
 			end
 			if sizeOk and #r.perShellReloadS ~= r.size then
 				addError(ctx, "BAD_VALUE", p .. ".perShellReloadS", `needs exactly size ({r.size}) timers`)
+			end
+			-- Timers are in refill order after the magazine empties; the first refill is the longest (00-DECISIONS §4).
+			if allOk and r.perShellReloadS[1] < math.max(table.unpack(r.perShellReloadS)) then
+				addWarning(
+					ctx,
+					"BAD_VALUE",
+					p .. ".perShellReloadS",
+					"the first refill after an empty magazine should be the longest timer"
+				)
 			end
 		end
 	else
@@ -2921,6 +3001,15 @@ local function validateGuns(ctx: Ctx, reg: ContentRegistry, used: { [string]: bo
 					if g.indirect == true and not (isFinite(shell.maxRangeM) and shell.maxRangeM >= 900) then
 						addError(ctx, "SHELL_KIND", sp, "artillery shells need maxRangeM >= 900 (the default is 600)")
 					end
+					-- SPG guns fire a standard and a special HE (roster.md §0.2): no kinetic or HEAT rounds.
+					if g.indirect == true and shell.kind ~= "HE" and shell.kind ~= "HESH" then
+						addError(
+							ctx,
+							"SHELL_KIND",
+							sp,
+							`artillery (indirect) guns fire HE/HESH only, not {tostring(shell.kind)}`
+						)
+					end
 				end
 			end
 		elseif type(g.shells) == "table" and #g.shells > 3 then
@@ -2946,6 +3035,8 @@ local function validateGuns(ctx: Ctx, reg: ContentRegistry, used: { [string]: bo
 					p .. ".reload.size",
 					`a {size}-shell clip exceeds ammoCapacity {g.ammoCapacity}`
 				)
+			elseif g.reload.kind == "DualGun" and g.ammoCapacity < 2 then
+				addError(ctx, "BAD_VALUE", p .. ".ammoCapacity", "a dual gun's volley needs at least 2 rounds")
 			end
 		end
 		if shape(ctx, p .. ".bloom", g.bloom, FIELDS.GunBloom, true) then
@@ -3033,6 +3124,8 @@ local function validateTurrets(ctx: Ctx, reg: ContentRegistry, used: { [string]:
 			bool(ctx, p .. ".visual.cupola", v.cupola, true)
 			if t.mount == "Casemate" and v.style ~= "Casemate" then
 				addError(ctx, "MOUNT", p .. ".visual.style", "a casemate mount uses the Casemate visual style")
+			elseif t.mount == "Turret" and v.style == "Casemate" then
+				addError(ctx, "MOUNT", p .. ".visual.style", "the Casemate visual style is for casemate gun mounts")
 			end
 		end
 		if not used[t.id] then
@@ -3105,7 +3198,7 @@ local function validateConfiguration(ctx: Ctx, reg: ContentRegistry, p: string, 
 	if not tbl(ctx, p, cfg) then
 		return nil
 	end
-	fields(ctx, p, cfg, set({ "gun", "turret", "engine", "tracks" }))
+	fields(ctx, p, cfg, FIELDS.Configuration)
 	local ok = true
 	for _, slot in CONFIG_SLOTS do
 		local id = cfg[slot.key]
@@ -3161,7 +3254,7 @@ local function validateCrew(ctx: Ctx, p: string, crew: any)
 		if not tbl(ctx, sp, seat) then
 			continue
 		end
-		fields(ctx, sp, seat, set({ "role", "also" }))
+		fields(ctx, sp, seat, FIELDS.CrewSlot)
 		if not enum(ctx, sp .. ".role", seat.role, E.crewRole) then
 			continue
 		end
@@ -3205,11 +3298,23 @@ local function validateCrew(ctx: Ctx, p: string, crew: any)
 	end
 end
 
+--- The mount kinds ("Turret" / "Casemate") of the vehicle's listed turret modules.
+local function turretMounts(reg: ContentRegistry, v: any): { [string]: boolean }
+	local mounts: { [string]: boolean } = {}
+	for _, turretId in moduleListOf(v, "Turret") do
+		local turret = reg:getTurret(turretId) :: any
+		if turret ~= nil and (turret.mount == "Turret" or turret.mount == "Casemate") then
+			mounts[turret.mount] = true
+		end
+	end
+	return mounts
+end
+
 local function validateVisual(ctx: Ctx, reg: ContentRegistry, p: string, v: any, vis: any)
 	if not tbl(ctx, p, vis) then
 		return
 	end
-	fields(ctx, p, vis, set({ "hull", "running", "details", "layout", "palette", "preset", "hooks" }))
+	fields(ctx, p, vis, FIELDS.VisualSpec)
 	if str(ctx, p .. ".preset", vis.preset, MAX_ID_LENGTH, true) and not string.match(vis.preset, ID_PATTERN) then
 		addError(ctx, "BAD_VALUE", p .. ".preset", "preset keys are snake_case")
 	end
@@ -3290,16 +3395,46 @@ local function validateVisual(ctx: Ctx, reg: ContentRegistry, p: string, v: any,
 				"hull.armor has superstructure plates but the hull has no superstructure"
 			)
 		end
-		-- Turret visuals must sit on this hull.
-		if okW then
-			for _, turretId in moduleListOf(v, "Turret") do
-				local turret = reg:getTurret(turretId) :: any
-				if turret ~= nil and type(turret.visual) == "table" and isFinite(turret.visual.widthM) then
-					if turret.visual.widthM > hull.widthM then
-						addWarning(ctx, "VISUAL", hp .. ".widthM", `turret {turretId} is wider than the hull`)
-					end
-				end
+		-- Turret visuals must sit on this hull, and a rotating turret must cover its ring.
+		local ringDiameter = if type(hull.turretRing) == "table" and isFinite(hull.turretRing.diameterM)
+			then hull.turretRing.diameterM
+			else nil
+		for _, turretId in moduleListOf(v, "Turret") do
+			local turret = reg:getTurret(turretId) :: any
+			local tv = if turret ~= nil and type(turret.visual) == "table" then turret.visual else nil
+			if tv == nil then
+				continue
 			end
+			if okW and isFinite(tv.widthM) and tv.widthM > hull.widthM then
+				addWarning(ctx, "VISUAL", hp .. ".widthM", `turret {turretId} is wider than the hull`)
+			end
+			if
+				turret.mount == "Turret"
+				and ringDiameter ~= nil
+				and isFinite(tv.widthM)
+				and isFinite(tv.lengthM)
+				and (tv.widthM < ringDiameter or tv.lengthM < ringDiameter)
+			then
+				addError(
+					ctx,
+					"VISUAL",
+					hp .. ".turretRing.diameterM",
+					`turret {turretId} ({tv.lengthM} x {tv.widthM} m) does not cover its {ringDiameter} m ring`
+				)
+			end
+		end
+		-- Casemate gun mounts sit in the hull's fighting compartment (Types/Content TurretDefinition.mount).
+		local mounts = turretMounts(reg, v)
+		if mounts.Casemate and hull.superstructure == nil and hull.style ~= "Casemate" then
+			addError(
+				ctx,
+				"MOUNT",
+				hp,
+				'a casemate gun mount needs a fighting compartment: hull.superstructure or hull.style "Casemate"'
+			)
+		end
+		if mounts.Turret and hull.style == "Casemate" then
+			addError(ctx, "MOUNT", hp .. ".style", "a Casemate hull carries casemate gun mounts, not a rotating turret")
 		end
 	end
 	local run = vis.running
@@ -3389,6 +3524,16 @@ local function validateVisual(ctx: Ctx, reg: ContentRegistry, p: string, v: any,
 					if typeof(seat.centerM) ~= "Vector3" then
 						addError(ctx, "BAD_VALUE", sp .. ".centerM", "expected a Vector3 (metres)")
 					end
+					if enum(ctx, sp .. ".group", seat.group, E.volumeGroup, true) and seat.group == "Turret" then
+						local crewSeat = if type(v.crew) == "table" and isFinite(seat.slot)
+							then v.crew[seat.slot]
+							else nil
+						if type(crewSeat) == "table" and crewSeat.role == "Driver" then
+							addError(ctx, "LAYOUT", sp .. ".group", "the driver sits in the hull")
+						elseif turretMounts(reg, v).Casemate then
+							addError(ctx, "LAYOUT", sp .. ".group", "a casemate vehicle has no turret seats")
+						end
+					end
 				end
 			end
 		end
@@ -3405,7 +3550,9 @@ local function validateMechanics(ctx: Ctx, reg: ContentRegistry, vp: string, v: 
 	local mechanics = v.mechanics
 	local exotic = 0
 	local hasWheeled = false
+	local wheeledAt: { mechanic: any, path: string }? = nil
 	local hasAdaptive = false
+	local hasCharged = false
 	local apex = v.tier == 11
 	if list(ctx, p, mechanics, 0, 4, true) then
 		local seen = {}
@@ -3455,6 +3602,7 @@ local function validateMechanics(ctx: Ctx, reg: ContentRegistry, vp: string, v: 
 				num(ctx, mp .. ".settleS", m.settleS, 0, 5)
 			elseif k == "Wheeled" then
 				hasWheeled = true
+				wheeledAt = { mechanic = m, path = mp }
 				if v.class ~= "light" then
 					addError(ctx, "MECHANIC", mp, "Wheeled is for light tanks")
 				end
@@ -3476,6 +3624,7 @@ local function validateMechanics(ctx: Ctx, reg: ContentRegistry, vp: string, v: 
 				num(ctx, mp .. ".speedBonusKmh", m.speedBonusKmh, 1, 80)
 				num(ctx, mp .. ".cooldownS", m.cooldownS, 1, 600)
 			elseif k == "ChargedShot" then
+				hasCharged = true
 				num(ctx, mp .. ".chargeTimeS", m.chargeTimeS, 0.1, 10)
 				if enum(ctx, mp .. ".effect", m.effect, E.chargedEffect) then
 					local used, unused = "dispersionMul", "damageMul"
@@ -3518,7 +3667,8 @@ local function validateMechanics(ctx: Ctx, reg: ContentRegistry, vp: string, v: 
 			addError(ctx, "MECHANIC", p, `{table.concat(keyed, " and ")} would share the one mechanic key`)
 		end
 	end
-	-- Wheels and the Wheeled mechanic go together.
+	-- Wheels and the Wheeled mechanic go together: wheeled tracks, the Wheeled suspension drawn with one road
+	-- wheel per wheel pair, and no neutral steer.
 	for _, tracksId in moduleListOf(v, "Tracks") do
 		local tracks = reg:getTracks(tracksId) :: any
 		if tracks ~= nil and tracks.wheeled == true and not hasWheeled then
@@ -3526,6 +3676,32 @@ local function validateMechanics(ctx: Ctx, reg: ContentRegistry, vp: string, v: 
 		elseif tracks ~= nil and tracks.wheeled ~= true and hasWheeled then
 			addError(ctx, "MECHANIC", p, `Wheeled vehicle uses non-wheeled tracks {tracksId}`)
 		end
+	end
+	local running = if type(v.visual) == "table" and type(v.visual.running) == "table" then v.visual.running else nil
+	local suspensionPath = vp .. ".visual.running.suspension"
+	if wheeledAt ~= nil then
+		local wheeled = wheeledAt.mechanic
+		if running ~= nil and running.suspension ~= nil and running.suspension ~= "Wheeled" then
+			addError(ctx, "MECHANIC", suspensionPath, "a Wheeled vehicle is drawn with the Wheeled suspension")
+		end
+		if
+			running ~= nil
+			and isFinite(running.roadWheels)
+			and isFinite(wheeled.wheelPairs)
+			and running.roadWheels ~= wheeled.wheelPairs
+		then
+			addError(
+				ctx,
+				"MECHANIC",
+				wheeledAt.path .. ".wheelPairs",
+				`{wheeled.wheelPairs} wheel pairs but visual.running.roadWheels is {running.roadWheels}`
+			)
+		end
+		if type(v.mobility) == "table" and v.mobility.pivot == true then
+			addError(ctx, "MECHANIC", vp .. ".mobility.pivot", "wheeled vehicles have no neutral steer (pivot)")
+		end
+	elseif running ~= nil and running.suspension == "Wheeled" then
+		addError(ctx, "MECHANIC", suspensionPath, "the Wheeled suspension needs the Wheeled mechanic")
 	end
 	-- Gun reload kinds by class/role/tier (00-DECISIONS §4) and artillery howitzers.
 	for _, gunId in moduleListOf(v, "Gun") do
@@ -3554,6 +3730,14 @@ local function validateMechanics(ctx: Ctx, reg: ContentRegistry, vp: string, v: 
 		end
 		if hasAdaptive and reloadKind ~= "Magazine" then
 			addError(ctx, "MECHANIC", gunPath, "AdaptiveMagazine needs a Magazine gun")
+		end
+		if hasCharged and reloadKind ~= nil and reloadKind ~= "Single" then
+			addError(
+				ctx,
+				"MECHANIC",
+				gunPath,
+				`ChargedShot rides the fire trigger, so every gun must be a Single reload gun (not {reloadKind})`
+			)
 		end
 		local indirect = gun.indirect == true
 		if indirect ~= (v.class == "artillery") then
@@ -3693,7 +3877,7 @@ local function validateModuleTree(ctx: Ctx, reg: ContentRegistry, vp: string, v:
 			if not tbl(ctx, np, node) then
 				continue
 			end
-			fields(ctx, np, node, set({ "module", "requires" }))
+			fields(ctx, np, node, FIELDS.ModuleNode)
 			local id = node.module
 			if type(id) ~= "string" or not vehicleHasModule(v, id) then
 				addError(ctx, "MODULE_TREE", np .. ".module", `{describe(id)} is not one of this vehicle's modules`)
@@ -3847,6 +4031,10 @@ local function validateVehicle(ctx: Ctx, reg: ContentRegistry, i: number, v: any
 			addError(ctx, "BAD_VALUE", p .. ".id", `vehicle ids start with the faction prefix "{prefix}"`)
 		end
 	end
+	if reg:getBranch(v.id) ~= nil then
+		-- roster.md §0.2: tree UI, filters and analytics key both by id
+		addError(ctx, "BAD_VALUE", p .. ".id", `{v.id} is also a tech-tree branch id`)
+	end
 	local tierOk = num(ctx, p .. ".tier", v.tier, 1, 11, false, true)
 	local class = ref(ctx, p .. ".class", v.class, "Class")
 	local role = ref(ctx, p .. ".role", v.role, "Role")
@@ -3858,7 +4046,13 @@ local function validateVehicle(ctx: Ctx, reg: ContentRegistry, i: number, v: any
 			`role {v.role} belongs to class {tostring(role.class)}, not {v.class}`
 		)
 	end
-	if class ~= nil and tierOk and type(class.tiers) == "table" and isFinite(class.tiers.min) and isFinite(class.tiers.max) then
+	if
+		class ~= nil
+		and tierOk
+		and type(class.tiers) == "table"
+		and isFinite(class.tiers.min)
+		and isFinite(class.tiers.max)
+	then
 		if v.tier < class.tiers.min or v.tier > class.tiers.max then
 			addError(
 				ctx,
@@ -3959,8 +4153,32 @@ local function validateVehicle(ctx: Ctx, reg: ContentRegistry, i: number, v: any
 		end
 	end
 	local stockMass = validateConfiguration(ctx, reg, p .. ".stock", v, v.stock)
-	validateConfiguration(ctx, reg, p .. ".top", v, v.top)
+	local topMass = validateConfiguration(ctx, reg, p .. ".top", v, v.top)
 	validateModuleTree(ctx, reg, p, v, stockMass ~= nil)
+	-- `top` is the fully upgraded configuration: wherever an upgrade exists, it is mounted.
+	if stockMass ~= nil and topMass ~= nil then
+		for _, slot in CONFIG_SLOTS do
+			local stockId = v.stock[slot.key]
+			if v.top[slot.key] == stockId then
+				for _, id in moduleListOf(v, slot.kind) do
+					if id ~= stockId then
+						addWarning(
+							ctx,
+							"CONFIG_INVALID",
+							`{p}.top.{slot.key}`,
+							`top keeps the stock {slot.key} although {tostring(id)} is researchable`
+						)
+						break
+					end
+				end
+			end
+		end
+	end
+	-- Mounts: a vehicle has rotating turrets or casemate gun mounts, never both (Types/Content TurretDefinition).
+	local mounts = turretMounts(reg, v)
+	if mounts.Turret and mounts.Casemate then
+		addError(ctx, "MOUNT", p .. ".modules.turrets", "mixes rotating turrets and casemate gun mounts")
+	end
 	-- Physical research order (03-R4): stock tracks should not carry the top turret + gun.
 	if stockMass ~= nil and type(v.top) == "table" and type(v.stock) == "table" then
 		local stockTracks = reg:getTracks(v.stock.tracks) :: any
@@ -3972,7 +4190,12 @@ local function validateVehicle(ctx: Ctx, reg: ContentRegistry, i: number, v: any
 				tracks = v.stock.tracks,
 			}
 			local mass = reg:configurationMassKg(v.id, probe :: any)
-			if mass ~= nil and stockTracks ~= nil and isFinite(stockTracks.loadLimitKg) and mass <= stockTracks.loadLimitKg then
+			if
+				mass ~= nil
+				and stockTracks ~= nil
+				and isFinite(stockTracks.loadLimitKg)
+				and mass <= stockTracks.loadLimitKg
+			then
 				addWarning(
 					ctx,
 					"LOAD_ORDER",
@@ -4003,7 +4226,7 @@ local function validateVehicle(ctx: Ctx, reg: ContentRegistry, i: number, v: any
 			if not tbl(ctx, up, unlock) then
 				continue
 			end
-			fields(ctx, up, unlock, set({ "vehicle", "requires" }))
+			fields(ctx, up, unlock, FIELDS.VehicleUnlock)
 			local target = ref(ctx, up .. ".vehicle", unlock.vehicle, "Vehicle")
 			if keyable(unlock.vehicle) then
 				if seen[unlock.vehicle] then
@@ -4018,6 +4241,17 @@ local function validateVehicle(ctx: Ctx, reg: ContentRegistry, i: number, v: any
 					up .. ".requires",
 					`{describe(unlock.requires)} is not one of this vehicle's modules`
 				)
+			elseif unlock.requires ~= nil and type(v.stock) == "table" then
+				for _, slot in CONFIG_SLOTS do
+					if v.stock[slot.key] == unlock.requires then
+						addWarning(
+							ctx,
+							"UNLOCK_EDGE",
+							up .. ".requires",
+							`{unlock.requires} is stock, so the unlock needs no research here (usually the top gun)`
+						)
+					end
+				end
 			end
 			if v.acquisition ~= "TechTree" then
 				addError(ctx, "UNLOCK_EDGE", up, "only tech-tree vehicles unlock other vehicles")
@@ -4093,8 +4327,12 @@ local function validateVehicle(ctx: Ctx, reg: ContentRegistry, i: number, v: any
 		for j, s in v.arcSectors do
 			local sp = `{p}.arcSectors[{j}]`
 			if shape(ctx, sp, s, FIELDS.ArcSector) then
-				num(ctx, sp .. ".fromDeg", s.fromDeg, -180, 180)
-				num(ctx, sp .. ".toDeg", s.toDeg, -180, 180)
+				local okFrom = num(ctx, sp .. ".fromDeg", s.fromDeg, -180, 180)
+				local okTo = num(ctx, sp .. ".toDeg", s.toDeg, -180, 180)
+				-- Sectors sweep clockwise from fromDeg to toDeg; equal ends would be either nothing or everything.
+				if okFrom and okTo and (s.fromDeg - s.toDeg) % 360 == 0 then
+					addError(ctx, "BAD_VALUE", sp, "fromDeg and toDeg name the same bearing (empty or full sector)")
+				end
 				-- A sector only ever LIMITS the gun's arcs (a rear deck, a hull hump).
 				for _, key in { "depressionDeg", "elevationDeg" } do
 					if num(ctx, `{sp}.{key}`, s[key], 0, if key == "depressionDeg" then 30 else 85, true) then
@@ -4123,7 +4361,26 @@ local function validateVehicle(ctx: Ctx, reg: ContentRegistry, i: number, v: any
 		fields(ctx, p .. ".slots", v.slots, FIELDS.Slots)
 		num(ctx, p .. ".slots.equipment", v.slots.equipment, 0, 3, true, true)
 		num(ctx, p .. ".slots.consumables", v.slots.consumables, 0, 3, true, true)
-		enum(ctx, p .. ".slots.categorySlot", v.slots.categorySlot, E.equipmentCategory, true)
+		if
+			enum(ctx, p .. ".slots.categorySlot", v.slots.categorySlot, E.equipmentCategory, true)
+			and tierOk
+			and v.tier < 6
+		then
+			addError(ctx, "BAD_VALUE", p .. ".slots.categorySlot", "the category slot exists from Tier VI")
+		end
+	end
+	-- Elite Tier VI–X vehicles pick Field Kit options from their role's levels (checkLoadout reads them there).
+	local tierDef = if tierOk then reg:getTier(v.tier) :: any else nil
+	if role ~= nil and tierDef ~= nil and type(tierDef.fieldKit) == "table" and isFinite(tierDef.fieldKit.levels) then
+		local have = if type(role.fieldKit) == "table" then #role.fieldKit else 0
+		if have < tierDef.fieldKit.levels then
+			addError(
+				ctx,
+				"FIELD_KIT",
+				p .. ".role",
+				`Tier {v.tier} grants {tierDef.fieldKit.levels} Field Kit levels but role {v.role} defines {have}`
+			)
+		end
 	end
 	validateMechanics(ctx, reg, p, v)
 	validateApex(ctx, p .. ".apex", v)
@@ -4149,7 +4406,7 @@ local function validateVehicle(ctx: Ctx, reg: ContentRegistry, i: number, v: any
 	end
 	-- tech-tree position
 	if tbl(ctx, p .. ".tree", v.tree) then
-		fields(ctx, p .. ".tree", v.tree, set({ "row", "branch" }))
+		fields(ctx, p .. ".tree", v.tree, FIELDS.TreePosition)
 		local branch = ref(ctx, p .. ".tree.branch", v.tree.branch, "Branch", true)
 		if v.tree.branch == nil and v.acquisition == "TechTree" and v.hidden ~= true then
 			addError(ctx, "BRANCH", p .. ".tree.branch", "tech-tree vehicles belong to a branch (roster.md)")
@@ -4175,6 +4432,10 @@ local function validateVehicle(ctx: Ctx, reg: ContentRegistry, i: number, v: any
 					and (v.tier < branch.tiers.min or v.tier > branch.tiers.max)
 				then
 					addError(ctx, "BRANCH", p .. ".tree.branch", `tier {v.tier} is outside branch {branch.id}`)
+				end
+				-- Branch rows are fixed (roster.md §2.11) so later waves never move a node.
+				if isFinite(branch.row) and isFinite(v.tree.row) and v.tree.row ~= branch.row then
+					addError(ctx, "BRANCH", p .. ".tree.row", `branch {branch.id} sits on row {branch.row}`)
 				end
 			end
 		end
@@ -4327,7 +4588,22 @@ local function validateEquipment(ctx: Ctx, reg: ContentRegistry)
 		icon(ctx, p .. ".icon", e.icon)
 		enumList(ctx, p .. ".categories", e.categories, E.equipmentCategory, 1, 4)
 		enum(ctx, p .. ".grade", e.grade, E.equipmentGrade)
-		range(ctx, p .. ".tiers", e.tiers, 1, 11)
+		if range(ctx, p .. ".tiers", e.tiers, 1, 11) then
+			-- One item, one price band (C/B/A, 00-DECISIONS §13): the tier band never straddles two.
+			local band: string? = nil
+			for t = math.ceil(e.tiers.min), math.floor(e.tiers.max) do
+				local tierDef = reg:getTier(t) :: any
+				local tierBand = if tierDef ~= nil then tierDef.equipmentBand else nil
+				if type(tierBand) == "string" and E.equipmentBand[tierBand] then
+					if band == nil then
+						band = tierBand
+					elseif band ~= tierBand then
+						addError(ctx, "BAD_VALUE", p .. ".tiers", `spans equipment bands {band} and {tierBand}`)
+						break
+					end
+				end
+			end
+		end
 		localId(ctx, p .. ".exclusiveGroup", e.exclusiveGroup)
 		modifiers(ctx, p .. ".effects", e.effects)
 		if type(e.effects) == "table" and #e.effects == 0 and e.effectsByClass == nil then
@@ -4350,8 +4626,11 @@ local function validateEquipment(ctx: Ctx, reg: ContentRegistry)
 			enumList(ctx, cp .. ".classes", c.classes, E.class, 1, 5, true)
 			enumList(ctx, cp .. ".roles", c.roles, E.role, 1, 17, true)
 			bool(ctx, cp .. ".requiresTurret", c.requiresTurret, true)
-			num(ctx, cp .. ".minMassKg", c.minMassKg, 0, 250000, true)
-			num(ctx, cp .. ".maxMassKg", c.maxMassKg, 0, 250000, true)
+			local okMin = num(ctx, cp .. ".minMassKg", c.minMassKg, 0, 250000, true)
+			local okMax = num(ctx, cp .. ".maxMassKg", c.maxMassKg, 0, 250000, true)
+			if okMin and okMax and c.minMassKg > c.maxMassKg then
+				addError(ctx, "BAD_VALUE", cp, "minMassKg exceeds maxMassKg")
+			end
 			enumList(ctx, cp .. ".excludeMechanics", c.excludeMechanics, E.mechanic, 1, 8, true)
 			enumList(ctx, cp .. ".excludeReload", c.excludeReload, E.reloadKind, 1, 4, true)
 		end
@@ -4413,8 +4692,12 @@ local function validateConsumables(ctx: Ctx, reg: ContentRegistry)
 		range(ctx, p .. ".tiers", c.tiers, 1, 11, true)
 		enumList(ctx, p .. ".classes", c.classes, E.class, 1, 5, true)
 		bool(ctx, p .. ".eventOnly", c.eventOnly, true)
+		if c.kind == "Smoke" and c.eventOnly ~= true then
+			addError(ctx, "BAD_VALUE", p .. ".eventOnly", "smoke is event-only (no smoke in Random battles)")
+		end
 		price(ctx, p .. ".price", c.price)
-		if type(c.price) == "table" and c.price.bullion ~= nil and c.price.credits == nil then
+		if type(c.price) == "table" and not (isFinite(c.price.credits) and c.price.credits > 0) then
+			-- resupply is always possible for credits (00-DECISIONS §13)
 			addError(ctx, "PRICE", p .. ".price", "consumables always have a credit price")
 		end
 		if
@@ -4508,7 +4791,7 @@ local function validateConditions(ctx: Ctx, p: string, conditions: any)
 		if not tbl(ctx, cp, c) then
 			continue
 		end
-		fields(ctx, cp, c, set({ "stat", "atLeast", "atMost", "aggregate", "against" }))
+		fields(ctx, cp, c, FIELDS.MissionCondition)
 		enum(ctx, cp .. ".stat", c.stat, E.battleStat)
 		enum(ctx, cp .. ".aggregate", c.aggregate, E.aggregate)
 		local hasMin = num(ctx, cp .. ".atLeast", c.atLeast, 0, 1e9, true)
@@ -4520,6 +4803,16 @@ local function validateConditions(ctx: Ctx, p: string, conditions: any)
 		end
 		if c.stat == "teamXpRank" and (c.aggregate ~= "SingleBattle" or c.atLeast ~= nil or c.atMost == nil) then
 			addError(ctx, "MISSION", cp, "teamXpRank is a per-battle rank: SingleBattle with atMost only")
+		elseif type(c.stat) == "string" and SINGLE_BATTLE_STATS[c.stat] and c.aggregate ~= "SingleBattle" then
+			addError(ctx, "MISSION", cp .. ".aggregate", `{c.stat} exists per battle only (SingleBattle)`)
+		end
+		if c.medal ~= nil then
+			local medal = ref(ctx, cp .. ".medal", c.medal, "Achievement")
+			if c.stat ~= "medals" then
+				addError(ctx, "MISSION", cp .. ".medal", 'a medal filter narrows stat "medals" only')
+			elseif medal ~= nil and medal.kind ~= "BattleMedal" then
+				addError(ctx, "MISSION", cp .. ".medal", `{medal.id} is not a battle medal ({tostring(medal.kind)})`)
+			end
 		end
 		if shape(ctx, cp .. ".against", c.against, FIELDS.Against, true) then
 			enumList(ctx, cp .. ".against.classes", c.against.classes, E.class, 1, 5, true)
@@ -4675,6 +4968,15 @@ local function validateAchievements(ctx: Ctx, reg: ContentRegistry)
 		if (a.kind == "Mastery" or a.kind == "Marks") and a.perVehicle ~= true then
 			addError(ctx, "BAD_VALUE", p .. ".perVehicle", `{a.kind} achievements are per vehicle (perVehicle = true)`)
 		end
+		for _, special in { "Mastery", "Marks" } do
+			if
+				(a.kind == special) ~= (a.category == special)
+				and E.achievementKind[a.kind]
+				and E.achievementCategory[a.category]
+			then
+				addError(ctx, "BAD_VALUE", p .. ".category", `kind {special} and category {special} go together`)
+			end
+		end
 		enum(ctx, p .. ".rarity", a.rarity, E.rarity)
 		rewards(ctx, p .. ".rewards", a.rewards, 0)
 	end
@@ -4726,7 +5028,7 @@ local function validateSpawns(ctx: Ctx, p: string, spawns: any, half: number, wa
 	if not tbl(ctx, p, spawns) then
 		return centroids
 	end
-	fields(ctx, p, spawns, set({ "team1", "team2" }))
+	fields(ctx, p, spawns, FIELDS.MapSpawns)
 	for teamIndex, team in { "team1", "team2" } do
 		local tp = `{p}.{team}`
 		local points = spawns[team]
@@ -4841,6 +5143,24 @@ local function validatePositions(ctx: Ctx, p: string, m: any, half: number, lane
 end
 
 local function validateMaps(ctx: Ctx, reg: ContentRegistry)
+	-- (map id, battle type) pairs some event mode plays, whatever its tiers.
+	local eventPlays: { [string]: boolean } = {}
+	for _, ev in reg._index.Event.list do
+		if type(ev.modes) ~= "table" then
+			continue
+		end
+		for _, mode in ev.modes do
+			if type(mode) ~= "table" or type(mode.maps) ~= "table" then
+				continue
+			end
+			local types = if type(mode.battleTypes) == "table" then mode.battleTypes else { "Standard" }
+			for _, mapId in mode.maps do
+				for _, battleType in types do
+					eventPlays[`{tostring(mapId)}/{tostring(battleType)}`] = true
+				end
+			end
+		end
+	end
 	for i, m in reg._index.Map.list do
 		local p = `maps[{i}]({m.id})`
 		fields(ctx, p, m, FIELDS.Map)
@@ -4855,6 +5175,24 @@ local function validateMaps(ctx: Ctx, reg: ContentRegistry)
 		enumList(ctx, p .. ".battleTypes", m.battleTypes, E.battleType, 1, 3)
 		enumList(ctx, p .. ".modes", m.modes, E.battleMode, 1, 5)
 		num(ctx, p .. ".revision", m.revision, 1, 1e6, false, true)
+		-- Random battles draw Encounter and Assault from Tier IV (00-DECISIONS §8); below that only an event mode
+		-- could play them.
+		if type(m.battleTypes) == "table" and type(m.tierRange) == "table" and isFinite(m.tierRange.max) then
+			for _, battleType in m.battleTypes do
+				if
+					(battleType == "Encounter" or battleType == "Assault")
+					and m.tierRange.max < 4
+					and not eventPlays[`{m.id}/{battleType}`]
+				then
+					addWarning(
+						ctx,
+						"MAP_BASES",
+						p .. ".battleTypes",
+						`{battleType} starts at Tier IV; this Tier {m.tierRange.min}–{m.tierRange.max} map never plays it`
+					)
+				end
+			end
+		end
 		-- terrain
 		local terrain = m.terrain
 		local tp = p .. ".terrain"
@@ -5096,11 +5434,21 @@ local function validateMaps(ctx: Ctx, reg: ContentRegistry)
 				validateProp(ctx, `{p}.props[{j}]`, prop, outer)
 			end
 		end
+		-- Local ids travel in battle events and codecs, so they are unique within their list.
+		local function uniqueLocalId(path: string, id: any, seen: { [string]: boolean })
+			if localId(ctx, path, id) then
+				if seen[id] then
+					addError(ctx, "BAD_VALUE", path, `duplicate id {id}`)
+				end
+				seen[id] = true
+			end
+		end
 		if list(ctx, p .. ".water", m.water, 0, 32, true) then
+			local waterIds = {}
 			for j, w in m.water do
 				local wp = `{p}.water[{j}]`
 				if shape(ctx, wp, w, FIELDS.Water) then
-					localId(ctx, wp .. ".id", w.id)
+					uniqueLocalId(wp .. ".id", w.id, waterIds)
 					if list(ctx, wp .. ".points", w.points, 3, 64) then
 						for k, pt in w.points do
 							vec2(ctx, `{wp}.points[{k}]`, pt, outer)
@@ -5112,10 +5460,11 @@ local function validateMaps(ctx: Ctx, reg: ContentRegistry)
 			end
 		end
 		if list(ctx, p .. ".variants", m.variants, 1, 8) then
+			local variantIds = {}
 			for j, variant in m.variants do
 				local vp = `{p}.variants[{j}]`
 				if shape(ctx, vp, variant, FIELDS.Variant) then
-					localId(ctx, vp .. ".id", variant.id)
+					uniqueLocalId(vp .. ".id", variant.id, variantIds)
 					str(ctx, vp .. ".lighting", variant.lighting, 48)
 					str(ctx, vp .. ".weather", variant.weather, 48)
 					num(ctx, vp .. ".weight", variant.weight, 0.01, 100)
@@ -5123,10 +5472,11 @@ local function validateMaps(ctx: Ctx, reg: ContentRegistry)
 			end
 		end
 		if list(ctx, p .. ".randomEvents", m.randomEvents, 0, 16, true) then
+			local eventIds = {}
 			for j, event in m.randomEvents do
 				local ep = `{p}.randomEvents[{j}]`
 				if shape(ctx, ep, event, FIELDS.RandomEvent) then
-					localId(ctx, ep .. ".id", event.id)
+					uniqueLocalId(ep .. ".id", event.id, eventIds)
 					num(ctx, ep .. ".chance", event.chance, 0, 1)
 					if list(ctx, ep .. ".props", event.props, 0, 256) then
 						for k, prop in event.props do
@@ -5145,6 +5495,7 @@ local function validateMaps(ctx: Ctx, reg: ContentRegistry)
 			end
 		end
 		icon(ctx, p .. ".thumbnail", m.thumbnail, true)
+		icon(ctx, p .. ".minimap", m.minimap, true)
 		if list(ctx, p .. ".tips", m.tips, 1, 8) then
 			for j, tip in m.tips do
 				str(ctx, `{p}.tips[{j}]`, tip, 120)
@@ -5257,6 +5608,12 @@ local function validateEventMode(ctx: Ctx, reg: ContentRegistry, mp: string, mod
 			end
 		end
 	end
+	-- Competitive rules ban artillery (00-DECISIONS §8: SPG cap 0 in competitive modes).
+	if mode.competitive == true and type(mode.classCaps) == "table" and isFinite(mode.classCaps.artillery) then
+		if mode.classCaps.artillery > 0 then
+			addError(ctx, "BAD_VALUE", mp .. ".classCaps.artillery", "competitive modes never allow artillery")
+		end
+	end
 	if mode.ladder ~= nil then
 		if ev.kind ~= "Ranked" then
 			addError(ctx, "SEASON", mp .. ".ladder", "only Ranked events have a ladder")
@@ -5264,10 +5621,16 @@ local function validateEventMode(ctx: Ctx, reg: ContentRegistry, mp: string, mod
 		validateLadder(ctx, mp .. ".ladder", mode.ladder)
 	end
 	if list(ctx, mp .. ".abilities", mode.abilities, 0, 8, true) then
+		local abilityIds = {}
 		for k, ability in mode.abilities do
 			local ap = `{mp}.abilities[{k}]`
 			if shape(ctx, ap, ability, FIELDS.Ability) then
-				localId(ctx, ap .. ".id", ability.id)
+				if localId(ctx, ap .. ".id", ability.id) then
+					if abilityIds[ability.id] then
+						addError(ctx, "BAD_VALUE", ap .. ".id", `duplicate ability id {ability.id}`)
+					end
+					abilityIds[ability.id] = true
+				end
 				str(ctx, ap .. ".name", ability.name, 40)
 				enum(ctx, ap .. ".kind", ability.kind, E.ability)
 				num(ctx, ap .. ".cooldownS", ability.cooldownS, 1, 3600)
@@ -5314,6 +5677,10 @@ local function validateLiveOps(ctx: Ctx, reg: ContentRegistry)
 			elseif type(s.robux) == "table" and s.robux.kind ~= "DeveloperProduct" then
 				addError(ctx, "STORE", p .. ".robux.kind", "Bullion packs are developer products (consumable)")
 			end
+		end
+		-- A game pass is owned once per account: only a once-per-account item may be sold as one.
+		if type(s.robux) == "table" and s.robux.kind == "GamePass" and s.purchaseLimit ~= 1 then
+			addError(ctx, "STORE", p .. ".purchaseLimit", "a GamePass item can be bought once (purchaseLimit = 1)")
 		end
 		rewards(ctx, p .. ".grants", s.grants, if s.kind == "SeasonPass" then 0 else 1)
 		if type(s.grants) == "table" then
@@ -5423,11 +5790,21 @@ local function validateLiveOps(ctx: Ctx, reg: ContentRegistry)
 			addError(ctx, "SEASON", p .. ".modes", `a Ranked event has exactly one mode with a ladder, found {ladders}`)
 		end
 	end
+	local seasonWindows: { { id: string, startsAt: number, endsAt: number } } = {}
 	for i, s in reg._index.Season.list do
 		local p = `seasons[{i}]({s.id})`
 		fields(ctx, p, s, FIELDS.Season)
 		str(ctx, p .. ".name", s.name, 48)
 		validateWindow(ctx, p, s.startsAt, s.endsAt, false)
+		-- One pass at a time (Profile.pass holds one seasonId): windows never overlap.
+		if isFinite(s.startsAt) and isFinite(s.endsAt) and s.startsAt < s.endsAt then
+			for _, other in seasonWindows do
+				if s.startsAt < other.endsAt and other.startsAt < s.endsAt then
+					addError(ctx, "SEASON", p, `overlaps season {other.id}`)
+				end
+			end
+			table.insert(seasonWindows, { id = s.id, startsAt = s.startsAt, endsAt = s.endsAt })
+		end
 		num(ctx, p .. ".pointsPerDailyMission", s.pointsPerDailyMission, 0, 1000)
 		if s.paidUnlock ~= nil then
 			local item = ref(ctx, p .. ".paidUnlock", s.paidUnlock, "StoreItem")
@@ -5497,6 +5874,82 @@ local function validateLiveOps(ctx: Ctx, reg: ContentRegistry)
 	end
 end
 
+--- Reward and Event vehicles are neither researched nor sold, so something must hand them out: a reward
+--- (missions, medals, pass, ladder), a store grant or an event mode's rental list. Warns about the rest (ORPHAN).
+local function validateObtainable(ctx: Ctx, reg: ContentRegistry)
+	local granted: { [string]: boolean } = {}
+	local function collect(rewardList: any)
+		if type(rewardList) ~= "table" then
+			return
+		end
+		for _, r in rewardList do
+			if type(r) == "table" and r.kind == "Vehicle" and type(r.id) == "string" then
+				granted[r.id] = true
+			end
+		end
+	end
+	for _, m in reg._index.Mission.list do
+		collect(m.rewards)
+		collect(if type(m.honors) == "table" then m.honors.rewards else nil)
+	end
+	for _, a in reg._index.Achievement.list do
+		collect(a.rewards)
+	end
+	for _, item in reg._index.StoreItem.list do
+		collect(item.grants)
+	end
+	for _, season in reg._index.Season.list do
+		if type(season.chapters) == "table" then
+			for _, chapter in season.chapters do
+				if type(chapter) == "table" then
+					collect(chapter.finalReward)
+					if type(chapter.rewards) == "table" then
+						for _, stage in chapter.rewards do
+							collect(if type(stage) == "table" then stage.rewards else nil)
+						end
+					end
+				end
+			end
+		end
+	end
+	for _, ev in reg._index.Event.list do
+		if type(ev.modes) ~= "table" then
+			continue
+		end
+		for _, mode in ev.modes do
+			if type(mode) ~= "table" then
+				continue
+			end
+			if type(mode.vehicles) == "table" then
+				for _, id in mode.vehicles do
+					if type(id) == "string" then
+						granted[id] = true
+					end
+				end
+			end
+			local ladder = mode.ladder
+			if type(ladder) == "table" then
+				collect(ladder.finalRewards)
+				if type(ladder.ranks) == "table" then
+					for _, rank in ladder.ranks do
+						collect(if type(rank) == "table" then rank.rewards else nil)
+					end
+				end
+			end
+		end
+	end
+	for i, v in reg._index.Vehicle.list do
+		if (v.acquisition == "Reward" or v.acquisition == "Event") and v.hidden ~= true and not granted[v.id] then
+			addWarning(
+				ctx,
+				"ORPHAN",
+				`vehicles[{i}]({v.id})`,
+				`no reward, store item or event mode hands out this {v.acquisition} vehicle`
+			)
+		end
+	end
+end
+
 --------------------------------------------------------------------------------
 -- validate()
 --------------------------------------------------------------------------------
@@ -5557,6 +6010,7 @@ function Registry.validate(self: ContentRegistry, options: ValidateOptions?): Re
 	validateAchievements(ctx, self)
 	validateMaps(ctx, self)
 	validateLiveOps(ctx, self)
+	validateObtainable(ctx, self)
 
 	local report: ValidationReport = { errors = ctx.errors, warnings = ctx.warnings }
 	if #ctx.errors > 0 then

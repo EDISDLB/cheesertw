@@ -181,6 +181,7 @@ function Panel.new(props: PanelProps): Frame
 			size = Theme.chamfer("m"),
 			fill = Theme.color(fill),
 			border = Theme.color(borderToken),
+			borderThickness = Theme.borderWidth(),
 			bevel = variant ~= "inset",
 			zIndex = 1,
 		}),

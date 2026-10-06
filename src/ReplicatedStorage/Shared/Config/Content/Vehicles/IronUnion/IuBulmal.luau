@@ -119,7 +119,7 @@ local vehicle: Content.VehicleDefinition = {
 			ammoRacks = { "Sponsons", "Floor" },
 			fuel = "Rear",
 		},
-		hooks = { "sagging_track" },
+		hooks = { "sagging_track", "riveted_plates" },
 	},
 	tree = { row = 2, branch = "iu_foundry" },
 }

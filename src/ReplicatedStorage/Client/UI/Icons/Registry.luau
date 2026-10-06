@@ -2,9 +2,10 @@
 --[[
 	Icons/Registry — icon key -> glyph builder (all fallback sets) plus the generic category badge.
 
-	Purpose:          Merges the glyph sets (classes, minimap, tiers, currency, ammo, modules, crew, hits, pings, HUD,
-	                  UI) into one table keyed exactly like the uploaded assets ("<folder>/<file stem>") and lets
-	                  feature code register more glyphs at runtime.
+	Purpose:          Merges the glyph sets (classes, minimap, tiers, currency, ammo, modules, crew, battle — hit
+	                  results, pings, commands, HUD alerts, minimap markers — and UI) into one table keyed exactly like
+	                  the uploaded assets ("<folder>/<file stem>", e.g. "battle/hit_ricochet") and lets feature code
+	                  register more glyphs at runtime.
 	Dependencies:     Icons/Sets/*.
 	State:            Module-level entry table (built at require; register() adds to it).
 	Validation:       register rejects malformed keys and entries without a build function; duplicates raise.
@@ -55,6 +56,8 @@ Registry.badge = Ui.badge :: Entry
 
 --- Badge tint per category (token names).
 Registry.CATEGORY_COLORS = table.freeze({
+	battle = "text.primary",
+	markers = "text.primary",
 	equipment = "accent.steel",
 	consumables = "state.success",
 	factions = "brand.khaki",

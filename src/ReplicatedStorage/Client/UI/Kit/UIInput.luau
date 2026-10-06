@@ -3,9 +3,12 @@
 	Kit/UIInput — UI navigation actions (Back, TabPrev, TabNext) on the Input Action System.
 
 	Purpose:          Builds one code-created InputContext ("KitUI", ReplicatedStorage/Inputs, research 09 R5) with
-	                  Bool InputActions bound to the keys of the InputMode action registry (Back = Backspace/ButtonB,
-	                  TabPrev = Q/ButtonL1, TabNext = E/ButtonR1) and re-emits them as Signals that Router (back) and
-	                  Focus (shoulder tab switching) listen to. The context is enabled only while a focus scope is
+	                  Bool InputActions bound to the keys of the InputMode action registry for the menu actions of
+	                  ui-ux §1.12 (Back = Backspace/ButtonB, TabPrev/TabNext = Q/E/LB/RB, PagePrev/PageNext =
+	                  Z/C/LT/RT, Secondary = F/X, Tertiary = G/Y) and re-emits them as Signals: Router listens to Back,
+	                  Focus to the shoulders and triggers (tab switching, paging), screens to Secondary/Tertiary
+	                  (`UIInput.on("Secondary", fn)`). Confirm stays with the engine (A activates the selected
+	                  GuiButton; Enter/click activate buttons natively), so it is not bound here. The context is enabled only while a focus scope is
 	                  active (Focus toggles it), never sinks input, and ignores presses while a TextBox has focus.
 	                  If the engine refuses to create IAS instances, it falls back to UserInputService.InputBegan.
 	                  Back interceptors (interceptBack) let open popovers consume Back before the Router pops.
@@ -21,7 +24,7 @@ local Services = require("./Services")
 local Signal = require("@game/ReplicatedStorage/Shared/Core/Signal")
 local Log = require("@game/ReplicatedStorage/Shared/Core/Log")
 
-export type ActionName = "Back" | "TabPrev" | "TabNext"
+export type ActionName = "Back" | "TabPrev" | "TabNext" | "PagePrev" | "PageNext" | "Secondary" | "Tertiary"
 export type StartOptions = {
 	--- Where the InputContext lives (default ReplicatedStorage/Inputs, created on demand).
 	parent: Instance?,
@@ -35,7 +38,7 @@ local log = Log.scope("UI.Input")
 
 local UIInput = {}
 
-UIInput.ACTIONS = { "Back", "TabPrev", "TabNext" } :: { ActionName }
+UIInput.ACTIONS = { "Back", "TabPrev", "TabNext", "PagePrev", "PageNext", "Secondary", "Tertiary" } :: { ActionName }
 UIInput.CONTEXT_NAME = "KitUI"
 UIInput.DEFAULT_PRIORITY = 3100
 
@@ -45,6 +48,13 @@ UIInput.back = Signal.new() :: Signal.Signal<>
 UIInput.tabPrev = Signal.new() :: Signal.Signal<>
 --- Fired for RB / E.
 UIInput.tabNext = Signal.new() :: Signal.Signal<>
+--- Fired for LT / Z (Focus pages the focused scroll region back).
+UIInput.pagePrev = Signal.new() :: Signal.Signal<>
+--- Fired for RT / C.
+UIInput.pageNext = Signal.new() :: Signal.Signal<>
+--- Screen-defined contextual actions (X / F, Y / G): e.g. "Details", "Motor pool". Shown in the hint bar.
+UIInput.secondary = Signal.new() :: Signal.Signal<>
+UIInput.tertiary = Signal.new() :: Signal.Signal<>
 
 local enabled = false
 local context: InputContext? = nil
@@ -58,8 +68,30 @@ local function signalFor(name: string): Signal.Signal<>?
 		return UIInput.tabPrev
 	elseif name == "TabNext" then
 		return UIInput.tabNext
+	elseif name == "PagePrev" then
+		return UIInput.pagePrev
+	elseif name == "PageNext" then
+		return UIInput.pageNext
+	elseif name == "Secondary" then
+		return UIInput.secondary
+	elseif name == "Tertiary" then
+		return UIInput.tertiary
 	end
 	return nil
+end
+
+--- The Signal of a KitUI action.
+function UIInput.signal(name: ActionName): Signal.Signal<>
+	local signal = signalFor(name)
+	if signal == nil then
+		error(`UIInput.signal: unknown action "{tostring(name)}"`, 2)
+	end
+	return signal
+end
+
+--- Connects `fn` to a KitUI action (use the screen scope: `ctx.scope:Add(UIInput.on("Secondary", openDetails))`).
+function UIInput.on(name: ActionName, fn: () -> ()): Signal.Connection
+	return UIInput.signal(name):Connect(fn)
 end
 
 local function textBoxFocused(): boolean
@@ -136,6 +168,21 @@ local function inputsFolder(): Instance
 	return folder :: Instance
 end
 
+-- (Re)creates the InputBindings of one action from the InputMode registry (initial build and remapping).
+local function bindKeys(action: InputAction, name: string)
+	for _, child in action:GetChildren() do
+		if child:IsA("InputBinding") then
+			child:Destroy()
+		end
+	end
+	for _, keyCode in InputMode.keysFor(name) do
+		local binding = Instance.new("InputBinding")
+		binding.Name = keyCode.Name
+		binding.KeyCode = keyCode
+		binding.Parent = action
+	end
+end
+
 local function buildContext(parent: Instance, priority: number, connections: { RBXScriptConnection }): InputContext
 	local ctx = Instance.new("InputContext")
 	ctx.Name = UIInput.CONTEXT_NAME
@@ -146,12 +193,7 @@ local function buildContext(parent: Instance, priority: number, connections: { R
 		local action = Instance.new("InputAction")
 		action.Name = name
 		action.Type = Enum.InputActionType.Bool
-		for _, keyCode in InputMode.keysFor(name) do
-			local binding = Instance.new("InputBinding")
-			binding.Name = keyCode.Name
-			binding.KeyCode = keyCode
-			binding.Parent = action
-		end
+		bindKeys(action, name)
 		action.Parent = ctx
 		table.insert(
 			connections,
@@ -183,6 +225,19 @@ function UIInput.start(options: StartOptions?): () -> ()
 			end
 			table.clear(connections)
 		end
+	end
+	if created ~= nil then
+		-- Remapping: rebind an action when its keys change in the InputMode registry.
+		local built = created
+		table.insert(
+			connections,
+			InputMode.actionsChanged:Connect(function(name: string)
+				local action = built:FindFirstChild(name)
+				if action ~= nil and action:IsA("InputAction") then
+					bindKeys(action, name)
+				end
+			end) :: any
+		)
 	end
 	if created == nil then
 		table.insert(

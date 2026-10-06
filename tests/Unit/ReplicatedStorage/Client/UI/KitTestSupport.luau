@@ -136,6 +136,27 @@ function Support.defineClasses()
 				local tags = rawget(self, "_tags")
 				return tags ~= nil and tags[tag] == true
 			end,
+			-- Harness gap: MockInstance has no ancestor-by-class queries.
+			FindFirstAncestorWhichIsA = function(self: any, className: string): any
+				local node = rawget(self, "_parent")
+				while node ~= nil do
+					if node:IsA(className) then
+						return node
+					end
+					node = rawget(node, "_parent")
+				end
+				return nil
+			end,
+			FindFirstAncestorOfClass = function(self: any, className: string): any
+				local node = rawget(self, "_parent")
+				while node ~= nil do
+					if node.ClassName == className then
+						return node
+					end
+					node = rawget(node, "_parent")
+				end
+				return nil
+			end,
 			GetTags = function(self: any): { string }
 				local out = {}
 				for tag in rawget(self, "_tags") or {} do

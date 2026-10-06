@@ -52,6 +52,8 @@ export type HintBarProps = {
 	Parent: Instance?,
 	hints: CanBeState<{ Hint }>,
 	align: ("left" | "center" | "right")?,
+	--- Also show on mouse/keyboard (setting `ui.hintsKbm`; default false: gamepad/TV only, ui-ux §1.12).
+	keyboard: CanBeState<boolean>?,
 }
 
 local KeyPrompt = {}
@@ -89,10 +91,11 @@ function KeyPrompt.new(props: KeyPromptProps): Frame
 			Visible = showCap,
 			LayoutOrder = 2,
 			[Create.Children] = {
+				-- ui-ux §1.12 keycap: bg.inset fill, 1 px border.strong, Builder Mono label (chamfered, never round).
 				Chamfer.new({
 					corners = "all",
 					size = 3,
-					fill = Theme.color("bg.raised"),
+					fill = Theme.color("bg.inset"),
 					border = Theme.color("border.strong"),
 				}) :: Instance,
 				Layout.padding({ x = 6 }),
@@ -100,7 +103,7 @@ function KeyPrompt.new(props: KeyPromptProps): Frame
 					text = State.Computed(function(): string
 						return glyph:get().text
 					end),
-					role = "micro",
+					role = "keycap",
 					upper = false,
 					Size = UDim2.new(0, 0, 1, 0),
 					autoSize = "x",
@@ -127,15 +130,26 @@ function KeyPrompt.new(props: KeyPromptProps): Frame
 	return Common.parent(Create.Frame(values), props)
 end
 
---- Footer hint row: one KeyPrompt + label per hint (hidden on touch).
+--- Footer hint row: one KeyPrompt + label per hint. Gamepad only by default (`keyboard` adds mouse/keyboard); never
+--- on touch. Screens reserve its 48 px at the bottom while it is visible (ui-ux §1.12).
 function KeyPrompt.hintBar(props: HintBarProps): Frame
 	local justify: Layout.Justify = if props.align == "left"
 		then "start"
 		elseif props.align == "center" then "center"
 		else "end"
-	local values: { [any]: any } = Common.layout(props, {}, { Name = "HintBar", Size = UDim2.new(1, 0, 0, 32) })
+	local values: { [any]: any } = Common.layout(props, {}, { Name = "HintBar", Size = UDim2.new(1, 0, 0, 48) })
 	values.BackgroundTransparency = 1
-	values.Visible = Common.negate(InputMode.isTouch)
+	local keyboard: CanBeState<boolean> = props.keyboard or false
+	local shown = State.Computed(function(): boolean
+		local mode = InputMode.mode:get()
+		return mode == "Gamepad" or (mode == "MouseKeyboard" and State.get(keyboard))
+	end)
+	local callerVisible = props.Visible
+	values.Visible = if callerVisible == nil
+		then shown
+		else State.Computed(function(): boolean
+			return shown:get() and State.get(callerVisible :: State.CanBeState<boolean>)
+		end)
 	values[Create.Children] = {
 		Layout.list({ direction = "x", gap = Theme.space(5), align = "center", justify = justify }) :: any,
 		State.list(props.hints, function(hint: Hint): any

@@ -124,8 +124,69 @@ describe("Button", function()
 		button:Destroy()
 	end)
 
+	it("swaps to the -ING label while loading but keeps its width", function()
+		local loading = State.Value(false)
+		local button = Button.new({ text = "Research", loadingText = "Researching", loading = loading })
+		local label = Support.find(button, "Label")
+		local width = button.Size.X.Offset
+		expect(label.Text).toBe("Research")
+		loading:set(true)
+		expect(label.Text).toBe("Researching")
+		expect(button.Size.X.Offset).toBe(width)
+		loading:set(false)
+		expect(label.Text).toBe("Research")
+		button:Destroy()
+	end)
+
+	it("premium buttons take a Bullion border on hover and gamepad focus", function()
+		local button = Button.new({ text = "1,250", variant = "premium", icon = "currency/bullion" })
+		local edge = Support.find(Support.find(button, "Fill"), "EdgeTop")
+		expect(edge.BackgroundColor3).toEqual(Theme.peekColor("border.strong"))
+		Support.fire(button, "MouseEnter")
+		expect(edge.BackgroundColor3).toEqual(Theme.peekColor("currency.bullion"))
+		Support.fire(button, "MouseLeave")
+		Support.select(env.guiService, button)
+		expect(edge.BackgroundColor3).toEqual(Theme.peekColor("currency.bullion"))
+		Support.select(env.guiService, nil)
+		-- High contrast thickens the border.
+		expect(edge.Size.Y.Offset).toBe(1)
+		Theme.set({ highContrast = true })
+		expect(edge.Size.Y.Offset).toBe(2)
+		button:Destroy()
+	end)
+
+	it("hold-to-confirm: touch hold completes, release cancels, mouse clicks", function()
+		local count = 0
+		local button = Button.new({
+			text = "Sell",
+			variant = "danger",
+			hold = 0.5,
+			onActivated = function()
+				count += 1
+			end,
+		})
+		Support.click(button)
+		expect(count).toBe(1)
+		InputMode.set("Touch")
+		Support.click(button)
+		expect(count).toBe(1)
+		Support.fire(button, "InputBegan", Support.input({ UserInputType = Enum.UserInputType.Touch }))
+		for _ = 1, 12 do
+			env:step(1 / 60)
+		end
+		Support.fire(button, "InputEnded", Support.input({ UserInputType = Enum.UserInputType.Touch }))
+		expect(count).toBe(1)
+		expect(Support.find(button, "HoldFill").Visible).toBe(false)
+		Support.fire(button, "InputBegan", Support.input({ UserInputType = Enum.UserInputType.Touch }))
+		for _ = 1, 40 do
+			env:step(1 / 60)
+		end
+		expect(count).toBe(2)
+		button:Destroy()
+	end)
+
 	it("builds every variant with valid properties", function()
-		for _, variant in { "primary", "secondary", "ghost", "danger", "battle" } do
+		for _, variant in { "primary", "secondary", "ghost", "danger", "premium", "battle" } do
 			for _, size in { "large", "medium", "compact" } do
 				local button = Button.new({
 					text = "Label",
@@ -289,7 +350,7 @@ describe("Dropdown", function()
 		)
 	end)
 
-	it("opens a trapped list in the Modals layer, selects, and closes on Back", function()
+	it("opens a trapped list in the Tooltip layer (above modals), selects, and closes on Back", function()
 		local gui = registerLayers()
 		InputMode.set("Gamepad")
 		local selected = State.Value("medium")
@@ -304,7 +365,7 @@ describe("Dropdown", function()
 		})
 		expect(Support.find(field, "Value").Text).toBe("Medium")
 		Support.click(field)
-		local popup = Support.find(Layers.get("Modals"), "DropdownPopup")
+		local popup = Support.find(Layers.get("Tooltip"), "DropdownPopup")
 		expect(popup).never.toBeNil()
 		-- Focus starts on the selected option and is trapped in the list.
 		expect(env.guiService.SelectedObject).toBe(Support.find(popup, "Option2"))
@@ -315,19 +376,19 @@ describe("Dropdown", function()
 		Support.click(Support.find(popup, "Option3"))
 		expect(selected:peek()).toBe("high")
 		expect(changes).toEqual({ "high" })
-		expect(Support.find(Layers.get("Modals"), "DropdownPopup")).toBeNil()
+		expect(Support.find(Layers.get("Tooltip"), "DropdownPopup")).toBeNil()
 		expect(Support.find(field, "Value").Text).toBe("High")
 		-- Back closes the popup instead of reaching the router.
 		Support.click(field)
-		expect(Support.find(Layers.get("Modals"), "DropdownPopup")).never.toBeNil()
+		expect(Support.find(Layers.get("Tooltip"), "DropdownPopup")).never.toBeNil()
 		expect(UIInput.interceptBackNow()).toBe(true)
-		expect(Support.find(Layers.get("Modals"), "DropdownPopup")).toBeNil()
+		expect(Support.find(Layers.get("Tooltip"), "DropdownPopup")).toBeNil()
 		expect(UIInput.interceptBackNow()).toBe(false)
 		expect(Focus.top()).toBeNil()
 		-- Destroying the field while open closes the popup.
 		Support.click(field)
 		field:Destroy()
-		expect(Support.find(Layers.get("Modals"), "DropdownPopup")).toBeNil()
+		expect(Support.find(Layers.get("Tooltip"), "DropdownPopup")).toBeNil()
 		gui:Destroy()
 	end)
 
@@ -336,7 +397,7 @@ describe("Dropdown", function()
 		local field = Dropdown.new({ options = options, selected = State.Value(nil), disabled = true, Parent = gui })
 		expect(Support.find(field, "Value").Text).toBe("Select")
 		Support.click(field)
-		expect(Support.find(Layers.get("Modals"), "DropdownPopup")).toBeNil()
+		expect(Support.find(Layers.get("Tooltip"), "DropdownPopup")).toBeNil()
 		Support.validateTree(field)
 		gui:Destroy()
 	end)
@@ -511,6 +572,25 @@ describe("Text and KeyPrompt", function()
 		expect(label.TextSize).toBe(Theme.textSize("label"):peek())
 		Support.validateTree(label)
 		Support.validateTree(body)
+	end)
+
+	it("hint bar shows on gamepad, on keyboard only when asked, never on touch", function()
+		local bar = KeyPrompt.hintBar({ hints = { { action = "Back", label = "Back" } } })
+		local kbm = KeyPrompt.hintBar({ hints = { { action = "Back", label = "Back" } }, keyboard = true })
+		expect(bar.Size.Y.Offset).toBe(48)
+		expect(bar.Visible).toBe(false)
+		expect(kbm.Visible).toBe(true)
+		InputMode.set("Gamepad")
+		expect(bar.Visible).toBe(true)
+		InputMode.set("Touch")
+		expect(bar.Visible).toBe(false)
+		expect(kbm.Visible).toBe(false)
+		local keycap = Support.find(KeyPrompt.new({ action = "Back" }), "Keycap")
+		InputMode.set("MouseKeyboard")
+		expect(Support.find(keycap, "Text").FontFace.Family).toBe(Theme.font("keycap").Family)
+		Support.validateTree(bar)
+		bar:Destroy()
+		kbm:Destroy()
 	end)
 
 	it("KeyPrompt follows the input mode and respects the caller's Visible", function()

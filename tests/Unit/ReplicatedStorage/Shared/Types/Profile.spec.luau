@@ -92,6 +92,7 @@ local function vehicleRecord(i: number): VehicleRecord
 			engine = "iu_engine_" .. i,
 			tracks = "iu_tracks_" .. i,
 		},
+		ownedModules = { [`iu_gun_{i}_alt`] = true, [`iu_tracks_{i}_alt`] = true },
 		equipment = {
 			{ slot = 1, id = "rammer_assist_a" },
 			{ slot = 2, id = "gyro_stabiliser_a" },
@@ -255,11 +256,12 @@ local function maxedProfile(vehicleCount: number): Profile
 		},
 		pass = { seasonId = "season_1", points = 1800, paid = true, claimed = ring(180, "s1c1:", 4), tokens = 40 },
 		events = {
-			forge_week = { joinedAt = 1790000000, progress = { stage = 4 } },
+			forge_week = { joinedAt = 1790000000, progress = { stage = 4 }, settledAt = 1790700000 },
 			ranked_s1 = {
 				joinedAt = 1790000000,
 				progress = {},
 				ranked = { rank = 7, points = 140, bestRank = 8, battles = 212, wins = 118 },
+				settledAt = 0,
 			},
 		},
 		achievements = achievements,

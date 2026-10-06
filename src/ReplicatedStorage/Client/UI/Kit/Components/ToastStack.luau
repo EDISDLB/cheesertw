@@ -7,7 +7,7 @@
 	                  24 px from the right over 160 ms (brand-art §8.1), holds 4 s (8 s with an action; any `duration`,
 	                  e.g. 30 s invites; paused while the pointer is over it), then leaves in 120 ms and is destroyed.
 	                  A 4th toast first evicts the oldest toast without an action (then the oldest with one); a `key`
-	                  replaces the toast with the same key. Timers run on Heartbeat (Motion.loop) so tests can step
+	                  replaces the toast with the same key. ui_notification plays at most once per 1.5 s. Timers run on Heartbeat (Motion.loop) so tests can step
 	                  them.
 	Dependencies:     Kit/Create, Kit/Theme, Kit/Layout, Kit/Layers, Kit/Motion, Kit/Sound, Components/Toast,
 	                  Core/Log.
@@ -62,6 +62,33 @@ local ToastStack = {}
 
 ToastStack.MAX = 3
 ToastStack.SLIDE = 24
+--- At most one ui_notification per this many seconds; batched toasts share one (ui-ux §1.16).
+ToastStack.SOUND_GAP = 1.5
+
+local soundClock: () -> number = os.clock
+local lastSoundAt = -math.huge
+
+--- Replaces the clock of the notification-sound rate limit (tests). nil restores os.clock.
+function ToastStack.setClock(fn: (() -> number)?)
+	soundClock = fn or os.clock
+	lastSoundAt = -math.huge
+end
+
+local function playSound(sound: (boolean | string)?)
+	if sound == false then
+		return
+	end
+	if type(sound) == "string" then
+		Sound.play(sound)
+		return
+	end
+	local now = soundClock()
+	if now - lastSoundAt < ToastStack.SOUND_GAP then
+		return
+	end
+	lastSoundAt = now
+	Sound.play(Sound.KEYS.notification)
+end
 
 export type LiveToast = { id: number, action: boolean }
 
@@ -216,9 +243,7 @@ function ToastStack.new(options: Options?): Stack
 		table.insert(records, record)
 		slot.Parent = frame
 		Motion.slideIn(card, "right", ToastStack.SLIDE, { duration = "toast" })
-		if spec.sound ~= false then
-			Sound.play(Sound.KEYS.notification)
-		end
+		playSound(spec.sound)
 		if record.hold ~= nil then
 			ensureLoop()
 		end

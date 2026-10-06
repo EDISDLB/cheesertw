@@ -1,15 +1,20 @@
 --!strict
 --[[
-	Components/Button — the brand button: primary CTA, secondary, ghost, danger and battle variants.
+	Components/Button — the brand button: primary CTA, secondary, ghost, danger, premium and battle variants.
 
 	Purpose:          brand-art §8.3 states for every variant — idle, hover, pressed (label 1 px lower), disabled,
-	                  loading (spinner, non-activating), gamepad focus (the global brand focus ring; danger buttons use
-	                  the danger ring) — with optional leading/trailing icons, an input-glyph hint (KeyPrompt), UI
-	                  sounds (hover/click via Kit/Sound) and tooltips. Primary/battle use the dusk vertical gradient
+	                  loading (spinner + optional "-ING" label, keeps its width, non-activating; ui-ux §1.8), gamepad
+	                  focus (the global brand focus ring; danger buttons use the danger ring) — with optional
+	                  leading/trailing icons, an input-glyph hint (KeyPrompt), UI sounds (hover/click via Kit/Sound),
+	                  tooltips and hold-to-confirm (`hold`: on gamepad and touch the action fires only after holding
+	                  A / the finger for Theme.state.holdSeconds while a fill sweeps the button; mouse and keyboard
+	                  click as usual — ui-ux §1.6 destructive confirmations). Premium = secondary with a Bullion-gold
+	                  border on hover/focus (Bullion purchases). Primary/battle use the dusk vertical gradient
 	                  (#FF8A45 -> #E8641F), lighten to dusk_hi with a 2 px dusk glow on hover, dusk_lo when pressed;
 	                  HULLDOWN-cut chamfers. Heights 56 (large), 44 (medium), 36 (compact; raised to 44 on touch),
 	                  64 battle (min 280 wide); minimum width 2.5 × height. One primary CTA per screen.
-	Dependencies:     Kit/Create, Kit/State, Kit/Theme, Kit/Layout, Kit/Sound, Kit/InputMode, Components/Chamfer,
+	Dependencies:     Kit/Create, Kit/State, Kit/Theme, Kit/Layout, Kit/Sound, Kit/InputMode, Kit/Motion,
+	                  Kit/Services, Components/Chamfer,
 	                  Components/Common, Components/Text, Components/Spinner, Components/KeyPrompt,
 	                  Components/FocusRing, Components/Tooltip (lazy), Icons/Icon.
 	State:            Interaction Values (hover/pressed/selected) and derived visual-state Computeds per button.
@@ -24,6 +29,8 @@ local Theme = require("../Theme")
 local Layout = require("../Layout")
 local Sound = require("../Sound")
 local InputMode = require("../InputMode")
+local Motion = require("../Motion")
+local Services = require("../Services")
 local Chamfer = require("./Chamfer")
 local Common = require("./Common")
 local Text = require("./Text")
@@ -35,7 +42,7 @@ local Icon = require("../../Icons/Icon")
 type State<T> = State.State<T>
 type CanBeState<T> = State.CanBeState<T>
 
-export type Variant = "primary" | "secondary" | "ghost" | "danger" | "battle"
+export type Variant = "primary" | "secondary" | "ghost" | "danger" | "premium" | "battle"
 export type Size = "large" | "medium" | "compact"
 export type VisualState = "idle" | "hover" | "pressed" | "disabled"
 
@@ -59,6 +66,10 @@ export type ButtonProps = {
 	hint: string?,
 	disabled: CanBeState<boolean>?,
 	loading: CanBeState<boolean>?,
+	--- Label while loading (the verb in -ING form, "RESEARCHING"); the button keeps the width of `text`.
+	loadingText: CanBeState<string>?,
+	--- Hold-to-confirm on gamepad/touch: true = Theme.state.holdSeconds (player setting), or seconds.
+	hold: (boolean | number)?,
 	onActivated: (() -> ())?,
 	--- px width, "fill" (parent width) or "auto" (measured text, default).
 	width: (number | "fill" | "auto")?,
@@ -97,6 +108,96 @@ function Button.computeWidth(variant: Variant, height: number, labelWidth: numbe
 		minimum = math.max(minimum, Theme.sizes.battleMinWidth)
 	end
 	return math.ceil(math.max(width, minimum))
+end
+
+export type HoldController = {
+	--- 0..1 while held.
+	progress: State<number>,
+	--- True when hold-to-confirm applies (gamepad or touch input mode).
+	active: State<boolean>,
+	stop: () -> (),
+}
+
+--- Pure: hold progress after `elapsed` seconds of a `seconds`-long hold (0..1).
+function Button.holdProgress(elapsed: number, seconds: number): number
+	if seconds <= 0 then
+		return 1
+	end
+	return math.clamp(elapsed / seconds, 0, 1)
+end
+
+--- Hold-to-confirm for any GuiButton (Button uses it for `hold`): in Gamepad mode, ButtonA held while the button is
+--- GuiService.SelectedObject; in Touch mode, a finger held on it. Completing the hold calls `onComplete` once;
+--- releasing early resets. Mouse/keyboard modes are inactive (they click).
+function Button.holdController(
+	target: GuiButton,
+	options: { seconds: CanBeState<number>, enabled: CanBeState<boolean>?, onComplete: () -> () }
+): HoldController
+	local progress = State.Value(0)
+	local active = State.Computed(function(): boolean
+		local mode = InputMode.mode:get()
+		return mode == "Gamepad" or mode == "Touch"
+	end)
+	local stopLoop: (() -> ())? = nil
+	local function cancel()
+		if stopLoop ~= nil then
+			local fn = stopLoop
+			stopLoop = nil
+			fn()
+		end
+		progress:set(0)
+	end
+	local function begin()
+		if not active:peek() or (options.enabled ~= nil and not State.peek(options.enabled)) or stopLoop ~= nil then
+			return
+		end
+		local elapsed = 0
+		progress:set(0)
+		stopLoop = Motion.loop(function(dt: number): boolean?
+			elapsed += dt
+			local p = Button.holdProgress(elapsed, State.peek(options.seconds))
+			progress:set(p)
+			if p >= 1 then
+				stopLoop = nil
+				progress:set(0)
+				options.onComplete()
+				return true
+			end
+			return nil
+		end)
+	end
+	local UserInputService = Services.input()
+	local connections: { RBXScriptConnection } = {
+		target.InputBegan:Connect(function(input: InputObject)
+			if input.UserInputType == Enum.UserInputType.Touch then
+				begin()
+			end
+		end),
+		target.InputEnded:Connect(function(input: InputObject)
+			if input.UserInputType == Enum.UserInputType.Touch then
+				cancel()
+			end
+		end),
+		UserInputService.InputBegan:Connect(function(input: InputObject)
+			if input.KeyCode == Enum.KeyCode.ButtonA and Services.gui().SelectedObject == target then
+				begin()
+			end
+		end),
+		UserInputService.InputEnded:Connect(function(input: InputObject)
+			if input.KeyCode == Enum.KeyCode.ButtonA then
+				cancel()
+			end
+		end),
+		target.SelectionLost:Connect(cancel),
+	}
+	local function stop()
+		for _, connection in connections do
+			connection:Disconnect()
+		end
+		table.clear(connections)
+		cancel()
+	end
+	return { progress = State.readonly(progress), active = active, stop = stop }
 end
 
 local function labelRole(variant: Variant): Theme.TypeRole
@@ -188,10 +289,21 @@ local function plainSurface(variant: Variant, visual: State<VisualState>): { Ins
 		local state = visual:get()
 		if variant == "danger" then
 			return if state == "disabled" then Theme.color("border.subtle"):get() else Theme.color("state.danger"):get()
+		elseif variant == "premium" and (state == "hover" or state == "pressed") then
+			return Theme.color("currency.bullion"):get()
 		end
 		return if state == "disabled" then Theme.color("border.subtle"):get() else Theme.color("border.strong"):get()
 	end)
-	return { Chamfer.new({ name = "Fill", corners = "brand", fill = fill, border = border, zIndex = 2 }) }
+	return {
+		Chamfer.new({
+			name = "Fill",
+			corners = "brand",
+			fill = fill,
+			border = border,
+			borderThickness = Theme.borderWidth(),
+			zIndex = 2,
+		}),
+	}
 end
 
 local function labelColor(variant: Variant, visual: State<VisualState>): State<Color3>
@@ -223,6 +335,7 @@ function Button.new(props: ButtonProps): TextButton
 		and variant ~= "secondary"
 		and variant ~= "ghost"
 		and variant ~= "danger"
+		and variant ~= "premium"
 		and variant ~= "battle"
 	then
 		error(`Button: unknown variant "{tostring(variant)}"`, 2)
@@ -245,10 +358,11 @@ function Button.new(props: ButtonProps): TextButton
 	})
 	local interaction = Common.trackInteraction(button, true)
 	local visual: State<VisualState> = State.Computed(function(): VisualState
+		local focusHover = (variant == "ghost" or variant == "premium") and interaction.selected:get()
 		return Button.visualState(
 			State.get(disabled),
 			interaction.pressed:get(),
-			interaction.hovered:get() or (variant == "ghost" and interaction.selected:get())
+			interaction.hovered:get() or focusHover
 		)
 	end) :: any
 	local role: Theme.TypeRole = labelRole(variant)
@@ -275,11 +389,18 @@ function Button.new(props: ButtonProps): TextButton
 		)
 	end
 	table.insert(content, Spinner.new({ size = iconSize, color = color, LayoutOrder = 1, Visible = isLoading }))
+	local labelText: CanBeState<string> = text
+	if props.loadingText ~= nil then
+		local loadingText = props.loadingText :: CanBeState<string>
+		labelText = State.Computed(function(): string
+			return if State.get(loading) then State.get(loadingText) else State.get(text)
+		end)
+	end
 	table.insert(
 		content,
 		Text.new({
 			Name = "Label",
-			text = text,
+			text = labelText,
 			role = role,
 			color = color,
 			LayoutOrder = 2,
@@ -359,13 +480,7 @@ function Button.new(props: ButtonProps): TextButton
 	local values: { [any]: any } = Common.layout(props, {})
 	values.Size = size
 	values[Create.Children] = children
-	values[Create.On("Activated")] = function()
-		if State.peek(disabled) or State.peek(loading) then
-			if State.peek(disabled) then
-				Sound.play(Sound.KEYS.error)
-			end
-			return
-		end
+	local function activate()
 		if props.sound ~= false then
 			local default = if variant == "primary" or variant == "battle" then Sound.KEYS.confirm else Sound.KEYS.click
 			Sound.play(if type(props.sound) == "string" then props.sound else default)
@@ -373,6 +488,49 @@ function Button.new(props: ButtonProps): TextButton
 		if props.onActivated ~= nil then
 			props.onActivated()
 		end
+	end
+	local holdSpec = props.hold
+	local holdMode: State<boolean>? = nil
+	if holdSpec ~= nil and holdSpec ~= false then
+		local seconds: CanBeState<number> = if type(holdSpec) == "number" then holdSpec else Theme.state.holdSeconds
+		local hold = Button.holdController(button, {
+			seconds = seconds,
+			enabled = State.Computed(function(): boolean
+				return not State.get(disabled) and not State.get(loading)
+			end),
+			onComplete = activate,
+		})
+		holdMode = hold.active
+		table.insert(
+			children,
+			Create.Frame({
+				Name = "HoldFill",
+				BorderSizePixel = 0,
+				BackgroundColor3 = Theme.color(if variant == "danger" then "state.danger" else "accent.dusk"),
+				BackgroundTransparency = 0.6,
+				Size = State.map(hold.progress, function(p: number): UDim2
+					return UDim2.fromScale(p, 1)
+				end),
+				Visible = State.map(hold.progress, function(p: number): boolean
+					return p > 0
+				end),
+				ZIndex = 4,
+			})
+		)
+		values[Create.Cleanup] = hold.stop
+	end
+	values[Create.On("Activated")] = function()
+		if State.peek(disabled) or State.peek(loading) then
+			if State.peek(disabled) then
+				Sound.play(Sound.KEYS.error)
+			end
+			return
+		end
+		-- Gamepad/touch confirm by holding (the controller fires activate); a tap does nothing.
+		if holdMode ~= nil and holdMode:peek() then
+			return
+		end
+		activate()
 	end
 	if variant == "danger" then
 		values.SelectionImageObject = FocusRing.get("danger")

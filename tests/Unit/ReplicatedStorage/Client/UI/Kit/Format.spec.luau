@@ -79,6 +79,39 @@ describe("Format", function()
 		expect(Format.timer(-1)).toBe("0.0")
 	end)
 
+	it("formats cooldowns and two-unit durations", function()
+		expect(Format.cooldown(41.2)).toBe("42")
+		expect(Format.cooldown(0.01)).toBe("1")
+		expect(Format.cooldown(0)).toBe("0")
+		expect(Format.cooldown(0 / 0)).toBe("0")
+		expect(Format.duration(6 * 86400 + 4 * 3600 + 59)).toBe("6d 4h")
+		expect(Format.duration(4 * 3600 + 12 * 60 + 30)).toBe("4h 12m")
+		expect(Format.duration(12 * 60 + 30)).toBe("12m 30s")
+		expect(Format.duration(45.9)).toBe("45 s")
+		expect(Format.duration(2 * 3600)).toBe("2h")
+		expect(Format.duration(3 * 86400 + 59)).toBe("3d")
+		expect(Format.duration(-4)).toBe("0 s")
+		expect(Format.duration(math.huge)).toBe("0 s")
+	end)
+
+	it("formats dates and relative times from passed-in clocks", function()
+		local now = 1791277200 -- 2026-10-06 09:00 UTC
+		expect(Format.date(1791225600)).toBe("5 Oct")
+		expect(Format.date(1759665600, now)).toBe("5 Oct 2025")
+		expect(Format.date(0)).toBe("1 Jan")
+		expect(Format.date(1709208000)).toBe("29 Feb")
+		expect(Format.date(951868800)).toBe("1 Mar")
+		expect(Format.relative(now - 20, now)).toBe("just now")
+		expect(Format.relative(now + 300, now)).toBe("just now")
+		expect(Format.relative(now - 5 * 60 - 5, now)).toBe("5 min ago")
+		expect(Format.relative(now - 3 * 3600, now)).toBe("3 h ago")
+		expect(Format.relative(1791225600, now)).toBe("14 h ago") -- 2026-10-05 18:40: within 24 h
+		expect(Format.relative(1791225600, now + 14 * 3600)).toBe("Yesterday") -- 28 h ago, previous day
+		expect(Format.relative(1791225600 - 2 * 86400, now)).toBe("3 Oct")
+		expect(Format.relative(1759665600, now)).toBe("5 Oct 2025")
+		expect(Format.relative(0 / 0, now)).toBe(Format.INVALID)
+	end)
+
 	it("writes roman tier numerals", function()
 		local expected = { "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI" }
 		for tier, numeral in expected do

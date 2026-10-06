@@ -391,6 +391,8 @@ local function addApex(b: any): any
 	})
 	apex.apex = { nodes = nodes }
 	table.insert(b.vehicles, apex)
+	-- An Event vehicle must be handed out by something: the fixture event mode rents it.
+	find(b.events, "forge_week").modes[1].vehicles = { "iu_apex" }
 	return apex
 end
 
@@ -544,6 +546,60 @@ describe("ContentRegistry: getters and derived views", function()
 		expect(#content:parentsOf("iu_ostmal")).toBe(1)
 		expect(content:parentsOf("iu_kolmal")).toEqual({})
 		expect(content:childrenOf("iu_bulmal")).toEqual({})
+	end)
+
+	it("returns frozen views, so a caller's in-place sort cannot reorder the shared registry", function()
+		local content = ContentRegistry.get()
+		local views: { { any } } = {
+			content:list("Vehicle"),
+			content:list("Gun"),
+			content:allVehicles(),
+			content:allMaps(),
+			content:vehiclesByFaction("iron_union"),
+			content:vehiclesByTier(1),
+			content:vehiclesByClass("medium"),
+			content:rolesByClass("medium"),
+			content:branchesByFaction("iron_union"),
+			content:techTreeEdges(),
+			content:techTreeEdges("iron_union"),
+			content:parentsOf("iu_ostmal"),
+			content:childrenOf("iu_kolmal"),
+			content:parentsOf("iu_kolmal"), -- empty
+		}
+		for i, view in views do
+			if not table.isfrozen(view) then
+				error(`view {i} is not frozen`)
+			end
+		end
+		expect(function()
+			table.sort(content:allVehicles() :: any, function(a: any, b: any)
+				return a.tier > b.tier
+			end)
+		end).toThrow("readonly")
+		expect(content:allVehicles()[1].id).toBe("iu_kolmal")
+	end)
+
+	it("accepts a Tier VI vehicle once its role defines enough Field Kit levels", function()
+		local b = fixtureBundle()
+		addRewardCopies(b, 1, 0)
+		local copy = find(b.vehicles, "iu_reward_1")
+		copy.tier = 6
+		table.insert(
+			find(b.missions, "daily_hold_the_line").rewards,
+			{ kind = "Vehicle", id = "iu_reward_1", amount = 1 }
+		)
+		local levels = {}
+		for level = 1, 3 do
+			table.insert(levels, {
+				options = {
+					{ id = `fk_{level}_a`, name = "Option A", description = "A.", effects = {} },
+					{ id = `fk_{level}_b`, name = "Option B", description = "B.", effects = {} },
+				},
+			})
+		end
+		find(b.roles, "medium_versatile").fieldKit = levels
+		local errors = report(b)
+		expect(ContentRegistry.formatIssues(errors)).toBe("")
 	end)
 
 	it("computes configuration mass and enforces the mount rules", function()
@@ -3084,6 +3140,482 @@ local cases: { Case } = {
 		path = "maps[1](proving_grounds).terrain.materials[1]",
 		mutate = function(b)
 			b.maps[1].terrain.materials[1].min = nil
+		end,
+	},
+	-- Adversarial review (2026-10-06): each case below passed validate() before the rule existed ---------------
+	{
+		name = "unlock gated on a stock module",
+		code = "UNLOCK_EDGE",
+		path = "vehicles[1](iu_kolmal).unlocks[1].requires",
+		warning = true,
+		mutate = function(b)
+			find(b.vehicles, "iu_kolmal").unlocks[1].requires = "iu_gun_37mm"
+		end,
+	},
+	{
+		name = "tech-tree vehicle off its branch's row",
+		code = "BRANCH",
+		path = "vehicles[2](iu_ostmal).tree.row",
+		mutate = function(b)
+			find(b.vehicles, "iu_ostmal").tree.row = 3
+		end,
+	},
+	{
+		name = "casemate gun mount on a hull with no fighting compartment",
+		code = "MOUNT",
+		path = "vehicles[1](iu_kolmal).visual.hull",
+		message = "fighting compartment",
+		mutate = function(b)
+			local kolmal = find(b.vehicles, "iu_kolmal")
+			kolmal.class = "td"
+			kolmal.role = "td_support"
+			local turret = find(b.turrets, "iu_turret_kolmal")
+			turret.mount = "Casemate"
+			turret.visual.style = "Casemate"
+			turret.yawLimitsDeg = { left = 11, right = 11 }
+		end,
+	},
+	{
+		name = "rotating turret on a Casemate hull",
+		code = "MOUNT",
+		path = "vehicles[1](iu_kolmal).visual.hull.style",
+		mutate = function(b)
+			find(b.vehicles, "iu_kolmal").visual.hull.style = "Casemate"
+		end,
+	},
+	{
+		name = "vehicle mixing a rotating turret and a casemate mount",
+		code = "MOUNT",
+		path = "vehicles[3](iu_bulmal).modules.turrets",
+		mutate = function(b)
+			local bulmal = find(b.vehicles, "iu_bulmal")
+			bulmal.class = "td"
+			bulmal.role = "td_support"
+			local dome = find(b.turrets, "iu_turret_bulmal_m2")
+			dome.mount = "Casemate"
+			dome.visual.style = "Casemate"
+			dome.yawLimitsDeg = { left = 10, right = 10 }
+		end,
+	},
+	{
+		name = "Casemate visual style on a rotating turret",
+		code = "MOUNT",
+		path = "turrets[1](iu_turret_kolmal).visual.style",
+		message = "for casemate gun mounts",
+		mutate = function(b)
+			find(b.turrets, "iu_turret_kolmal").visual.style = "Casemate"
+		end,
+	},
+	{
+		name = "rotating turret smaller than its ring",
+		code = "VISUAL",
+		path = "vehicles[1](iu_kolmal).visual.hull.turretRing.diameterM",
+		message = "does not cover",
+		mutate = function(b)
+			find(b.turrets, "iu_turret_kolmal").visual.widthM = 0.8
+		end,
+	},
+	{
+		name = "ChargedShot on a magazine gun",
+		code = "MECHANIC",
+		path = "vehicles[4](iu_apex).modules.guns(iu_gun_45mm)",
+		message = "ChargedShot rides the fire trigger",
+		mutate = function(b)
+			addApex(b)
+			find(b.guns, "iu_gun_45mm").reload = { kind = "Magazine", size = 3, intraClipS = 2, reloadS = 12 }
+		end,
+	},
+	{
+		name = "Wheeled vehicle drawn on tracked suspension",
+		code = "MECHANIC",
+		path = "vehicles[1](iu_kolmal).visual.running.suspension",
+		mutate = function(b)
+			local kolmal = find(b.vehicles, "iu_kolmal")
+			kolmal.class = "light"
+			kolmal.role = "light_versatile"
+			kolmal.mechanics = {
+				{
+					kind = "Wheeled",
+					wheelPairs = 4,
+					speedModeTopSpeedMul = 1.3,
+					speedModeSteeringMul = 0.6,
+					speedModeReverseMul = 0.7,
+					toggleS = 1,
+					lostPairSpeedMul = 0.75,
+					movingDispersionMul = 1.15,
+					turnRadiusM = 8,
+				},
+			}
+			find(b.tracks, "iu_tracks_kolmal").wheeled = true
+		end,
+	},
+	{
+		name = "Wheeled mechanic with a wheel-pair count the model does not draw",
+		code = "MECHANIC",
+		path = "vehicles[1](iu_kolmal).mechanics[1].wheelPairs",
+		mutate = function(b)
+			local kolmal = find(b.vehicles, "iu_kolmal")
+			kolmal.class = "light"
+			kolmal.role = "light_versatile"
+			kolmal.visual.running.suspension = "Wheeled"
+			kolmal.mechanics = {
+				{
+					kind = "Wheeled",
+					wheelPairs = 3,
+					speedModeTopSpeedMul = 1.3,
+					speedModeSteeringMul = 0.6,
+					speedModeReverseMul = 0.7,
+					toggleS = 1,
+					lostPairSpeedMul = 0.75,
+					movingDispersionMul = 1.15,
+					turnRadiusM = 8,
+				},
+			}
+			find(b.tracks, "iu_tracks_kolmal").wheeled = true
+		end,
+	},
+	{
+		name = "wheeled vehicle with neutral steer",
+		code = "MECHANIC",
+		path = "vehicles[1](iu_kolmal).mobility.pivot",
+		mutate = function(b)
+			local kolmal = find(b.vehicles, "iu_kolmal")
+			kolmal.class = "light"
+			kolmal.role = "light_versatile"
+			kolmal.visual.running.suspension = "Wheeled"
+			kolmal.mobility.pivot = true
+			kolmal.mechanics = {
+				{
+					kind = "Wheeled",
+					wheelPairs = 4,
+					speedModeTopSpeedMul = 1.3,
+					speedModeSteeringMul = 0.6,
+					speedModeReverseMul = 0.7,
+					toggleS = 1,
+					lostPairSpeedMul = 0.75,
+					movingDispersionMul = 1.15,
+					turnRadiusM = 8,
+				},
+			}
+			find(b.tracks, "iu_tracks_kolmal").wheeled = true
+		end,
+	},
+	{
+		name = "Wheeled suspension without the Wheeled mechanic",
+		code = "MECHANIC",
+		path = "vehicles[1](iu_kolmal).visual.running.suspension",
+		mutate = function(b)
+			find(b.vehicles, "iu_kolmal").visual.running.suspension = "Wheeled"
+		end,
+	},
+	{
+		name = "mission granting a tech-tree vehicle (research bypass)",
+		code = "REWARD",
+		path = "missions[1](daily_hold_the_line).rewards[4].id",
+		mutate = function(b)
+			table.insert(
+				find(b.missions, "daily_hold_the_line").rewards,
+				{ kind = "Vehicle", id = "iu_ostmal", amount = 1 }
+			)
+		end,
+	},
+	{
+		name = "consumable with no credit price",
+		code = "PRICE",
+		path = "consumables[1](repair_kit).price",
+		mutate = function(b)
+			find(b.consumables, "repair_kit").price = { campaignTokens = 100 }
+		end,
+	},
+	{
+		name = "smoke consumable usable in Random battles",
+		code = "BAD_VALUE",
+		path = "consumables[3](smoke_screen).eventOnly",
+		mutate = function(b)
+			find(b.consumables, "smoke_screen").eventOnly = nil
+		end,
+	},
+	{
+		name = "arc sector whose ends are the same bearing",
+		code = "BAD_VALUE",
+		path = "vehicles[3](iu_bulmal).arcSectors[1]",
+		message = "same bearing",
+		mutate = function(b)
+			find(b.vehicles, "iu_bulmal").arcSectors[1].toDeg = 150
+		end,
+	},
+	{
+		name = "Tier VI vehicle whose role defines no Field Kit",
+		code = "FIELD_KIT",
+		path = "vehicles[4](iu_reward_1).role",
+		mutate = function(b)
+			addRewardCopies(b, 1, 0)
+			find(b.vehicles, "iu_reward_1").tier = 6
+		end,
+	},
+	{
+		name = "duplicate map variant id",
+		code = "BAD_VALUE",
+		path = "maps[1](proving_grounds).variants[2].id",
+		message = "duplicate",
+		mutate = function(b)
+			b.maps[1].variants[2].id = "midday"
+		end,
+	},
+	{
+		name = "duplicate water body id",
+		code = "BAD_VALUE",
+		path = "maps[1](proving_grounds).water[2].id",
+		message = "duplicate",
+		mutate = function(b)
+			b.maps[1].water[2].id = "mill_pond_east"
+		end,
+	},
+	{
+		name = "duplicate random-event id",
+		code = "BAD_VALUE",
+		path = "maps[1](proving_grounds).randomEvents[2].id",
+		message = "duplicate",
+		mutate = function(b)
+			b.maps[1].randomEvents = {
+				{ id = "bridge_out", chance = 0.1, props = {} },
+				{ id = "bridge_out", chance = 0.1, props = {} },
+			}
+		end,
+	},
+	{
+		name = "duplicate event-mode ability id",
+		code = "BAD_VALUE",
+		path = "events[1](forge_week).modes[1].abilities[2].id",
+		mutate = function(b)
+			local abilities = find(b.events, "forge_week").modes[1].abilities
+			table.insert(abilities, table.clone(abilities[1]))
+		end,
+	},
+	{
+		name = "class lists a role twice",
+		code = "BAD_VALUE",
+		path = "classes[1](light).roles[4]",
+		mutate = function(b)
+			table.insert(find(b.classes, "light").roles, "light_scout")
+		end,
+	},
+	{
+		name = "two classes share a UI order",
+		code = "BAD_VALUE",
+		path = "classes[2](medium).order",
+		mutate = function(b)
+			find(b.classes, "medium").order = 1
+		end,
+	},
+	{
+		name = "equipment spanning two price bands",
+		code = "BAD_VALUE",
+		path = "equipment[1](rammer_assist_c).tiers",
+		message = "spans equipment bands",
+		mutate = function(b)
+			find(b.equipment, "rammer_assist_c").tiers = { min = 2, max = 6 }
+		end,
+	},
+	{
+		name = "equipment compatibility with inverted mass bounds",
+		code = "BAD_VALUE",
+		path = "equipment[1](rammer_assist_c).compatibility",
+		mutate = function(b)
+			local c = find(b.equipment, "rammer_assist_c").compatibility
+			c.minMassKg = 50000
+			c.maxMassKg = 10000
+		end,
+	},
+	{
+		name = "category slot override below Tier VI",
+		code = "BAD_VALUE",
+		path = "vehicles[1](iu_kolmal).slots.categorySlot",
+		mutate = function(b)
+			find(b.vehicles, "iu_kolmal").slots = { categorySlot = "Firepower" }
+		end,
+	},
+	{
+		name = "artillery gun with a kinetic round",
+		code = "SHELL_KIND",
+		path = "guns[4](iu_gun_76mm).shells[1]",
+		message = "HE/HESH only",
+		mutate = function(b)
+			local gun = find(b.guns, "iu_gun_76mm")
+			gun.indirect = true
+			gun.arcs.elevationDeg = 60
+			for _, shellId in gun.shells do
+				find(b.shells, shellId).maxRangeM = 1200
+			end
+		end,
+	},
+	{
+		name = "ricochet angle on an HE shell",
+		code = "SHELL_KIND",
+		path = "shells[3](iu_37mm_he).ricochetAngleDeg",
+		mutate = function(b)
+			find(b.shells, "iu_37mm_he").ricochetAngleDeg = 70
+		end,
+	},
+	{
+		name = "dual gun with a single round of ammunition",
+		code = "BAD_VALUE",
+		path = "guns[4](iu_gun_76mm).ammoCapacity",
+		mutate = function(b)
+			local gun = find(b.guns, "iu_gun_76mm")
+			gun.reload =
+				{ kind = "DualGun", reloadEachS = 8, salvoDelayS = 1.5, chargeTimeS = 1, volleyDispersionMul = 1.5 }
+			gun.ammoCapacity = 1
+		end,
+	},
+	{
+		name = "autoreloader whose first refill is not the longest",
+		code = "BAD_VALUE",
+		path = "guns[4](iu_gun_76mm).reload.perShellReloadS",
+		warning = true,
+		mutate = function(b)
+			find(b.guns, "iu_gun_76mm").reload =
+				{ kind = "Autoreloader", size = 3, perShellReloadS = { 6, 7, 9 }, intraClipS = 2 }
+		end,
+	},
+	{
+		name = "two overlapping pass seasons",
+		code = "SEASON",
+		path = "seasons[2](season_2)",
+		message = "overlaps season season_1",
+		mutate = function(b)
+			local second = table.clone(b.seasons[1])
+			second.id = "season_2"
+			second.startsAt = b.seasons[1].endsAt - 86400
+			second.endsAt = b.seasons[1].endsAt + 30 * 86400
+			table.insert(b.seasons, second)
+		end,
+	},
+	{
+		name = "game pass sold more than once per account",
+		code = "STORE",
+		path = "store[4](foundry_red_pass).purchaseLimit",
+		mutate = function(b)
+			table.insert(b.store, {
+				id = "foundry_red_pass",
+				name = "Foundry Red",
+				description = "Permanent paint.",
+				kind = "Customization",
+				robux = { kind = "GamePass", productId = 7 },
+				grants = { { kind = "Customization", id = "paint_foundry_red", amount = 1 } },
+			})
+		end,
+	},
+	{
+		name = "competitive mode that allows artillery",
+		code = "BAD_VALUE",
+		path = "events[2](ranked_s1).modes[1].classCaps.artillery",
+		mutate = function(b)
+			find(b.events, "ranked_s1").modes[1].classCaps.artillery = 1
+		end,
+	},
+	{
+		name = "Mastery achievement filed under another category",
+		code = "BAD_VALUE",
+		path = "achievements[2](veteran).category",
+		mutate = function(b)
+			local veteran = find(b.achievements, "veteran")
+			veteran.kind = "Mastery"
+			veteran.perVehicle = true
+		end,
+	},
+	{
+		name = "top configuration keeps a stock module although an upgrade exists",
+		code = "CONFIG_INVALID",
+		path = "vehicles[3](iu_bulmal).top.engine",
+		warning = true,
+		mutate = function(b)
+			find(b.vehicles, "iu_bulmal").top.engine = "iu_engine_d210"
+		end,
+	},
+	{
+		name = "vehicle id equal to a branch id",
+		code = "BAD_VALUE",
+		path = "vehicles[2](iu_foundry).id",
+		message = "branch id",
+		mutate = function(b)
+			find(b.vehicles, "iu_ostmal").id = "iu_foundry"
+		end,
+	},
+	{
+		name = "Encounter listed on a Tier I-III map",
+		code = "MAP_BASES",
+		path = "maps[1](proving_grounds).battleTypes",
+		message = "starts at Tier IV",
+		warning = true,
+		mutate = function(b)
+			local map = b.maps[1]
+			table.insert(map.battleTypes, "Encounter")
+			table.insert(map.bases, { id = "base_centre", battleType = "Encounter", center = { x = 0, z = 0 } })
+		end,
+	},
+	{
+		name = "medal filter on a stat other than medals",
+		code = "MISSION",
+		path = "missions[1](daily_hold_the_line).conditions[1].medal",
+		mutate = function(b)
+			find(b.missions, "daily_hold_the_line").conditions[1].medal = "top_gun"
+		end,
+	},
+	{
+		name = "medal filter naming a milestone",
+		code = "MISSION",
+		path = "missions[1](daily_hold_the_line).conditions[1].medal",
+		message = "not a battle medal",
+		mutate = function(b)
+			find(b.missions, "daily_hold_the_line").conditions[1] =
+				{ stat = "medals", atLeast = 1, aggregate = "Cumulative", medal = "veteran" }
+		end,
+	},
+	{
+		name = "medal filter naming an unknown achievement",
+		code = "DANGLING_REF",
+		path = "missions[1](daily_hold_the_line).conditions[1].medal",
+		mutate = function(b)
+			find(b.missions, "daily_hold_the_line").conditions[1] =
+				{ stat = "medals", atLeast = 1, aggregate = "Cumulative", medal = "steel_wall" }
+		end,
+	},
+	{
+		name = "Role Score summed across battles",
+		code = "MISSION",
+		path = "missions[1](daily_hold_the_line).conditions[1].aggregate",
+		mutate = function(b)
+			find(b.missions, "daily_hold_the_line").conditions[1] =
+				{ stat = "roleScore", atLeast = 1.2, aggregate = "Cumulative" }
+		end,
+	},
+	{
+		name = "Reward vehicle that nothing hands out",
+		code = "ORPHAN",
+		path = "vehicles[4](iu_reward_1)",
+		warning = true,
+		mutate = function(b)
+			addRewardCopies(b, 1, 0)
+		end,
+	},
+	{
+		name = "unknown crew seat group",
+		code = "BAD_VALUE",
+		path = "vehicles[1](iu_kolmal).visual.layout.crewSeats[1].group",
+		mutate = function(b)
+			find(b.vehicles, "iu_kolmal").visual.layout.crewSeats =
+				{ { slot = 1, centerM = Vector3.new(0, 1.2, 0), group = "Roof" } }
+		end,
+	},
+	{
+		name = "driver seated in the turret",
+		code = "LAYOUT",
+		path = "vehicles[1](iu_kolmal).visual.layout.crewSeats[1].group",
+		message = "driver",
+		mutate = function(b)
+			find(b.vehicles, "iu_kolmal").visual.layout.crewSeats =
+				{ { slot = 2, centerM = Vector3.new(0, 0.4, 0), group = "Turret" } }
 		end,
 	},
 }

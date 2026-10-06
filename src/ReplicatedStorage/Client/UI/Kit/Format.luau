@@ -2,10 +2,12 @@
 --[[
 	Kit/Format — number and text formatting that follows the brand copy rules (brand-art.md §2).
 
-	Purpose:          One place for UI numbers: comma thousands ("12,400"), signed deltas with a real minus sign
-	                  ("+18 mm", "−0.4 s") and their state tone, compact amounts ("12.4K"), timers (one decimal under
-	                  10 s), clock times ("12:00"), roman tier numerals and units ("54 km/h").
-	Dependencies:     None (pure).
+	Purpose:          One place for UI numbers (ui-ux §1.11): comma thousands ("12,400"), signed deltas with a real
+	                  minus sign ("+18 mm", "−0.4 s") and their state tone, compact amounts ("12.4K"), timers (one
+	                  decimal under 10 s), cooldowns (whole seconds, ceil), clock times ("12:00"), durations with the
+	                  two largest units ("6d 4h"), relative times ("5 min ago", "Yesterday", "5 Oct"), roman tier
+	                  numerals and units ("54 km/h").
+	Dependencies:     None (pure: times are passed in, never read from the clock).
 	State:            None.
 	Validation:       Non-finite numbers format as "—"; roman numerals accept integers 1..3999.
 	Error handling:   Invalid roman input raises (programming error); everything else degrades to "—".
@@ -196,6 +198,97 @@ function Format.timer(seconds: number): string
 		return Format.number(math.floor(s * 10) / 10, 1)
 	end
 	return Format.clock(s, true)
+end
+
+--- Cooldown slots: whole seconds, rounded up ("42", "1" until it really reaches zero; ui-ux §1.11).
+function Format.cooldown(seconds: number): string
+	local s = if isFinite(seconds) and seconds > 0 then seconds else 0
+	return string.format("%d", math.ceil(s - 1e-9))
+end
+
+local DURATION_UNITS = {
+	{ seconds = 86400, suffix = "d" },
+	{ seconds = 3600, suffix = "h" },
+	{ seconds = 60, suffix = "m" },
+	{ seconds = 1, suffix = "s" },
+}
+
+--- Durations with the two largest units (ui-ux §1.11): "6d 4h", "4h 12m", "12m 30s", "45 s". Rounds down (a
+--- remaining time never overstates); zero units are dropped ("2h", "3d"); < 1 s and invalid -> "0 s".
+function Format.duration(seconds: number): string
+	local total = if isFinite(seconds) and seconds > 0 then math.floor(seconds + 1e-9) else 0
+	if total < 60 then
+		return string.format("%d s", total)
+	end
+	for i, unit in DURATION_UNITS do
+		if total >= unit.seconds then
+			local major = math.floor(total / unit.seconds)
+			local text = string.format("%d%s", major, unit.suffix)
+			local nextUnit = DURATION_UNITS[i + 1]
+			if nextUnit ~= nil then
+				local minor = math.floor((total - major * unit.seconds) / nextUnit.seconds)
+				if minor > 0 then
+					text ..= string.format(" %d%s", minor, nextUnit.suffix)
+				end
+			end
+			return text
+		end
+	end
+	return "0 s"
+end
+
+local MONTHS = { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" }
+
+-- Civil date (UTC) from unix seconds (Howard Hinnant's days-from-civil inverse; pure, no os.date).
+local function civil(unixSeconds: number): (number, number, number)
+	local z = math.floor(unixSeconds / 86400) + 719468
+	local era = (if z >= 0 then z else z - 146096) // 146097
+	local doe = z - era * 146097
+	local yoe = (doe - doe // 1460 + doe // 36524 - doe // 146096) // 365
+	local y = yoe + era * 400
+	local doy = doe - (365 * yoe + yoe // 4 - yoe // 100)
+	local mp = (5 * doy + 2) // 153
+	local d = doy - (153 * mp + 2) // 5 + 1
+	local m = if mp < 10 then mp + 3 else mp - 9
+	return (if m <= 2 then y + 1 else y), m, d
+end
+
+--- Date text: "5 Oct", or "5 Oct 2025" when the year differs from `now`'s (both unix seconds, UTC; pass
+--- local-offset-adjusted values for local dates).
+function Format.date(unixSeconds: number, now: number?): string
+	if not isFinite(unixSeconds) then
+		return Format.INVALID
+	end
+	local y, m, d = civil(unixSeconds)
+	local text = string.format("%d %s", d, MONTHS[m])
+	if now ~= nil and isFinite(now) then
+		local nowYear = civil(now)
+		if nowYear ~= y then
+			text ..= string.format(" %d", y)
+		end
+	end
+	return text
+end
+
+--- Relative time (ui-ux §1.11): < 60 s "just now", < 60 min "5 min ago", < 24 h "3 h ago", the previous calendar
+--- day "Yesterday", else a date. `then_` and `now` are unix seconds (UTC; offset both for local days). Future
+--- timestamps read "just now".
+function Format.relative(then_: number, now: number): string
+	if not isFinite(then_) or not isFinite(now) then
+		return Format.INVALID
+	end
+	local delta = now - then_
+	if delta < 60 then
+		return "just now"
+	elseif delta < 3600 then
+		return string.format("%d min ago", math.floor(delta / 60))
+	elseif delta < 86400 then
+		return string.format("%d h ago", math.floor(delta / 3600))
+	end
+	if math.floor(now / 86400) - math.floor(then_ / 86400) == 1 then
+		return "Yesterday"
+	end
+	return Format.date(then_, now)
 end
 
 local ROMAN_VALUES = { 1000, 900, 500, 400, 100, 90, 50, 40, 10, 9, 5, 4, 1 }

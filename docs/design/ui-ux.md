@@ -16,6 +16,20 @@
 >
 > **IP rule.** Every name, string, layout and icon here is original. Player-facing copy never uses another tank
 > game's mode, screen, medal, perk or feature names (§0.3 lists the display names to use instead).
+>
+> **Revision 2 (Game Director review, 2026-10-06).** This revision adds the canvas-anchoring rules (§1.1.1) and
+> the verified HUD density tiers (§S31). It replaces the phone battle layout (§S39) with one that has been checked
+> at every phone width, and adds the economy modals (§1.6.1). It also aligns the following with 00-DECISIONS,
+> roster.md, content-schema.md and `Types/*`:
+> * the Debrief tab set;
+> * Field Kit swaps;
+> * booster pricing;
+> * the `camoBonus` price rule;
+> * cosmetic kinds;
+> * sample numbers;
+> * IP-sensitive display names.
+>
+> The geometry checks are reproducible from the rules in this document. Every rectangle table states its anchors.
 
 ---
 
@@ -37,7 +51,7 @@
 | Notation | Meaning |
 |---|---|
 | `px` | Reference pixels on the **1920 × 1080** canvas (Regular) or the **844 × 390** canvas (Compact). The kit's root `UIScale` maps them to the device (§1.1). Rendered sizes are always stated as "rendered px". |
-| `(x, y, w, h)` | A rectangle in reference px, origin top-left of the layer's safe area. Wireframes are **not to scale**: the rectangle tables are authoritative. |
+| `(x, y, w, h)` | A rectangle in reference px, origin top-left of the layer's safe area, written for the 1920 × 1080 (or 844 × 390) canvas. At run time the canvas size varies; §1.1.1 says how each rectangle is anchored. `W` / `H` in a formula = the run-time canvas width / height. Wireframes are **not to scale**: the rectangle tables are authoritative. |
 | `token.name` | A `Theme` token from brand-art (`bg.panel`, `accent.dusk`, `h3`, `num.m`, motion `base`…). Screens never use literal colours or font sizes. |
 | `PV.x.y` | Field of the client `ProfileView` (sanitized `Types/Profile.Profile`, patched by `DataSync`). |
 | `BV.x` | Field of the client `BattleView` (§0.5). `SS.x` = client `Session` store. `ST.key` = a setting (§S22). `CR` = `ContentRegistry`. |
@@ -73,8 +87,11 @@ Internal ids stay as they are in code and content. The UI shows only the right-h
 | Armor Inspector | `ARMOR` tab · "Armor view" | Code name `ArmorInspector` (A§10). |
 | Sixth Sense (D§5) | `SPOTTED` alert · Settings "Spotted alert" | The mechanic name never appears in UI. |
 | Battle Heroes (D§14) | `FIELD HONOURS` | Medal display names in §5.3 (the decided internal names match another game's medals and must not be shown). |
-| Gun Marks (D§14) | `BARREL BANDS` | Matches the brand's mastery "kill rings" (B§6.13). |
-| Mastery Ace / I / II / III | `ACE` · `FIRST CLASS` · `SECOND CLASS` · `THIRD CLASS` | Badges B§6.13. |
+| Gun Marks (D§14) | `BARREL BANDS` | Bands painted on the gun barrel (rendered as a `GunSleeve`-style mark). They are not the mastery badge's kill rings (B§6.13). |
+| Mastery Ace / I / II / III | `RIDGE MASTERY` · `GOLD MASTERY` · `SILVER MASTERY` · `BRONZE MASTERY` | Named after the badge materials (B§6.13: III bronze, II silver, I gold, Ace obsidian with the dusk ridge). "Ace" and "First / Second / Third Class" are another game's mastery names and are never shown. |
+| Barracks (unassigned crews) | `RESERVE` · Crew reserve | Code may keep `Barracks`; the label is never "Barracks". |
+| Depot (spare items and shells) | `SPARES` · Spare equipment / spare shells | The label is never "Depot". |
+| Crew books 5k / 25k / 60k (D§12, D§14 "Booklet", "Guide") | `FIELD NOTES` · `DRILL MANUAL` · `CREW CODEX` | Internal ids unchanged. |
 | Premium Time | `PREMIUM TIME` | Account-wide booster bought with Bullion (D§11). |
 | HULLDOWN Plus | `HULLDOWN PLUS` | Robux subscription (D§11, D§15). |
 | Field Kits | `FIELD KITS` | Elite vehicle upgrades (D§11). |
@@ -126,7 +143,7 @@ response (REG-ECO-02), so the UI never applies results from the response itself;
 
 | Remote (proposed) | Kind / dir | Domain file | Rate (D§19) | Used by |
 |---|---|---|---|---|
-| `GarageRequest` `{op, requestId, payload}` → `Result` | Function C2S | Progression | 5/s | Every garage transaction. `op` ∈ `ResearchVehicle, ResearchModule, BuyVehicle, SellVehicle, BuybackVehicle, MountModule, SetEquipment, DemountEquipment, BuyEquipment, SetAmmo, SetConsumables, SetAutoResupply, AssignCrew, RecruitCrew, RetrainCrew, LearnPerk, ResetPerks, UseCrewBook, ConvertXP, ExchangeBullion, BuyCustomization, ApplyCustomization, ClaimMission, RerollDaily, ClaimPassStage, BuyPassPaid, SetFavorite, SelectFieldKit, ResearchApexNode, ActivateBooster, BuyStoreItem, BuyPremiumTime, AckFlag, SetTutorialStep, SetMatchmakingPrefs, SetPlusVehicle` (each = one `Transactions` function, A§7; `AckFlag` sets `PV.account.flags.*`). |
+| `GarageRequest` `{op, requestId, payload}` → `Result` | Function C2S | Progression | 5/s | Every garage transaction. `op` ∈ `ResearchVehicle, ResearchModule, BuyVehicle, SellVehicle, BuybackVehicle, MountModule, SetEquipment, DemountEquipment, BuyEquipment, SetAmmo, SetConsumables, SetAutoResupply, AssignCrew, RecruitCrew, RetrainCrew, LearnPerk, ResetPerks, UseCrewBook, ConvertXP, ExchangeBullion, BuyCustomization, ApplyCustomization, ClaimMission, RerollDaily, ClaimPassStage, BuyPassPaid, SetFavorite, SelectFieldKit, ResearchApexNode, ActivateBooster, BuyStoreItem, BuyPremiumTime, AckFlag, SetTutorialStep, SetMatchmakingPrefs, SetPlusVehicle` (each = one `Transactions` function, A§7; `AckFlag` sets `PV.account.flags.*`; `ClaimPassStage` and `ClaimMission` take a list of ≤ 30 keys so `CLAIM ALL` is one request inside the 5/s bucket). |
 | `QueueJoin` `{mode, vehicleId, requestId}` / `QueueLeave` / `QueueStartWithBots` | Function C2S | Matchmaking | 1/s | §S06 |
 | `QueueState` | Event S2C | Matchmaking | – | `SS.queue` |
 | `MatchFound` `{mapId, mode, battleType, etaS}` / `TeleportStatus` | Event S2C | Matchmaking | – | §S06, §S28 |
@@ -157,20 +174,23 @@ Robux purchases never use a custom remote: the client calls `MarketplaceService:
 
 | Layout | Trigger | Authoring canvas | Root scale | Extras |
 |---|---|---|---|---|
-| **Regular** | viewport height ≥ 600 | 1920 × 1080 | `clamp(vh / 1080, 0.75, 1.5)` × user UI scale (0.8–1.2) | Desktop and tablets |
-| **Compact** | viewport height < 600 | 844 × 390 | `clamp(vh / 390, 0.92, 1.25)` × user UI scale | Phones (landscape only) |
-| **TV** | `ViewportDisplaySize = Large`, or Gamepad preferred input on a display ≥ 1600 px wide **O** | 1920 × 1080 | Regular × 1.25 | 5 % inner safe margin (96 / 54 px) |
+| **Regular** | viewport height ≥ 600 | 1920 × 1080 | `clamp(vh / 1080, 0.75, 1.5)` × user UI scale (`ui.scale` 0.8–1.2; touch devices 1.0–1.2) | Desktop and tablets |
+| **Compact** | viewport height < 600 | 844 × 390 | `clamp(vh / 390, 0.92, 1.25)`; **no user UI scale** (it would push touch targets under the minimum or break the 390 px layout) | Phones (landscape only) |
+| **TV** | `GuiService:IsTenFootInterface()` (kit `Layout.state.tenFoot`) | 1920 × 1080 | Regular × 1.25 | 5 % inner safe margin (96 / 54 px). A PC with a gamepad stays Regular. |
 
 **Grid (Regular):** 8 px unit; spacing tokens `space.1…8` = 4, 8, 12, 16, 24, 32, 48, 64. Twelve columns of
-130 px with 24 px gutters and 48 px outer margins. Garage-type screens reserve the left **nav rail (120 px)**; their
-content grid then runs x 144–1872 (12 columns of 122 px, 24 px gutters) **O**.
+130 px with 24 px gutters and 48 px outer margins (screens without the rail). Garage-type screens reserve the left
+**nav rail (120 px)**. Their content grid runs x 144–1896: twelve 124 px columns with 24 px gutters, a 24 px gap after
+the rail and a 24 px right margin, so content is 1,752 px wide **O**. That width is used by the strip, the carousel,
+the tech-tree canvas and the Debrief.
 
 **Grid (Compact):** 4 px unit; 24 px outer margins (device safe insets added on top); the nav rail is 64 px.
 
 **Type on Compact.** Theme clamps to brand minimums (B§4.2: phone sentence 16, labels 14 rendered). At the 0.92
-floor scale, authored tokens must therefore be at least: `body` 18, `body.s` 18, `label` 16, `caption` 16, `micro` 16,
-`h4` 20, `h3` 24, `h2` 28, `h1` 32, `num.m` 20. The Compact theme uses this override table instead of letting the
-clamp overflow layouts. **TV** uses `label`/`caption`/`micro` 15 authored (= 18.75 rendered at × 1.25).
+floor scale, authored tokens must therefore be at least: `body` 18, `body.s` 18, `label` 16, `caption` 18 (it carries
+sentences, so it needs 16 rendered), `micro` 16, `h4` 20, `h3` 24, `h2` 28, `h1` 32, `num.m` 20. The Compact theme
+uses this override table instead of letting the clamp overflow layouts. **TV** uses `label` / `micro` 15 authored
+(= 18.75 rendered at × 1.25, ≥ 18 for labels) and `caption` / `body.s` 16 (= 20, the console sentence minimum, B§4.2).
 
 **Layers** (kit `Tokens.layers`, one `ScreenGui` each; interactive layers use `ScreenInsets.CoreUISafeInsets`):
 
@@ -190,6 +210,49 @@ clamp overflow layouts. **TV** uses `label`/`caption`/`micro` 15 authored (= 18.
 header costs no extra height. Its content is authored for a **56 px** row. If the engine row is shorter than 44
 rendered px (some phones), the top bar moves into the `Screens` layer as a 48 px band under the core row. This is
 an in-engine verification item (§5.5).
+
+#### 1.1.1 Canvas range and anchoring (applies to every rectangle table)
+
+Each layer root is `Layout.root()`, sized `1 / scale`. So the run-time canvas is **W × H = viewport ÷ scale**, not
+1920 × 1080. The range to support is:
+
+| Layout | Canvas height H | Canvas width W | Typical cases |
+|---|---|---|---|
+| Regular (menus) | 800–1,800. The effective `ui.scale` is lowered automatically until the canvas is at least **1,280 × 800**, and the setting shows "Limited by this display". | 1,280 (4:3 and 5:4) to 3,440+ (21:9) | 1280 × 720 → 1,707 × 960 · 1024 × 768 → 1,365 × 1,024 · 4K → 2,560 × 1,440 |
+| Regular battle HUD | Effective height `E = H ÷ hud.scale`, 720–1,800. `hud.scale` is capped so that E ≥ 720 and the effective width is ≥ 1,360 (≥ 1,448 in event modes with abilities). | as above ÷ `hud.scale` | 1080p at 150 % → 1,280 × 720 is not allowed (width 1,280 < 1,360), so the cap lowers the scale to 141 % → 1,360 × 765 |
+| Compact (phones) | 390–480. The battle HUD uses `min(1.25, vh / 390)` so it never has H < 390. | 693 (16:9) to 870 (20:9) | 667 × 375 → 695 × 390 · 844 × 390 → 844 × 390 · 932 × 430 → 845 × 390 |
+| Touch on a Regular display (tablets), battle only | fixed **700** (HUD root = vh / 700) | 933–1,120 | 1024 × 768 → 933 × 700 · 1180 × 820 → 1,007 × 700 |
+
+**Anchoring rule.** Each rectangle keeps its offsets from an anchor.
+* **Horizontal:** a rectangle whose centre lies in the left third of the reference canvas is left-anchored; one in the
+  right third is right-anchored (`x = W − (1920 − x₀)`); one in the middle third is centred
+  (`x = W/2 + (x₀ − 960)`).
+* **Vertical:** the same rule by thirds of the height.
+* **Stretch:** a rectangle that spans more than two thirds of an axis stretches and keeps both margins. For example,
+  the Garage carousel is `(144, H − 200, W − 168, 104)`.
+* **Exceptions:** tables give explicit anchors or formulas where the thirds rule would be wrong (the Garage stack,
+  §S04; the HUD, §S31; touch controls, §S39). Explicit entries always win.
+* **Larger canvases:** when the canvas is larger than the reference, edge-anchored regions stay at their edges,
+  stretch regions grow and centred groups stay centred. The extra space goes to the 3D hangar or battle view.
+
+**Narrow and short canvases (Regular menus).** These rules switch on by canvas size and are tested at 1,280 × 800,
+1,365 × 1,024, 1,707 × 960 and 1,920 × 1,080:
+
+| Condition | Screen | Rule |
+|---|---|---|
+| W < 1,496 | Garage (§S04) | Right column hidden (dailies via the Missions rail and its badge); the battle cluster stays centred |
+| W < 1,600 | Inspect (§S08) | View switch becomes icon-only, 4 × 64 |
+| W < 1,600 | Debrief (§S38) | Vehicle card hidden |
+| W < 1,600 | Store (§S20) | Hero spans the content width |
+| W < 1,880 | Settings (§S22) | Description column hidden; its text shows as a `caption` under the focused row and the preview opens with `[X]` / the info button |
+| W < 1,880 | Compare (§S11) | Vehicle columns scroll horizontally; the label column stays sticky |
+| W < 1,920 | Research (§S09) | Load bar width = W − 1,020 (min 260) beside the footer |
+| W < 1,840 | Missions daily cards (§S18) | Cards width = (W − 240) / 4 |
+| H < 1,080 | Garage | Stats panel and right column shrink (§S04 formulas) |
+| H < 1,080 | Screens with full-height panels (Inspect, Tech Tree, Settings, Crew, Exterior) | Panels stretch: y 72 to H − 128 |
+| H < 1,000 | Garage | Two carousel rows are not offered (`garage.rows` falls back to 1) |
+
+Modals (≤ 880 wide) and toasts (360 wide, right-anchored) fit every supported canvas unchanged.
 
 ### 1.2 Navigation model
 
@@ -265,8 +328,17 @@ or the on-screen menu button (touch).
 | Profile chip | 240 | rank insignia 32 (`ranks/rank_NN`), display name `body.s` Bold, status line `caption`: `Premium · 6d 4h` (dusk sun glyph `ui/premium`) / `Plus` / `Standard account` | `PV.account.rank`, `PV.account.premiumUntil`, `SS.plusActive` | Profile (§S21); status line → Store Premium section |
 
 * Values animate with a count-up (`countUp` 600 ms) and a 400 ms currency-coloured flash on change (§3).
-* Free XP and Campaign Tokens collapse into a `…` wallet button below 1600 px rendered width; Compact shows Credits
-  and Bullion only, plus the wallet button (opens a sheet with all six currencies including event tokens).
+* **Collapse order.** The row's available width is the `TopBar` layer's `AbsoluteSize.X`, which already excludes
+  Roblox's core buttons. The full set needs 1,820 px: the slots above plus seven 8 px gaps. While it does not fit,
+  the bar collapses in this order:
+  1. The profile chip becomes the rank insignia only (48 px; status line in its tooltip) → 1,628.
+  2. Free XP and Campaign Tokens fold into a `…` wallet button (48 px) → 1,420.
+  3. The centre slot drops the XP bar text (440 px) → 1,220.
+  4. The section title keeps only the stencil index (120 px) → 1,120.
+
+  The 1,280-wide minimum canvas (§1.1.1) always fits step 4. Compact shows Credits and Bullion plus the wallet
+  button. The wallet opens a sheet with every account currency (Credits, Bullion, Free XP, Campaign Tokens) and any
+  event tokens.
 * Premium Time under 24 h shows the timer in `state.warning`; expired shows nothing (no nagging).
 
 ### 1.5 Notification system
@@ -349,6 +421,18 @@ Rules: every Bullion spend uses Purchase confirm (never one-click); spends of Cr
 focus is trapped; initial focus is the **safe** button (Cancel) for destructive kinds and the primary button
 otherwise.
 
+#### 1.6.1 Economy modals (every one is a `GarageRequest` op with a dry-run preview)
+
+| Modal (kind, width) | Opened from | Content | Op |
+|---|---|---|---|
+| **Exchange** (Purchase confirm, 640) | Credits `+` in the top bar; `EXCHANGE BULLION` fix action (§1.9) | Bullion amount stepper (step 1, 10, 100) and slider; Credits received = BUL × 200 (D§11) in `num.l`; balances before → after; pre-filled with the exact shortfall when opened from an error | `ExchangeBullion` |
+| **Convert XP** (Purchase confirm, 640) | Free XP in the top bar; Research footer (§S09) | List of elite vehicles with banked XP (checkbox each); total XP; Bullion cost = ceil(XP / 10) (D§11); Free XP after. Non-elite vehicles are listed greyed with the reason "Research everything on this vehicle first" | `ConvertXP` |
+| **Sell vehicle** (Destructive, 640) | Inspect overflow `⋯` → `SELL` (the gamepad path); carousel card context menu (`[RMB]` / long-press 0.5 s: `INSPECT`, `FAVOURITE`, `MAKE PLUS VEHICLE`, `SELL`) | Title `SELL <NAME>`. Refund lines: tech-tree 50 % of the Credit price; premium 50 % × BUL price × 200 CR (D§11). Mounted equipment, shells and consumables go to Spares for free. Crew goes to the Reserve (or `DISMISS CREW` checkbox, off by default). "You can buy it back for 72 h at +10 %." Blocked, with the reason shown, while the vehicle is locked or queued, while it is the selected Plus vehicle, and when it is the last owned vehicle (**O**: the player always keeps one vehicle to play) | `SellVehicle` |
+| **Buy back** (Purchase confirm, 640) | Tech Tree node `BUYBACK +10 %` (§S10); Store vehicle page for sold premiums | Price = sell refund × 1.10 in the original currency; time left `Format.duration`; same buy options as §S10 | `BuybackVehicle` |
+| **Plus vehicle** (Picker, 880) | Store › Premium & Plus card; carousel card overflow `MAKE PLUS VEHICLE` | Tech-tree vehicles you own (premiums excluded, D§11 "+20 % on one tech-tree vehicle"); the current one marked; changing it is allowed once per 24 h (**O**, so the bonus cannot follow every vehicle; Economy to confirm, §5.6) with the cooldown shown | `SetPlusVehicle` |
+| **Boosters** (sheet / panel 640) | Store › Boosters; the active-booster chip on the profile chip | Owned boosters (count, effect, duration or battles) with `ACTIVATE` (vehicle picker for vehicle-bound ones); active boosters with time / battles left; at most `LIMITS.ACTIVE_BOOSTERS` active | `ActivateBooster` |
+| **Map preferences** (Picker, 880) | Mode selector `MAP PREFERENCES ›` (§S06) | Grid of map cards (512 × 288 art, name, climate strip, B§9); toggle "Avoid" on up to 1 map (2 with Premium Time, `LIMITS.MAP_BLACKLIST`); hidden until ≥ 8 maps exist (D§8); battle-type opt-out toggles for Crossroads and Breach (Tier IV+) | `SetMatchmakingPrefs` |
+
 ### 1.7 Tooltips
 
 * **Mouse:** appears after `tooltipDelay` 0.4 s of hover (setting: 0.2 / 0.4 / 0.8 s), follows placement priority
@@ -408,8 +492,8 @@ Centered block: 48 px glyph in `text.tertiary`, `h4` title, one `body.s` line, a
 | Where | Title | Line | Action |
 |---|---|---|---|
 | Carousel / Motor Pool with filters | No vehicles match | Try fewer filters. | `RESET FILTERS` (REG-UI-03) |
-| Barracks | Barracks empty | Crews you unassign wait here. | – |
-| Equipment depot | No spare equipment | Buy equipment or demount it from another vehicle. | `BROWSE` |
+| Crew reserve | Reserve empty | Crews you unassign wait here. | – |
+| Spare equipment | No spare equipment | Buy equipment or demount it from another vehicle. | `BROWSE` |
 | Missions (event tab, no event) | No event running | Check back soon. | – |
 | Battle history | No battles yet | Your last 20 battles appear here. | `TO BATTLE` (secondary style) |
 | Notifications | All caught up | – | – |
@@ -468,6 +552,24 @@ Glyphs swap within one frame of a `PreferredInput` change (REG-INP-02). Touch sh
 right-aligned, `label` text, up to 5 hints in priority order (`[A] Select · [B] Back · [X] Details · [Y] Motor pool ·
 [LB][RB] Tabs`). It never covers interactive content: screens reserve 48 px at the bottom when it is visible.
 
+**Contexts in the Battle place.** `KitUI` would otherwise sink battle keys: its priority is above `Battle`, and it
+binds `[C]` (page), `[Q]` / `[E]` (tabs) and `[F]` / `[G]`. So in the Battle place `KitUI` is enabled only while a
+menu has focus (Field menu, Settings subset, a focused Scoreboard, a modal). The rest of the time `Battle`, `Sniper`
+or `Spectate` owns every key, and `[Bksp]` / pad `[B]` hold open the Field menu from the `Battle` context. In the Hub,
+`Battle` is never enabled. Back is ignored while a `TextBox` has focus, so `[Bksp]` deletes text.
+
+**Roblox core UI (both places, set once on the client at start).**
+* `StarterGui:SetCoreGuiEnabled` turns `PlayerList` off, because `[Tab]` is our scoreboard key. It also turns
+  `Backpack`, `Health` and `EmotesMenu` off.
+* `SetCore("ResetButtonCallback", false)`: there are no characters.
+* Chat in the Battle place: `ChatWindowConfiguration.Enabled` on (H-19 slot) and
+  `ChatInputBarConfiguration.KeyboardKeyCode = Return`.
+* Chat in the Hub: the core chat window is off, so it never covers the rail or the stats panel. The platoon channel
+  renders in the Platoon modal (§S23) through `TextChannel` messages, filtered by Roblox, and the core input bar keeps
+  its default `/` key. `[Enter]` therefore stays the menu Confirm key in the Hub.
+
+This list is checked in-engine (§5.5).
+
 ### 1.13 Controller focus rules
 
 1. `GuiService.GuiNavigationEnabled = true`, `AutoSelectGuiEnabled = false`; focus always starts explicitly.
@@ -494,8 +596,10 @@ right-aligned, `label` text, up to 5 hints in priority order (`[A] Select · [B]
 * Compact is chosen **only** by viewport height < 600 px (D§16), never by `DisplaySize.Small` alone; tablets
   stay Regular (with UIScale capped at 1.2).
 * Landscape only; the Hub and Battle use `LandscapeSensor`.
-* **Touch targets:** menus ≥ 44 rendered px (author 48 at Compact), battle controls ≥ 48 rendered px (author ≥ 52);
-  8 px minimum gap between targets (D§21 #16; REG-UIX-01's 48 px wording applies to battle controls only).
+* **Touch targets:** menus ≥ 44 rendered px (author 48 at Compact: 44.2 at the 0.92 floor); battle controls
+  ≥ 48 rendered px (author **56**: 51.5 at the floor; 52 would render 47.8 and fail). Minimum gap between targets is
+  8 rendered px, so author **9**. These follow D§21 #16; REG-UIX-01's 48 px wording applies to battle controls only.
+  `hud.scale` and `touch.fireSize` never shrink a touch control below these sizes: below 100 % only the gauges scale.
 * Screens collapse in this order: right column → drawer-as-sheet → secondary panels behind a `DETAILS` button →
   two-pane lists become list → detail push.
 * Tab bars scroll horizontally with a fade mask; the active tab is scrolled into view.
@@ -645,7 +749,7 @@ Settings, or Return to battle.
 │      ▶ [ PLAY                ]   ← primary (or RETURN TO BATTLE)                             │
 │        [ PROVING FIELD       ]   Recommended for new commanders                              │
 │        [ SETTINGS            ]                                                               │
-│        [ CREDITS             ]                                                               │
+│        [ ABOUT               ]                                                               │
 │                                                                                              │
 │      Signed in as RidgeRunner_07 · Region EU                                                 │
 │ v0.9.3                                                                    [A] Select [B] Menu │
@@ -656,7 +760,7 @@ Settings, or Return to battle.
 |---|---|---|
 | Letterbox bars | (0, 0, 1920, 96) and (0, 984, 1920, 96) | `bg.abyss`, removed when Garage loads (300 ms) |
 | Logo | (120, 220, 640, 160) | `logo_primary.svg` with a `bg.scrim` band behind (B§5.4) |
-| Menu list | (120, 440, 440, 4 × 64) | Primary CTA 440 × 56 first, then secondary buttons 440 × 48, 16 px gaps |
+| Menu list | (120, 440, 440, 4 × 64) | Primary CTA 440 × 56 first, then secondary buttons 440 × 48, 16 px gaps. `ABOUT` opens credits and licences (never labelled "Credits", which is a currency name) |
 | Account line | (120, 760, 640, 24) | `caption` |
 
 **Camera:** a 12 s scripted dolly from the hangar interior to the open door and the selected vehicle, then a slow
@@ -683,8 +787,8 @@ being ready (the Garage is pre-mounted behind the title).
 │⛟ STORE • │ │ Damage    358 ×2     │                                                                                     │  … Medium, Hard      │
 │⌂ PROFILE │ │ Penetration  195 mm  │                                                                                     │ PASS  Stage 12 ▬▬▱  │
 │⚙ SETTINGS│ │ Reload      25.7 s   │                                                                                     │ EVENT  Ember Week    │
-│          │ │ Aim time    2.3 s    │                                                                                     │                      │
-│          │ │ Speed       34 km/h  │                                                                                     │                      │
+│          │ │ Aim time    2.9 s    │                                                                                     │                      │
+│          │ │ Speed       40 km/h  │                                                                                     │                      │
 │          │ │ View range  361 m    │                                                                                     │                      │
 │          │ │ DETAILS ›            │                                                                                     │                      │
 │          │ └──────────────────────┘                                                                                     │                      │
@@ -696,23 +800,30 @@ being ready (the Garage is pre-mounted behind the title).
 └──────────┴───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-**Layout (1 carousel row, Regular):**
+**Layout (1 carousel row, Regular).** Rectangles at 1920 × 1080; the formulas give the run-time position for any
+canvas W × H (§1.1.1) and reproduce the 1080p values exactly.
 
-| Region | Rect | Content |
-|---|---|---|
-| Top bar | (0, 0, 1920, 56) | §1.4, center slot = vehicle identity |
-| Nav rail | (0, 56, 120, 1024) | §1.2 |
-| Battle cluster | (604, 72, 728, 64) | Mode selector (604, 72, 208, 64) · TO BATTLE (820, 72, 280, 64) · platoon strip (1108, 72, 224, 64). Details in §S06. |
-| Queue / bonus line | (820, 140, 280, 24) | `caption` centred: `×2 first win available` (XP glyph) / queue status / disabled reason |
-| Stats panel | (144, 248, 360, 456) | §S04.1 |
-| Right column | (1560, 72, 336, 656) | Dailies (1560, 72, 336, 360) · Pass card (1560, 448, 336, 112) · Event card (1560, 576, 336, 152) |
-| Service strip | (144, 744, 1752, 72) | 6 tiles 280 × 72, 14 px gaps (§S04.2) |
-| Carousel header | (144, 832, 1752, 40) | Filters button, active filter chips, sort, rows toggle, lineups, Motor Pool |
-| Carousel cards | (144, 880, 1752, 104) | §S05 |
-| Hint bar | (0, 1032, 1920, 48) | gamepad only |
+| Region | Rect at 1080p | Anchored formula | Content |
+|---|---|---|---|
+| Top bar | (0, 0, 1920, 56) | full width, `TopBar` layer | §1.4, center slot = vehicle identity |
+| Nav rail | (0, 56, 120, 1024) | (0, 56, 120, H − 56) | §1.2 |
+| Battle cluster | (604, 72, 728, 64) | centred on TO BATTLE | Mode selector (W/2 − 356, 72, 208, 64) · TO BATTLE (W/2 − 140, 72, 280, 64) · platoon strip (W/2 + 148, 72, 224, 64). Details in §S06. |
+| Queue / bonus line | (820, 140, 280, 24) | (W/2 − 140, 140, 280, 24) | `caption` centred: `×2 first win available` (XP glyph) / queue status / disabled reason |
+| Carousel cards | (144, 880, 1752, 104) | (144, H − 200, W − 168, 104) | §S05 |
+| Carousel header | (144, 832, 1752, 40) | (144, cardsY − 48, W − 168, 40) | Filters button, active filter chips, sort, rows toggle, lineups, Motor Pool |
+| Service strip | (144, 744, 1752, 72) | (144, stripY = cardsY − 136, W − 168, 72) | 6 tiles, width (W − 238) / 6 (280 at 1080p), 14 px gaps (§S04.2) |
+| Stats panel | (144, 248, 360, 456) | top = max(stripY − 496, 180); bottom = stripY − 40 | §S04.1; rows shown = min(8, ⌊(height − 72) / 48⌋), ≥ 3 at the 800 px minimum |
+| Right column | (1560, 72, 336, 656) | (W − 360, 72, 336, stripY − 88); hidden when W < 1,496 | Dailies 360 · Pass card 112 · Event card 152, 16 px gaps; cards that do not fit drop from the bottom (event, then pass) |
+| Hint bar | (0, 1032, 1920, 48) | (0, H − 48, W, 48) | gamepad only; cards end 48 px above it |
 
-**Two carousel rows** (`garage.rows = 2`): the carousel grows by 112 px; the service strip moves to y 632; the
-stats panel shows 4 rows (HP, Damage, Penetration, Reload) at height 240; the right column shows dailies only.
+**Two carousel rows** (`garage.rows = 2`, offered when H ≥ 1,000): cards (144, H − 312, W − 168, 216); the strip
+and stats panel follow the same formulas. At 1080p that puts the strip at y 632, gives the stats panel 7 rows, and
+leaves dailies + pass in the right column. These formulas were checked for overlaps at H 800–1,800 and aspect
+ratios 5:4 to 21:9 (one and two rows).
+
+**Service strip vs D§16.** D§16 says the six strip items open drawers. Modules, Equipment, Ammo and Consumables do.
+**Crew** (perk board, reserve) and **Appearance** (preview, cart) open full screens (**O**), because a 624 px
+drawer cannot hold them. Tapping the tile is still the only step.
 
 #### S04.1 Stats panel
 
@@ -773,11 +884,15 @@ ends", REG-UI-02) · `NoCrew` · `NoAmmo` · `Loading` (skeleton for panels on f
 
 **Initial focus:** `TO BATTLE` when enabled, else the blocking service tile (Crew or Ammo).
 
-**Compact (844 × 390):** rail 64 px; top bar center slot shows name + tier only; no right column (missions via
-rail); stats behind a `STATS` button (72, 56, 96, 48) opening a sheet; service strip = 6 icon buttons 48 × 48 at
-(72, 234); carousel one row of 128 × 80 cards at (64, 290, 556, 80); mode selector (632, 254, 188, 48) and
-`TO BATTLE` (632, 310, 188, 56) bottom-right (D§16); platoon as a `PLATOON 1/3` button (576, 254, 48, 48).
-Compact bottom margin is 12 px here so the carousel keeps 80 px cards.
+**Compact (844 × 390; W = 693–870):** rail 64 px; top bar center slot shows name + tier only; no right column
+(missions via rail).
+* Stats sit behind a `STATS` button (72, 56, 96, 48) that opens a sheet.
+* The service strip is six 48 × 48 icon buttons at (72, 229), with 9 px gaps.
+* Carousel: one row of 128 × 80 cards at (72, 286, W − 293, 80), i.e. 551 wide at 844 (4 cards) and 400 at 693
+  (3 cards).
+* Right-anchored launcher (D§16): mode selector (W − 212, 253, 188, 48), `TO BATTLE` (W − 212, 310, 188, 56) and a
+  `PLATOON 1/3` button (W − 269, 253, 48, 48), all with 9 px gaps.
+* The Compact bottom margin is 24 px.
 **TV:** same as Regular at × 1.25 with 5 % margins; the right column drops the event card; carousel shows 7 cards.
 
 **Acceptance criteria.**
@@ -848,7 +963,7 @@ unknown ids never errors.
 
 | Row | Content | Availability |
 |---|---|---|
-| `OPEN TRIALS` | 15 v 15, "Contest, Crossroads, Breach" + battle-type opt-out toggles (Crossroads and Breach from Tier IV, D§8; opt-outs lower their weight, never remove them; binds `PV.matchmaking.battleTypeOptOuts`) and `MAP PREFERENCES ›` (blacklist 1 slot, 2 with Premium Time, once ≥ 8 maps exist; binds `PV.matchmaking.mapBlacklist`, `LIMITS.MAP_BLACKLIST`). Both write `→ SetMatchmakingPrefs`. | always |
+| `OPEN TRIALS` | 15 v 15, "Contest, Crossroads, Breach" + battle-type opt-out toggles (Crossroads and Breach from Tier IV, D§8; opt-outs lower their weight, never remove them; binds `PV.matchmaking.battleTypeOptOuts`) and `MAP PREFERENCES ›` (modal §1.6.1: blacklist 1 slot, 2 with Premium Time, once ≥ 8 maps exist; binds `PV.matchmaking.mapBlacklist`, `LIMITS.MAP_BLACKLIST`). Both write `→ SetMatchmakingPrefs`. | always |
 | `DRILL` | "Versus bots. Rewards ×0.75." | always |
 | `PROVING FIELD` | "Guided drills" | always; badge until completed |
 | Event mode(s) | event name, art strip, time left; Ranked events add the player's ladder rank chip (`PV.events[id].ranked.rank`) | while live |
@@ -918,11 +1033,11 @@ carousel (`[X]`), the Tech Tree node panel, Compare and Results. Works for **any
 │  Reload   25.7 s       │                                                               │ MECHANIC         │
 │  DPM      1,671        │                                                               │ Dual gun: …      │
 │ SURVIVABILITY          │                                                               │                  │
-│  HP 1,620 · Hull 85/55/40│                                                            │ RESEARCH         │
+│  HP 1,620 · Hull 136/80/50│                                                            │ RESEARCH         │
 │ MOBILITY               │                                                               │ From: Varrhald   │
-│  34 km/h · 17.2 hp/t   │                                                               │ Leads to: …      │
+│  40 km/h · 13.9 hp/t   │                                                               │ Leads to: …      │
 │ SPOTTING               │                                                               │                  │
-│  VR 361 m · Camo 4.1%  │                                                               │ [COMPARE] [⚙ RESEARCH]│
+│  VR 361 m · Camo 5.0%  │                                                               │ [COMPARE] [⚙ RESEARCH]│
 ├────────────────────────┴─────────[ EXTERIOR | MODULES | CREW | ARMOR ]──────────────────┴──────────────────┤
 │                                                [ BUY [C] 1,400,000 ] or [ RESEARCH [XP] 13,500 ]           │
 └────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
@@ -934,7 +1049,7 @@ carousel (`[X]`), the Tech Tree node panel, Compare and Results. Works for **any
 | Viewport | full screen behind; interactive zone (600, 72, 920, 880) | Orbit: drag / right stick; zoom: wheel / pinch / `[LT]`-`[RT]`; double-click / `[R3]` reset |
 | Info panel | (1536, 72, 360, 880) | Tabs `OVERVIEW` (combat identity, mechanic, role, faction kit), `LORE` (roster lore), `RESEARCH` (parents, children, module status) |
 | View switch | (760, 968, 600, 48) | Segmented: `EXTERIOR` · `MODULES` · `CREW` · `ARMOR` (ARMOR pushes §S12 in place) |
-| CTA | (1536, 968, 360, 56) | One primary: `BUY` (researched, not owned) / `RESEARCH` / `SELECT` (owned, not selected) / none |
+| CTA | (1536, 968, 360, 56) | One primary: `BUY` (researched, not owned) / `RESEARCH` / `SELECT` (owned, not selected) / `BUY BACK` (sold < 72 h) / none; an overflow `⋯` 44 × 44 left of it holds `SELL`, `MAKE PLUS VEHICLE` (subscribers), `FAVOURITE` (§1.6.1) |
 
 **Stats groups and rows** (full set; Garage shows 8): *Firepower*: damage (per shell type), penetration (each shell,
 at 100 m and 500 m for AP/APCR falloff), reload / DPM, magazine (shells, intra-clip, reload), aim time, dispersion
@@ -1008,12 +1123,13 @@ offered only when vehicle XP alone does not cover the cost) · balances after. R
 `OPEN IN TECH TREE`.
 
 **Field Kits** (elite VI–X, D§11): a row of level nodes (3/4/5 levels), each with **two choices** shown as paired
-cards (effect lines); cost per level from D§11 (VI 1,000 XP … X 5,500 XP); a chosen option shows `SWAP` (free twice,
-then credits). `→ SelectFieldKit`. **Apex nodes** (XI): 10 nodes in three bands (6 × 4,000 · 3 × 8,000 · 1 × 12,000,
+cards (effect lines); cost per level from D§11 (VI 1,000 XP … X 5,500 XP), paid once per level; a chosen option
+shows `SWAP`, which is **free at any time outside battle** (D§11 "two free-swap choices"; report 05: swapped freely)
+and needs no confirm. Levels unlock in order. `→ SelectFieldKit`. **Apex nodes** (XI): 10 nodes in three bands (6 × 4,000 · 3 × 8,000 · 1 × 12,000,
 D§11), Free XP allowed, the signature node last with the mechanic's icon. `→ ResearchApexNode`.
 
-**XP conversion** (elite only, footer button → modal): slider over elite vehicles' XP, rate 10 XP per Bullion
-(D§11), result in Free XP, Purchase confirm. `→ ConvertXP`.
+**XP conversion** (elite only, footer button): the Convert XP modal of §1.6.1 (10 XP per Bullion, D§11).
+`→ ConvertXP`.
 
 **Controller:** initial focus = the leftmost researchable node, else the mounted gun; D-pad moves along edges, up/down
 between rows; `[LB]/[RB]` tabs; `[A]` node action; `[X]` node tooltip pin; `[LT]/[RT]` pan the canvas by one column.
@@ -1078,7 +1194,7 @@ Free XP), CTA (`RESEARCH` / `BUY` / `SELECT IN GARAGE` / `VIEW IN STORE`), secon
 
 **Research / buy flows.** RESEARCH opens the research modal of §S09 (vehicle XP of the parent that unlocks it, then
 optional Free XP). BUY opens Purchase confirm with the **buy options**: crew (`NEW CREW` free, trained recruits D§12 /
-`FROM BARRACKS` matching faction + class, retrain cost shown), `LOAD STANDARD AMMO` (default on, cost shown), `MOUNT
+`FROM RESERVE` matching faction + class, retrain cost shown), `LOAD STANDARD AMMO` (default on, cost shown), `MOUNT
 OWNED EQUIPMENT` none; total; `BUY FOR [C] 1,400,000`. After buying: `ui_vehicle_unlocked`, toast, and the node panel
 offers `SELECT IN GARAGE`. `→ ResearchVehicle`, `→ BuyVehicle`.
 
@@ -1099,7 +1215,7 @@ panel, then leaves.
 **Acceptance:** the graph renders from `CR` `TechTree.luau` with zero hand-placed coordinates (lanes computed from the
 DAG: branch order from content, then a deterministic lane assignment); node states equal `ResearchGraph(PV)` for every
 node on 50 random profiles (REG-UI-05); 90+ nodes pan at 60 FPS on PC and 30 FPS on mobile (nodes are static images +
-text; edges are 1 px-high Frames, ≤ 300 instances per faction).
+text, ≤ 12 GuiObjects each; edges are 2 px Frames, ≤ 300 segments per faction).
 
 ### S11 Vehicle comparison (`Screens/Compare`, drill-in)
 
@@ -1192,9 +1308,11 @@ normalization used · 2-calibre / 3-calibre rule note ("Overmatch: shell > 3× p
 `num.m` with the segment glyph · Ricochet yes/no with the threshold (70° kinetic, 85° HEAT) · for HE/HESH: "Expected
 damage if not penetrating: 96" from the D§1 HE formula.
 
-**Chance** = P(rolled pen ≥ T_eff) under the D§1 roll (truncated normal, σ = 0.125 × pen, ±25 % bound), computed by a
-pure `Penetration.chance(penMm, tEffMm)` helper in Shared (requested, §5.4) so the UI and tests share it; ricochet
-gives 0 % with the label "Ricochet". The probe raycasts the analytic `ArmorGeometry` in vehicle space (one ray per
+**Chance** = P(rolled pen ≥ required pen) under the D§1 roll (truncated normal, σ = 0.125 × mean pen, ±25 % bound).
+*Required pen* is the smallest initial roll that still defeats every layer on the path. The shared path code computes
+it: the sum of T_eff for kinetic rounds, and for HEAT the spaced-gap loss inverted (D§1). The pure helper
+`Penetration.chance(meanPenMm, requiredPenMm)` lives in Shared (requested, §5.4) so the UI and tests share it. A
+ricochet gives 0 % with the label "Ricochet"; overmatch (> 3 cal) never ricochets. The probe raycasts the analytic `ArmorGeometry` in vehicle space (one ray per
 pointer move, ≤ 60/s), never Roblox parts.
 
 **Weak points.** Plates whose effective thickness at 0° yaw (front arc for frontal zones) is ≤ 0.875 × the selected
@@ -1212,11 +1330,11 @@ rebuilds geometry (recolour only); the armor model respects the D§18 part budge
 ### S13 Crew (`Screens/Crew`, section or drill-in; camera preset `crew`)
 
 **Purpose.** View and manage the selected vehicle's crew (Commander, Gunner, Driver, Loader; small vehicles double up,
-D§12), learn perks, use books, retrain, reset, and manage the barracks.
+D§12), learn perks, use books, retrain, reset, and manage the crew reserve.
 
 ```
 ┌[‹] CREW ┊ TUKKHALD · crew 4/4 ┊ [CX] Crew XP …                                                            ┐
-├─[ VEHICLE CREW | BARRACKS ]──────────────────────────────────────────────────────────────────────────────┤
+├─[ VEHICLE CREW | RESERVE ]───────────────────────────────────────────────────────────────────────────────┤
 │ ┌[portrait] Cmdr  Vela Korrin ┐  ┌─PERKS · Vela Korrin · Commander ───────────────────────────────────┐    │
 │ │ ◉ ▬▬▬▬▬▱ slot 3 64%  •      │  │ SLOTS  [① Long Watch ✓][② Field Tutor ✓][③ ···· 64%][④ —][⑤ —] │    │
 │ └─────────────────────────────┘  │ 12k ✓      24k ✓      48k 30,720/48,000                             │    │
@@ -1226,17 +1344,17 @@ D§12), learn perks, use books, retrain, reset, and manage the barracks.
 │ └─────────────────────────────┘  │ [icon][icon][icon]                                                  │    │
 │ ┌[portrait] Loader  …         ┐  │ selected: name · effect · "Works from 1 %, full at 100 %" [LEARN]   │    │
 │ └─────────────────────────────┘  └─────────────────────────────────────────────────────────────────────┘    │
-│ Trained for Tukkhald · 100%      [ RETRAIN ] [ RESET PERKS ] [ USE BOOK ] [ SEND TO BARRACKS ]               │
+│ Trained for Tukkhald · 100%      [ RETRAIN ] [ RESET PERKS ] [ USE BOOK ] [ SEND TO RESERVE ]                │
 └──────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 | Region | Rect | Content |
 |---|---|---|
-| Tabs | (144, 72, 480, 48) | `VEHICLE CREW` · `BARRACKS` |
+| Tabs | (144, 72, 480, 48) | `VEHICLE CREW` · `RESERVE` |
 | Member list | (144, 136, 400, 4 × 128) | `CrewCard` 400 × 120: portrait 96 (generated set, `CrewName.portrait`; fallback role helmet glyph), role glyph(s) (B§6.8, two when doubled), name `h4`, current slot progress, perk-ready badge, injured state never shown here (battle-only, D§12) |
 | Perk board | (568, 136, 1328, 640) | slot row (5 slots with costs 12k/24k/48k/96k/192k, D§12), role perk grid (6 individual), group perk grid (3), detail strip |
 | Crew summary | (144, 664, 400, 120) | trained-for vehicle, efficiency (100 %, or retrain penalty "75 % → 100 % in 14,200 XP"), XP overflow note "Extra crew XP converts to Free XP at 10:1" |
-| Actions | (568, 792, 1328, 56) | `RETRAIN`, `RESET PERKS`, `USE BOOK`, `SEND TO BARRACKS` (secondary) |
+| Actions | (568, 792, 1328, 56) | `RETRAIN`, `RESET PERKS`, `USE BOOK`, `SEND TO RESERVE` (secondary) |
 
 **Perk tile** 120 × 120: perk icon 48 (requested set, §5.1), name `caption` (2 lines), states: learned (slot number
 badge `①`, verdant edge), training (progress ring), available (focusable, `LEARN` when a slot is free), not for this
@@ -1249,7 +1367,7 @@ XP" and is offered only by the rules in content. *Reset perks*: first reset free
 of buying the vehicle); lists perks that will be unlearned; Destructive kind. *Use book*: inventory books (5k / 25k /
 60k) → choose crew → confirm. `→ RetrainCrew`, `→ ResetPerks`, `→ UseCrewBook`, `→ AssignCrew`, `→ RecruitCrew`.
 
-**Barracks tab:** `VirtualList` of unassigned crews (faction emblem, class glyph, trained-for vehicle, total perks),
+**Reserve tab** (code name `Barracks`): `VirtualList` of unassigned crews (faction emblem, class glyph, trained-for vehicle, total perks),
 filters faction / class / trained-for, `ASSIGN TO TUKKHALD` (retrain modal when needed), `DISMISS` (Destructive).
 Empty state §1.10.
 
@@ -1285,7 +1403,7 @@ order is enforced (slot k before k+1); no action shows a price that differs from
 * **Actions:** `MOUNT` (owned), `BUY & MOUNT`, `DEMOUNT` (modal: free with Plus, else choose `[B] 5` or `[C] 10 %`;
   REG-UI-08: moving between setups is free, item counts are conserved). `→ SetEquipment`, `→ BuyEquipment`,
   `→ DemountEquipment`.
-* Mounting into an occupied slot opens a swap confirm that shows where the old item goes (depot) and the demount cost.
+* Mounting into an occupied slot opens a swap confirm that shows where the old item goes (Spares) and the demount cost.
 * **Controller:** initial focus = first empty slot, else slot 1; `[LB]/[RB]` category filter; `[X]` tooltip.
 * **Acceptance:** the drawer never allows two copies of the same item, or two items of one `exclusiveGroup`, on one
   vehicle; category bonus shown equals
@@ -1300,7 +1418,7 @@ order is enforced (slot k before k+1); no action shows a price that differs from
 │ ① [AP shell]   Standard AP     Dmg 358  Pen 195/176  [−][ 30 ][+] ▬▬▬●▬▬  [C] 900 ea│
 │ ② [APCR*]      Special APCR    Dmg 358  Pen 254/191  [−][  6 ][+]          [C] 2,250 ea│
 │ ③ [HE shell]   HE              Dmg 465  Pen 61       [−][  6 ][+]          [C] 900 ea │
-│ PRESET [Balanced ▾]      Depot: 12 AP spare                                          │
+│ PRESET [Balanced ▾]      Spares: 12 AP                                               │
 │ [✓] Auto-resupply after battle                                                       │
 │ Cost to fill: [C] 21,400                        [ REVERT ]  [ APPLY ]                 │
 └──────────────────────────────────────────────────────────────┘
@@ -1311,10 +1429,10 @@ order is enforced (slot k before k+1); no action shows a price that differs from
 * One row per shell the mounted gun carries (2–3, D§1 families; HESH for Crown VIII+ HT/TD): order = battle keys
   1–3 (drag handle on mouse; `[X]` "Move up" on gamepad), shell icon 48 (special rounds gold case + rim, B§6.10), name,
   damage, penetration at 100 m / 500 m (AP/APCR falloff), velocity in the tooltip, per-shell price (special = 2.5 ×
-  standard, credits only, D§11), count stepper + slider (`ui_slider_tick`), depot stock.
+  standard, credits only, D§11), count stepper + slider (`ui_slider_tick`), spare stock (`PV.inventory.shells`).
 * Presets: `Balanced` (≈ 70 / 20 / 10), `Standard only`, `Mirror last battle`; custom edits switch the label to
   `Custom`.
-* Footer: cost to fill (net of depot), auto-resupply toggle (`PV.vehicles[id].autoResupply.ammo`), `REVERT`, `APPLY`
+* Footer: cost to fill (net of spares), auto-resupply toggle (`PV.vehicles[id].autoResupply.ammo`), `REVERT`, `APPLY`
   (`→ SetAmmo`, `→ SetAutoResupply`). 0 total shells is allowed only with the warning "This vehicle can't battle with
   no ammunition" (blocks TO BATTLE, §S06).
 * **Controller:** D-pad up/down rows; left/right adjusts count by 1, `[LT]/[RT]` by 5; `[Y]` apply.
@@ -1629,7 +1747,7 @@ the defaults in this table exactly.
 ### S26 Game menu (`Screens/GameMenu`, modal 480; Garage root Back)
 
 Buttons (secondary, 432 × 52): `RESUME` (initial focus) · `SETTINGS` · `CONTROLS` (key/button reference cards for
-the current input mode, generated from bindings) · `PROVING FIELD` · `HELP & TIPS` (searchable tip cards) · `CREDITS &
+the current input mode, generated from bindings) · `PROVING FIELD` · `HELP & TIPS` (searchable tip cards) · `ABOUT &
 LICENCES`. Footer `caption`: version, region, server id short hash, and "To leave, open the Roblox menu
 ([Esc] / [≡])" — the game never binds or imitates the Roblox menu.
 
@@ -2480,7 +2598,7 @@ sub-screens extend the A§10 screen list; the ARCHITECTURE owner should add them
 | `Tooltip` (plain / stat / item / reason) | §1.7 | |
 | `SkeletonBlock` · `ProgressBar` · `ProgressRing` · `CountUpLabel` · `CurrencyLabel` · `CurrencyCounter` | many | |
 | `StatRow` · `DataTable` (sortable, virtual) · `LedgerTable` | Garage, Inspect, Compare, Results | |
-| `VirtualList` / `VirtualGrid` (horizontal + vertical) | Carousel, Motor Pool, Barracks, Pass | pool = visible + 4 |
+| `VirtualList` / `VirtualGrid` (horizontal + vertical) | Carousel, Motor Pool, Crew reserve, Pass | pool = visible + 4 |
 | `CanvasPanZoom` | Tech Tree, Research | input map §S10 |
 | `VehicleCard` · `TechNode` · `ResearchNode` · `MissionCard` / `MissionRow` · `CrewCard` · `PerkTile` · `CosmeticCard` · `RosterRow` · `StoreTile` | screens | |
 | `Slider` · `Stepper` · `Toggle` · `Dropdown` · `KeyBind` · `SearchField` · `SettingRow` | Settings, Ammo | |
@@ -2545,9 +2663,11 @@ display names are required:
 
 ### 5.4 Engineering and data (owners named)
 
-1. **Shared:** add `Penetration.chance(penMm, tEffMm)` (truncated-normal CDF of the D§1 roll) with Lune specs; used by
-   §S12 and tests (Combat).
-2. **Content types:** add `CustomizationKind` values `Decal` and `Attachment` (§S17) (Content).
+1. **Shared:** add `Penetration.requiredPen(path, shell)` and `Penetration.chance(meanPenMm, requiredPenMm)`
+   (truncated-normal CDF of the D§1 roll) with Lune specs; used by §S12, H-06 and tests (Combat).
+2. **Content / renderer:** `CustomizationKind` already has `Decal`, `Attachment` and `Effect` (`Types/Content`). The
+   Exterior preview needs the client renderer to place decals and attachments at the slot hotspots (§S17)
+   (Render).
 3. **Kit:** add the `TopBar` layer (`TopbarSafeInsets`, DisplayOrder 25) with the fallback in §1.1 (UI kit).
 4. **Net:** register the §0.6 remotes in `RemoteDefs/*` with the stated rate limits; `RewardApplied` must carry the
    mission / pass / research deltas the PROGRESS tab shows (Progression, Matchmaking, Social, Battle).
