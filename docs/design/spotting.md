@@ -11,8 +11,9 @@ Spotting is the information war: which enemy each team may know about. The battl
 tick (ARCHITECTURE §6.1 step 7). Its output is **the anti-wallhack invariant source**: replication sends an enemy's
 state to a client only when `SpottingSystem:isVisibleTo(clientTeam, enemyId)` is true, and full state only within
 `ENEMY_DRAW_RANGE_M` (564 m) of the receiving vehicle (`replicationTier`). Scoring reads the `Spotted` events
-(first-detection credit) and `spottersOf` (assist split). The HUD reads the `SixthSense` events, the effective view
-range (VR circle) and the last-known markers.
+(first-detection credit). The battle ledger's `Attribution` (Battle/Ledger, battle-rules §7.1) receives **every
+successful per-observer check** through `Attribution.noteSeen` and fills each `DamageEvent.assistSpotters` from it.
+The HUD reads the `SixthSense` events, the effective view range (VR circle) and the last-known markers.
 
 Both modules are pure Shared code: no services, no `task.*`, no clock. Time comes in as `now`, the map comes in as a
 `Types.World`, and iteration is in id order, so a battle replays bit-for-bit.
@@ -98,9 +99,14 @@ the Combat runtime ratio (`EffectMultipliers.viewRangeMul`: optics damaged/destr
 
 ### 2.6 Team visibility, linger, markers, Sixth Sense
 
-* A team sees target `t` while some observer of the team succeeded within `SPOT_LINGER_S` (10 s) — team-wide
+* A team sees target `t` while some observer of the team succeeded within the **linger** (10 s) — team-wide
   vision, no radio (`SIGNAL_RELAY_ENABLED = false`; `SpottingSystem.new` raises if it is set, relay is not
   implemented).
+* **The linger is the spotting-assist window.** With the battle's `AttributionState` attached (`new`'s second
+  argument) the linger is `attribution.windowS` (= `ModeSettings.assistSpotWindowS` ← `Battle.LEDGER.ASSIST_SPOT_WINDOW_S`);
+  without one it is `SPOT_LINGER_S`. The two config defaults are equal (spec-asserted), and taking the ledger's
+  number in battle makes divergence impossible even under a live override of one key: at every tick, an enemy is
+  team-visible ⇔ some ally's ledger sighting lies within the window (soak invariant). `lingerS()` reports it.
 * Transitions emit `Spotted {team, target, spotter, first}` (spotter = the latest sighting, lowest id on ties;
   `first` = first time this team saw it this battle) and `Lost {team, target, position}`. `Lost` leaves a last-known
   marker (position at the moment of loss) for `LAST_KNOWN_MARKER_S` (30 s, conflict #11); re-spotting or the target's
@@ -118,9 +124,14 @@ the Combat runtime ratio (`EffectMultipliers.viewRangeMul`: optics damaged/destr
   checks and never observe. A revived vehicle starts unseen (old sightings of it are discarded) and is force-checked.
 * Dead observers stop spotting at once. Their past sightings keep the targets lit for the rest of the linger
   (`DEAD_SPOTTER_KEEPS_LINGER`, OUR DESIGN CHOICE: the information was already relayed) and keep assist credit within
-  `ASSIST_WINDOW_S` (`DEAD_SPOTTER_ASSIST_CREDIT`, REG-SPT-07 design choice).
-* `spottersOf(target, now, team?)` = observers whose last success is within `ASSIST_WINDOW_S` (10 s) of `now`: the
-  allies who share the 0.5 × damage-reward assist pool (00-DECISIONS §5 "Rewards"; the split itself is Scoring's).
+  the linger window (`DEAD_SPOTTER_ASSIST_CREDIT`, REG-SPT-07 design choice; the ledger always credits them).
+* **Ledger attribution.** Every successful check — a LOS success, and every update a pair is inside the proximity
+  radius — sets the pair's `lastSeen = now` and calls `Attribution.noteSeen(attribution, observer, target, now)` (O(1),
+  no allocation). Rejected, blocked, deferred and out-of-range checks never do. `Attribution.fill` then lists the
+  attacker's allies whose own check saw the target ≤ window ago, dead ones included (REG-SPT-07): the allies who
+  share the 0.5 × damage-reward assist pool (00-DECISIONS §5 "Rewards"; the split itself is Scoring's).
+* `spottersOf(target, now, team?)` returns the same set from the spotting side (observers whose last success is
+  within the linger of `now`; dead ones if `DEAD_SPOTTER_ASSIST_CREDIT`) for the HUD, bots and debugging.
 * A vehicle missing from the `update` list is removed: teams that saw it get `Lost`, and whatever only it was seeing
   is lost too.
 
@@ -136,7 +147,11 @@ BattleInstance tick (30 Hz)
   step 9:    for each client c, each enemy e: tier = spotting:replicationTier(c.vehicleId, e)
              "Full" -> snapshot state; "Minimap" -> 2 Hz record (MINIMAP_RECORD_HZ); "None" -> nothing
              (spectators without a vehicle: isVisibleTo(team, e) + VisibilityModel.replicationTier(visible, d))
-Damage events (any step): spotters = spotting:spottersOf(target, now, shooterTeam) -> assist split
+  inside update: every successful check -> Attribution.noteSeen(attribution, observer, target, now)
+Damage events (any step): Attribution.fill(attribution, damage) -> damage.assistSpotters -> Ledger (assist split)
+
+Battle construction: attribution = Attribution.new(roster, modeSettings)
+                     spotting    = SpottingSystem.new({ visibilityMult = ... }, attribution)
 ```
 
 ## 4. API (exact signatures)
@@ -164,7 +179,8 @@ scheduledInterval(distanceM: number, phase: number): number
 replicationTier(teamVisible: boolean, distanceM: number): ReplicationTier   -- "Full" | "Minimap" | "None"
 
 -- Spotting/SpottingSystem
-SpottingSystem.new(options: SpottingOptions?): SpottingSystem             -- { visibilityMult: number? }
+SpottingSystem.new(options: SpottingOptions?, attribution: Attribution.AttributionState?): SpottingSystem
+                                                                          -- options = { visibilityMult: number? }
 system:update(now: number, vehicles: { SpottingVehicle }, world: World): { SpottingEvent }
 system:isVisibleTo(team: number, vehicleId: number): boolean
 system:visibleSet(team: number): { number }                               -- live enemies, ascending, read-only
@@ -172,6 +188,7 @@ system:replicationTier(observerId: number, targetId: number): ReplicationTier
 system:isExposed(vehicleId: number): boolean
 system:spottersOf(targetId: number, now: number, team: number?, out: { number }?): { number }
 system:lastSeenBy(observerId: number, targetId: number): number?
+system:lingerS(): number                                                  -- attribution.windowS, else SPOT_LINGER_S
 system:lastKnown(team: number, vehicleId: number): (Vector3?, number?)
 system:lastKnownIds(team: number, out: { number }?): { number }
 system:viewRangeOf(vehicleId: number): number?
@@ -191,7 +208,9 @@ first, position?}`; records, `visibleSet` arrays and the stats record are reused
 
 | Case | Behaviour |
 |---|---|
-| `now` NaN/inf or decreasing; duplicate id; team change; record without CFrame/pivots/camo | error (programming mistake) |
+| `now` NaN/inf or decreasing; duplicate id; team change; record without CFrame/pivots/camo; malformed attribution | error (programming mistake) |
+| Attribution window non-finite / negative | linger falls back to `SPOT_LINGER_S` (Attribution/ModeRules already sanitise it) |
+| Proximity pair | `noteSeen` every update (30 Hz): the ledger always holds the exact latest sighting |
 | Non-finite pose | the vehicle's pairs are skipped that tick (no spot either way; linger continues) |
 | NaN/negative VR, NaN multipliers | VR 0 / multiplier 1 (VisibilityModel) |
 | NaN ray camo passed to `spotDistance` | treated as 1 (fully concealed); camo clamped to [0, 1] |
@@ -216,11 +235,11 @@ first, position?}`; records, `visibleSet` arrays and the stats record are reused
 | Body camo, moving thresholds, class table | `bodyCamo`, `STOP_SPEED_KMH`, `MOVING_YAW_RATE_DEG_S`; class values live in `Content/Classes` |
 | Paint +.04 (0 ranked), camoAtShot, 3 s arming | `PAINT_CAMO_BONUS(_COMPETITIVE)`, `defaultShotCamoMul`, `SHOT_CAMO_PENALTY_S`, `STATIONARY_ARM_S` |
 | VR composition, stun/smoke, lenses vs mast | `effectiveViewRange` + `applyConditional`; StatsCalculator folds the rest; "don't stack" via one exclusive group |
-| Linger 10 s, last-known 30 s | `SPOT_LINGER_S`, `LAST_KNOWN_MARKER_S` |
+| Linger 10 s, last-known 30 s | `SPOT_LINGER_S` (= `Battle.LEDGER.ASSIST_SPOT_WINDOW_S`; the attached Attribution's window in battle), `LAST_KNOWN_MARKER_S` |
 | Sixth Sense 3 s, no unspotted cue, off if commander injured | `SIXTH_SENSE_DELAY_S`, `sixthSense` flag |
 | Signal range off | `SIGNAL_RELAY_ENABLED = false` (raises if enabled) |
 | Smoke blocks, VR ×.70 inside, `visibilityMult` hook | `SMOKE_BLOCKS_LOS`, `SMOKE_INSIDE_VR_MULT`, `setVisibilityMult` |
-| Rewards: first detection, assist pool among allies who saw ≤ 10 s ago | `Spotted.first/spotter`, `spottersOf`, `ASSIST_WINDOW_S` |
+| Rewards: first detection, assist pool among allies who saw ≤ 10 s ago | `Spotted.first/spotter`; `Attribution.noteSeen` on every successful check → `Attribution.fill`; `spottersOf` |
 
 OUR DESIGN CHOICE refinements (not fixed by the decisions doc): FIFO service of long-deferred pairs; aborting (not
 resuming) a pair the budget cannot finish; proximity evaluated every update instead of every 0.1 s (free, exact);
@@ -236,27 +255,33 @@ port height is the highest known point of the vehicle; removed vehicles drop the
   cost). Soak on `HeightmapWorld`: ≈ 45 queries per tick on average over 10 s, peak 400 at spawn (all pairs forced).
 * Worst case per pair: 2 × 6 × 3 = 36 queries without a FoliageProbe, 12 with one.
 
-## 8. Tests (67)
+## 8. Tests (70)
 
-* `VisibilityModel.spec` (24): config values and bounds; every worked example of research 02 §3; cap vs cheap reject
+* `VisibilityModel.spec` (24): config values and bounds (incl. `SPOT_LINGER_S == Battle.LEDGER.ASSIST_SPOT_WINDOW_S`
+  and no second window key); every worked example of research 02 §3; cap vs cheap reject
   (02-R11); monotonicity properties (seeded); camo composition hand calcs; after-shot calibre curve (75 → .2625,
   160 → .05); penalty windows and arming (REG-SPT-04/-09); foliage defaults, 15 m arithmetic, stack cap; VR
   composition and conditional modifiers; interval table (30 m .10, 100 .30, 200 .708, 350 1.457 → 1.0, 445 2.0 →
   1.0) and jitter bounds; replication tiers (REG-SPT-08).
-* `SpottingSystem.spec` (38): first-update spotting; the 358 m edge; no rays beyond range; proximity through walls
+* `SpottingSystem.spec` (41): first-update spotting; the 358 m edge; no rays beyond range; proximity through walls
   (49/51 m) and 10,000 random wall pairs (REG-SPT-03); 10,000 random open pairs (REG-SPT-02); crossing into range at
   50/150/300/445 m spotted within 1.0 s + 1 tick (REG-SPT-01); interval/jitter scheduling at 200 and 350 m; forced
   shot/stop/spawn checks in the same tick; ray budget never exceeded, forced pairs nearest first, no starvation under
   sustained overload; camo cap (85/95 m), foliage stack (125/135 m), best ray wins, observer and shooter 15 m rules
   (REG-SPT-10) with and without a FoliageProbe; smoke; net/mast arming and after-shot window (REG-SPT-04/-09,
   REG-MINI-03); linger, Lost once, last-known marker life and clearing; edge flicker (REG-SPT-06); Sixth Sense timing,
-  re-arming, suppression (REG-SPT-05); attribution incl. dead spotters (REG-SPT-07); wrecks, revive, removal;
+  re-arming, suppression (REG-SPT-05); attribution incl. dead spotters (REG-SPT-07); ledger attribution: every LOS
+  and proximity success reaches `Attribution.noteSeen` with the pair's exact time each tick (blocked / out-of-range
+  never; mutation-checked), `Attribution.fill` lists exactly the allies who saw the target (shooter excluded, dead
+  spotter credited until window + 0, lapses at +10.1 s), overriding `LEDGER.ASSIST_SPOT_WINDOW_S` to 4 s moves the
+  loss to lastSeen + 4 s with visibility ⇔ ledger credit each tick; wrecks, revive, removal;
   replication tiers; input validation; NaN poses; weather multiplier; event-record reuse; order-independent
   determinism.
 * `SpottingSoak.spec` (5): 30 vehicles on a hilly `HeightmapWorld` with buildings and foliage, moving, stopping,
   firing and dying: every tick the counted `sightLine` calls stay ≤ the budget and the invariants hold (visible sets
-  sorted and consistent with `isVisibleTo`, `replicationTier` and the client mirror rebuilt from events; every visible
-  enemy justified by a sighting within the linger; dead observers never gain sightings; `spottersOf` exact; one
+  sorted and consistent with `isVisibleTo`, `replicationTier` and the client mirror rebuilt from events; visible ⇔ a
+  sighting within the linger ⇔ an ally's `Attribution` record within its window, and every ledger record equals the
+  pair's last success (Attribution attached, linger = ledger window = 3 s); dead observers never gain sightings; `spottersOf` exact; one
   Sixth Sense per exposure; `Spotted.spotter` alive and seeing this tick); the same soak under a 48-ray budget with
   bounded re-check gaps; same-seed determinism; 100 flat + 20 hilly random static scenes agree **exactly** with an
   independent brute-force oracle (per-volume 15 m rules).
@@ -271,6 +296,9 @@ port height is the highest known point of the vehicle; removed vehicles drop the
 * No signal relay (raises if enabled). No `spottingScale` for small maps (research 02-R10) — add if a map needs it.
 * Per-vehicle linger modifiers (Improved Radio Set / Jamming style) are not modelled; `SPOT_LINGER_S` is global.
 * Team change mid-battle is rejected (modes that swap teams must rebuild the system).
+* Revive: the system discards sightings of a revived vehicle, but `Attribution.seen[target]` keeps them (Attribution
+  has no revive hook), so for ≤ 10 s after a revive the ledger can credit pre-death spotters. Only modes with
+  respawn are affected (requested from the battle-rules owner).
 
 ## 10. In-engine verification needed
 

@@ -126,7 +126,10 @@ local Spotting = {
 	-- Persistence, notifications, attribution (00-DECISIONS §5 "Linger", "Sixth Sense", "Rewards")
 	----------------------------------------------------------------------------
 
-	--- A target stays team-visible this long (s) after the last successful check by any observer of the team.
+	--- A target stays team-visible this long (s) after the last successful check by any observer of the team. It IS the
+	--- spotting-assist window: must equal Battle.LEDGER.ASSIST_SPOT_WINDOW_S (spec-asserted). In a battle the system
+	--- uses the attached ledger Attribution's window (ModeSettings.assistSpotWindowS) so the two cannot diverge; this
+	--- key applies when no Attribution is attached (tests, tools, client previews).
 	SPOT_LINGER_S = 10,
 	--- Faded last-known marker kept this long (s) after a target is lost (00-DECISIONS §21 #11: 30 s, not 60).
 	LAST_KNOWN_MARKER_S = 30,
@@ -135,9 +138,8 @@ local Spotting = {
 	SIXTH_SENSE_DELAY_S = 3,
 	--- How long the HUD shows the alert (brand chevron, 00-DECISIONS §16 / §21 #12). UI-only; Spotting does not use it.
 	SIXTH_SENSE_ALERT_S = 2,
-	--- Spotting-assist window (s): allies who saw the target within this window share the assist pool.
-	ASSIST_WINDOW_S = 10,
-	--- OUR DESIGN CHOICE (REG-SPT-07): a destroyed spotter still earns assist credit within ASSIST_WINDOW_S.
+	--- OUR DESIGN CHOICE (REG-SPT-07, matches Battle/Ledger/Attribution): a destroyed spotter still earns assist credit
+	--- within the linger window (SpottingSystem:spottersOf; the ledger always credits dead spotters).
 	DEAD_SPOTTER_ASSIST_CREDIT = true,
 	--- OUR DESIGN CHOICE: the information a spotter relayed before dying keeps its targets lit for the rest of the
 	--- linger (dead observers never start new sightings either way).
@@ -195,7 +197,6 @@ local Spotting = {
 		LAST_KNOWN_MARKER_S = { min = 0, max = 120 },
 		SIXTH_SENSE_DELAY_S = { min = 0, max = 10 },
 		SIXTH_SENSE_ALERT_S = { min = 0, max = 10 },
-		ASSIST_WINDOW_S = { min = 0, max = 30 },
 		SMOKE_INSIDE_VR_MULT = { min = 0, max = 1 },
 		VISIBILITY_MULT_DEFAULT = { min = 0.1, max = 2 },
 	},

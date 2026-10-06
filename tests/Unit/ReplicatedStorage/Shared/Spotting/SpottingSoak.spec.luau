@@ -1,11 +1,13 @@
 -- covers: 30-vehicle randomized soak (00-DECISIONS §18 budget, §20 invariant 4 / REG-SPT-08 filter consistency),
 -- REG-SPT-02/-03 (independent brute-force oracle on random static scenes), REG-SPT-07 (dead spotters), determinism
--- (ARCHITECTURE §13 P0: same seed + inputs → same event stream).
+-- (ARCHITECTURE §13 P0: same seed + inputs → same event stream), battle-rules §7.1 (the ledger's Attribution receives
+-- every successful check; team visibility ⇔ an ally's ledger sighting within the window).
 local Test = require("@tests/Harness/Test")
 local describe, it, expect = Test.describe, Test.it, Test.expect
 
 local Config = require("@game/ReplicatedStorage/Shared/Config")
 local RNG = require("@game/ReplicatedStorage/Shared/Core/RNG")
+local Attribution = require("@game/ReplicatedStorage/Shared/Battle/Ledger/Attribution")
 local HeightmapWorld = require("@tests/Harness/HeightmapWorld")
 local SpottingSystem = require("@game/ReplicatedStorage/Shared/Spotting/SpottingSystem")
 local VisibilityModel = require("@game/ReplicatedStorage/Shared/Spotting/VisibilityModel")
@@ -144,8 +146,17 @@ local function contains(list: { number }, id: number): boolean
 end
 
 -- Per-tick invariants of the spotting state vs the inputs and the event stream.
-local function checkInvariants(sys: any, agents: { Agent }, events: { any }, mirror: any, episodes: any, now: number)
-	local C = Config.Spotting
+local function checkInvariants(
+	sys: any,
+	attribution: any,
+	agents: { Agent },
+	events: { any },
+	mirror: any,
+	episodes: any,
+	now: number
+)
+	local linger = sys:lingerS()
+	expect(linger).toBe(attribution.windowS)
 	local byId = {}
 	for _, a in agents do
 		byId[a.v.id] = a
@@ -191,20 +202,24 @@ local function checkInvariants(sys: any, agents: { Agent }, events: { any }, mir
 			else
 				expect(sys:isVisibleTo(team, v.id)).toBe(inSet)
 				expect(mirror[team][v.id] == true).toBe(inSet)
-				if inSet then
-					-- justified by a sighting of the team within the linger window
-					local justified = false
-					for _, o in agents do
-						if o.v.team == team then
-							local seen = sys:lastSeenBy(o.v.id, v.id)
-							if seen ~= nil and now - seen <= C.SPOT_LINGER_S + EPS then
-								justified = true
-								break
-							end
+				-- visible ⇔ justified by a sighting of the team within the linger window, and the ledger agrees
+				-- (every sighting reached Attribution.noteSeen with the same time; dead spotters still count)
+				local justified, credited = false, false
+				for _, o in agents do
+					if o.v.team == team then
+						local seen = sys:lastSeenBy(o.v.id, v.id)
+						expect(attribution.seen[v.id][o.v.id]).toBe(seen)
+						if seen ~= nil and now - seen <= linger + EPS then
+							justified = true
+						end
+						local ledger = attribution.seen[v.id][o.v.id]
+						if ledger ~= nil and now - ledger <= attribution.windowS + EPS then
+							credited = true
 						end
 					end
-					expect(justified).toBe(true)
 				end
+				expect(justified).toBe(inSet)
+				expect(credited).toBe(inSet)
 				-- replication filter agrees with isVisibleTo for every observer of the team
 				for _, o in agents do
 					if o.v.team == team then
@@ -231,7 +246,7 @@ local function checkInvariants(sys: any, agents: { Agent }, events: { any }, mir
 			for _, o in agents do
 				if o.v.team ~= v.team then
 					local seen = sys:lastSeenBy(o.v.id, v.id)
-					if seen ~= nil and now - seen <= C.ASSIST_WINDOW_S + EPS then
+					if seen ~= nil and now - seen <= linger + EPS then
 						table.insert(expected, o.v.id)
 					end
 				end
@@ -247,14 +262,15 @@ local function checkInvariants(sys: any, agents: { Agent }, events: { any }, mir
 	expect(stats.pairsChecked + stats.pairsDeferred).toBe(stats.pairsDue)
 end
 
+-- `overrides` is a Config.applyOverrides patch (Spotting and/or Battle sections).
 local function soak(
 	seed: number,
 	seconds: number,
-	overrides: { [string]: number }?,
+	overrides: { [string]: any }?,
 	withChecks: boolean
 ): (number, number, { string }, { [string]: number })
 	if overrides ~= nil then
-		expect(Config.applyOverrides({ Spotting = overrides })).toBeOk()
+		expect(Config.applyOverrides(overrides)).toBeOk()
 	end
 	local limit = Config.Spotting.MAX_RAYS_PER_TICK
 	local rng = RNG.new(seed)
@@ -262,10 +278,13 @@ local function soak(
 	local world = F.counting(inner)
 	local agents = makeAgents(rng, ground)
 	local vehicles = {}
+	local roster = {}
 	for _, a in agents do
 		table.insert(vehicles, a.v)
+		table.insert(roster, { participantId = a.v.id, team = a.v.team })
 	end
-	local sys = SpottingSystem.new()
+	local attribution = Attribution.new(roster)
+	local sys = SpottingSystem.new(nil, attribution)
 	local mirror = { [1] = {}, [2] = {} }
 	local episodes = {}
 	local peak, total = 0, 0
@@ -295,7 +314,7 @@ local function soak(
 		if not withChecks then
 			continue
 		end
-		checkInvariants(sys, agents, events, mirror, episodes, now)
+		checkInvariants(sys, attribution, agents, events, mirror, episodes, now)
 		-- fairness: every live pair is (re)checked within a bounded time, even under a tight budget
 		for _, o in agents do
 			for _, t in agents do
@@ -315,14 +334,17 @@ local function soak(
 	return peak, total, log, counts
 end
 
+local SHORT_LINGER = { Spotting = { SPOT_LINGER_S = 3 }, Battle = { LEDGER = { ASSIST_SPOT_WINDOW_S = 3 } } }
+
 describe("Spotting soak", function()
 	Test.afterEach(function()
 		Config.resetOverrides()
 	end)
 
 	it("30 vehicles on hills for 10 s: ray budget and every invariant hold each tick", function()
-		-- linger shortened to 3 s so 10 s exercise many Spotted / Lost / marker / Sixth Sense cycles
-		local peak, total, _, counts = soak(1337, 10, { SPOT_LINGER_S = 3 }, true)
+		-- linger (= the ledger's spot-assist window) shortened to 3 s so 10 s exercise many Spotted / Lost / marker /
+		-- Sixth Sense cycles
+		local peak, total, _, counts = soak(1337, 10, SHORT_LINGER, true)
 		expect(peak <= Config.Spotting.MAX_RAYS_PER_TICK).toBe(true)
 		expect(total > 0).toBe(true)
 		-- the scenario actually exercises spotting, linger expiry and Sixth Sense
@@ -330,13 +352,13 @@ describe("Spotting soak", function()
 	end)
 
 	it("the same soak under a 48-ray budget defers gracefully and starves no pair", function()
-		local peak = soak(4242, 5, { MAX_RAYS_PER_TICK = 48 }, true)
+		local peak = soak(4242, 5, { Spotting = { MAX_RAYS_PER_TICK = 48 } }, true)
 		expect(peak <= 48).toBe(true)
 	end)
 
 	it("is deterministic: the same seed reproduces the event stream and ray counts", function()
-		local peakA, totalA, logA = soak(1337, 4, { SPOT_LINGER_S = 3 }, false)
-		local peakB, totalB, logB = soak(1337, 4, { SPOT_LINGER_S = 3 }, false)
+		local peakA, totalA, logA = soak(1337, 4, SHORT_LINGER, false)
+		local peakB, totalB, logB = soak(1337, 4, SHORT_LINGER, false)
 		expect(#logA > 0).toBe(true)
 		expect(peakB).toBe(peakA)
 		expect(totalB).toBe(totalA)

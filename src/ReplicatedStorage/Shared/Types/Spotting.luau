@@ -30,7 +30,8 @@ type StatModifier = Content.StatModifier
 --- (viewPoint in turret space).
 export type SpottingPivots = {
 	turretRing: CFrame,
-	--- Observation port = spotting port 1 (gun axis), turret space; it follows the turret yaw.
+	--- Observation port, turret space: the DYNAMIC spotting port that follows the turret yaw (00-DECISIONS "gun axis";
+	--- research 02 §2). The STATIC port (top of the hull + turret box over the hull centre) is derived by Spotting.
 	viewPoint: Vector3,
 	--- Visibility checkpoints in hull space (turret roof, mantlet, 4 hull faces at 80 % height, inset 0.1 m).
 	camoPoints: { Vector3 },
@@ -109,6 +110,7 @@ export type FoliageProbe = {
 	foliageAlong: (self: any, from: Vector3, to: Vector3) -> number,
 }
 
+--- SpottingSystem.new options. (The battle ledger's AttributionState is new's second argument: it is a Battle type.)
 export type SpottingOptions = {
 	visibilityMult: number?, -- per-map-variant VR multiplier (default Config.Spotting.VISIBILITY_MULT_DEFAULT)
 }

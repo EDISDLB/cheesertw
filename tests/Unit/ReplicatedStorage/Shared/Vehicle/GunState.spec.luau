@@ -49,7 +49,13 @@ local function gun(reload: any, swapS: number?, capacity: number?): any
 		reload = reload,
 		dispersionM100 = 0.4,
 		aimTimeS = 2,
-		bloom = { movementPerKmh = 0.07, hullTraversePerDegS = 0.075, turretTraversePerDegS = 0.03, afterShot = 3, damagedMul = 1.5 },
+		bloom = {
+			movementPerKmh = 0.07,
+			hullTraversePerDegS = 0.075,
+			turretTraversePerDegS = 0.03,
+			afterShot = 3,
+			damagedMul = 1.5,
+		},
 		depressionDeg = 8,
 		elevationDeg = 20,
 		arcSectors = {},
@@ -457,36 +463,39 @@ describe("GunState: Magazine", function()
 		})
 	end)
 
-	it("AdaptiveMagazine top-off: T_m × (f + (1 − f) × missing ÷ size), cancelled by firing (roster §2.7)", function()
-		local mags = { kind = "Magazine", size = 4, intraClipS = 2.2, reloadS = 37.3 }
-		local mech = { { kind = "AdaptiveMagazine", partialReloadFactor = 0.35 } }
-		local state = GunState.new(gun(mags), ammo(40), { mechanics = mech })
-		run(state, {
-			{ 0, "fire", nil, 1 },
-			{ 3, "reload", nil, { true, nil } }, -- one missing: 37.3 × 0.5125 = 19.11625 s
-		})
-		local snap = GunState.snapshot(state, 3)
-		expect(snap.toppingOff).toBe(true)
-		expect(snap.reloadRemainingS).toBeCloseTo(19.11625, 1e-9)
-		run(state, {
-			{ 22.1162, "mag", nil, 3 },
-			{ 22.11625, "mag", nil, 4 },
-			{ 23, "fire", nil, 1 },
-			{ 25.2, "fire", nil, 1 },
-			{ 27.4, "fire", nil, 1 }, -- 1 left, 3 missing
-		})
-		local ok = GunState.mechanicKey(state, 28) -- the mechanic key tops off: 37.3 × 0.8375 = 31.23875 s
-		expect(ok).toBe(true)
-		expect(GunState.snapshot(state, 28).reloadRemainingS).toBeCloseTo(31.23875, 1e-9)
-		run(state, {
-			{ 30, "fire", nil, 1 }, -- firing cancels the top-off; the reserved rounds go back
-			{ 30, "mag", nil, 0 },
-		})
-		expect(GunState.snapshot(state, 30).toppingOff).toBe(false)
-		expect(GunState.ammoOf(state, 1)).toBe(40 - 5)
-		-- the empty magazine reloads automatically (full T_m)
-		run(state, { { 67.2999, "can", nil, false }, { 67.3, "mag", nil, 4 } })
-	end)
+	it(
+		"AdaptiveMagazine top-off: T_m × (f + (1 − f) × missing ÷ size), cancelled by firing (roster §2.7)",
+		function()
+			local mags = { kind = "Magazine", size = 4, intraClipS = 2.2, reloadS = 37.3 }
+			local mech = { { kind = "AdaptiveMagazine", partialReloadFactor = 0.35 } }
+			local state = GunState.new(gun(mags), ammo(40), { mechanics = mech })
+			run(state, {
+				{ 0, "fire", nil, 1 },
+				{ 3, "reload", nil, { true, nil } }, -- one missing: 37.3 × 0.5125 = 19.11625 s
+			})
+			local snap = GunState.snapshot(state, 3)
+			expect(snap.toppingOff).toBe(true)
+			expect(snap.reloadRemainingS).toBeCloseTo(19.11625, 1e-9)
+			run(state, {
+				{ 22.1162, "mag", nil, 3 },
+				{ 22.11625, "mag", nil, 4 },
+				{ 23, "fire", nil, 1 },
+				{ 25.2, "fire", nil, 1 },
+				{ 27.4, "fire", nil, 1 }, -- 1 left, 3 missing
+			})
+			local ok = GunState.mechanicKey(state, 28) -- the mechanic key tops off: 37.3 × 0.8375 = 31.23875 s
+			expect(ok).toBe(true)
+			expect(GunState.snapshot(state, 28).reloadRemainingS).toBeCloseTo(31.23875, 1e-9)
+			run(state, {
+				{ 30, "fire", nil, 1 }, -- firing cancels the top-off; the reserved rounds go back
+				{ 30, "mag", nil, 0 },
+			})
+			expect(GunState.snapshot(state, 30).toppingOff).toBe(false)
+			expect(GunState.ammoOf(state, 1)).toBe(40 - 5)
+			-- the empty magazine reloads automatically (full T_m)
+			run(state, { { 67.2999, "can", nil, false }, { 67.3, "mag", nil, 4 } })
+		end
+	)
 end)
 
 describe("GunState: Autoreloader", function()
@@ -704,6 +713,26 @@ describe("GunState: ChargedShot", function()
 		expect(shot.charged).toBe(false)
 	end)
 
+	it("by default hull movement resets the charge (roster §2.7, ui-ux H-05); the option can turn it off", function()
+		expect(GunState.DEFAULTS.CHARGED_SHOT_RESET_ON_MOVE).toBe(true)
+		local state = GunState.new(gun({ kind = "Single", reloadS = 3 }), ammo(20), { mechanics = CHARGED })
+		GunState.setTrigger(state, true, 0)
+		GunState.setMoving(state, true, 1.4) -- moving just before the full charge: back to 0
+		expect(GunState.snapshot(state, 1.6).chargeProgress).toBe(0)
+		GunState.setMoving(state, false, 2) -- resumes from 0 at the stop
+		local early = GunState.setTrigger(state, false, 3.4) :: any
+		expect(early.charged).toBe(false)
+		local free = GunState.new(
+			gun({ kind = "Single", reloadS = 3 }),
+			ammo(20),
+			{ mechanics = CHARGED, resetChargeOnMove = false }
+		)
+		GunState.setTrigger(free, true, 0)
+		GunState.setMoving(free, true, 1)
+		local shot = GunState.setTrigger(free, false, 1.5) :: any
+		expect(shot.charged).toBe(true)
+	end)
+
 	it("a direct fire() drops the charge and fires a normal shot", function()
 		local state = GunState.new(gun({ kind = "Single", reloadS = 3 }), ammo(20), { mechanics = CHARGED })
 		GunState.setTrigger(state, true, 0)
@@ -784,17 +813,21 @@ describe("GunState: invariants and performance", function()
 			{ kind = "Magazine", size = 3, intraClipS = 1, reloadS = 9 },
 		}
 		local rng = RNG.new(20261006)
-		for run_ = 1, 60 do
+		for _ = 1, 60 do
 			local reload = kinds[rng:int(1, #kinds)]
 			local mechanics = if reload.kind == "Magazine" and rng:chance(0.5)
 				then { { kind = "AdaptiveMagazine", partialReloadFactor = 0.35 } }
 				else nil
 			local counts = { rng:int(0, 15), rng:int(0, 6), rng:int(0, 6) }
 			local initial = counts[1] + counts[2] + counts[3]
-			local state = GunState.new(gun(reload, rng:range(0.5, 1.5) * oneReload(reload)), ammo(counts[1], counts[2], counts[3]), {
-				mechanics = mechanics,
-				startLoaded = rng:chance(0.8),
-			})
+			local state = GunState.new(
+				gun(reload, rng:range(0.5, 1.5) * oneReload(reload)),
+				ammo(counts[1], counts[2], counts[3]),
+				{
+					mechanics = mechanics,
+					startLoaded = rng:chance(0.8),
+				}
+			)
 			local t = 0
 			local clipShots, lastShotCount = 0, 0
 			for _ = 1, 200 do
@@ -845,15 +878,9 @@ describe("GunState: invariants and performance", function()
 		for _, reload in { SINGLE, MAGAZINE, AUTO, DUAL } do
 			local state = GunState.new(gun(reload), ammo(500, 500), { mechanics = nil })
 			local snap = GunState.newSnapshot(state)
-			-- warm up
-			for i = 1, 300 do
-				local t = i / 30
-				GunState.setTrigger(state, i % 11 < 5, t)
-				GunState.snapshot(state, t, snap)
-			end
-			collectgarbage("collect")
-			local before = collectgarbage("count")
-			for i = 301, 3300 do
+			local i = 0
+			local function tick()
+				i += 1
 				local t = i / 30
 				GunState.setTrigger(state, i % 11 < 5, t)
 				GunState.update(state, t + 0.01)
@@ -863,10 +890,215 @@ describe("GunState: invariants and performance", function()
 					GunState.selectShell(state, 1 + (i % 2), t + 0.02)
 				end
 			end
-			local grown = collectgarbage("count") - before
-			if grown > 1 then
-				error(`{reload.kind}: {grown} KB allocated in 3,000 ticks`)
+			for _ = 1, 300 do
+				tick() -- warm up
+			end
+			-- Luau only exposes collectgarbage("count"): without allocation the heap size is exactly constant, so
+			-- nearly every short window must show zero growth (an allocating loop almost never nets exactly 0).
+			local zero, windows = 0, 20
+			for _ = 1, windows do
+				local before = collectgarbage("count")
+				for _ = 1, 150 do
+					tick()
+				end
+				if collectgarbage("count") == before then
+					zero += 1
+				end
+			end
+			if zero < windows - 2 then
+				error(`{reload.kind}: only {zero}/{windows} allocation-free windows`)
 			end
 		end
+	end)
+end)
+
+describe("GunState: blocking, ammo-rack sync and runtime inputs", function()
+	local DamageModel = require("@game/ReplicatedStorage/Shared/Combat/DamageModel")
+	local StatsCalculator = require("@game/ReplicatedStorage/Shared/Vehicle/StatsCalculator")
+	local ContentRegistry = require("@game/ReplicatedStorage/Shared/Config/ContentRegistry")
+
+	it("an overturned vehicle cannot fire; the reload keeps running; righted it fires at once", function()
+		local state = GunState.new(gun(SINGLE), ammo(10))
+		run(state, { { 0, "fire", nil, 1 } })
+		GunState.setOverturned(state, true, 0.5)
+		run(state, { { 3, "fire", "OVERTURNED", false }, { 3, "can", "OVERTURNED", false } })
+		local snap = GunState.snapshot(state, 3)
+		expect(snap.phase).toBe("Disabled")
+		expect(snap.overturned).toBe(true)
+		expect(snap.roundsLoaded).toBe(1)
+		expect(snap.nextShotS).toBe(math.huge)
+		GunState.setOverturned(state, false, 4)
+		run(state, { { 4, "fire", nil, 1 } })
+		expect(GunState.snapshot(state, 4).overturned).toBe(false)
+	end)
+
+	it("overturning cancels a charging volley; the gun destroyed reason takes precedence", function()
+		local state = GunState.new(gun(DUAL), ammo(20))
+		GunState.setTrigger(state, true, 0)
+		GunState.setOverturned(state, true, 0.5)
+		expect(GunState.update(state, 2)).toBeNil()
+		expect(GunState.setTrigger(state, false, 2.1)).toBeNil()
+		expect(GunState.ammoOf(state, 1)).toBe(20)
+		GunState.setEnabled(state, false, 3)
+		local _, reason = GunState.canFire(state, 3)
+		expect(reason).toBe("GUN_DESTROYED")
+		GunState.kill(state, 4)
+		_, reason = GunState.canFire(state, 4)
+		expect(reason).toBe("DEAD")
+	end)
+
+	it("storedAmmo excludes rounds in the gun and keeps DamageModel's detonation count in sync", function()
+		local combat = DamageModel.new({
+			hp = 100,
+			massKg = 10000,
+			modules = { AmmoRack = { maxHp = 50, repairS = 10 } },
+			crew = {},
+			crewLevels = {},
+			fireChance = 0,
+			fireDurationS = 8,
+			spallFactor = 1,
+			crewInjuryChanceMul = 1,
+			stunDurationMul = 1,
+			ramDamageDealtMul = 1,
+			ramDamageTakenMul = 1,
+			fallDamageMul = 1,
+		})
+		local single = GunState.new(gun(SINGLE), ammo(3))
+		expect(GunState.storedAmmo(single)).toBe(2) -- one round chambered
+		expect(GunState.syncAmmoStored(single, combat)).toBe(2)
+		expect(combat.ammoStored).toBe(2)
+		GunState.fire(single, 0) -- 2 left: one being loaded (still outside the gun), one in the rack
+		expect(GunState.syncAmmoStored(single, combat)).toBe(2)
+		GunState.fire(single, 2)
+		GunState.update(single, 4) -- last round chambered, rack empty
+		expect(GunState.syncAmmoStored(single, combat)).toBe(0)
+		expect(combat.ammoStored).toBe(0) -- a destroyed rack can no longer detonate
+		local mag = GunState.new(gun(MAGAZINE), ammo(10))
+		expect(GunState.storedAmmo(mag)).toBe(6) -- 4 in the magazine
+		local dual = GunState.new(gun(DUAL), ammo(5))
+		expect(GunState.storedAmmo(dual)).toBe(3)
+	end)
+
+	it("applyRuntime feeds the StatsCalculator runtime into the reload and the trigger", function()
+		local state = GunState.new(gun({ kind = "Single", reloadS = 10 }), ammo(10))
+		GunState.fire(state, 0)
+		GunState.applyRuntime(state, { reloadMul = 1.25, canFire = true }, 4) -- 4 base s done, 6 left at ×1.25
+		expect(GunState.snapshot(state, 4).reloadRemainingS).toBeCloseTo(7.5, 1e-9)
+		GunState.applyRuntime(state, { reloadMul = 1, canFire = false }, 6) -- 1.6 base s done, 4.4 left
+		run(state, { { 10.4, "can", "GUN_DESTROYED", false } })
+		expect(GunState.roundsLoaded(state)).toBe(1)
+	end)
+
+	it("a magazine reload completing exactly at the death time fills the magazine; nothing fires", function()
+		local state = GunState.new(gun(MAGAZINE), ammo(10))
+		for i = 0, 3 do
+			GunState.fire(state, i * 2)
+		end
+		-- empty at 6 s → full reload until 24 s
+		GunState.kill(state, 24)
+		local snap = GunState.snapshot(state, 30)
+		expect(snap.roundsLoaded).toBe(4)
+		expect(snap.phase).toBe("Dead")
+		run(state, { { 30, "fire", "DEAD", false } })
+		-- a death one instant earlier leaves the magazine empty and the reload frozen
+		local early = GunState.new(gun(MAGAZINE), ammo(10))
+		for i = 0, 3 do
+			GunState.fire(early, i * 2)
+		end
+		GunState.kill(early, 23.999)
+		expect(GunState.snapshot(early, 30).roundsLoaded).toBe(0)
+	end)
+
+	it("an autoreloader refill completing at the death time counts; the next refill never starts", function()
+		local state = GunState.new(gun(AUTO), ammo(10))
+		GunState.fire(state, 0) -- refill of slot 3 starts: 6 s
+		GunState.kill(state, 6)
+		expect(GunState.roundsLoaded(state)).toBe(3)
+		local snap = GunState.snapshot(state, 20)
+		expect(snap.refillSlotIndex).toBe(0)
+		expect(snap.phase).toBe("Dead")
+	end)
+
+	it("death while a volley charges: no volley, ever", function()
+		local state = GunState.new(gun(DUAL), ammo(20))
+		GunState.setTrigger(state, true, 0)
+		GunState.kill(state, 0.9)
+		expect(GunState.update(state, 5)).toBeNil()
+		expect(GunState.ammoOf(state, 1)).toBe(20)
+	end)
+
+	it("table: out-of-ammo transitions for every kind", function()
+		local rows = {
+			{
+				"Single",
+				SINGLE,
+				ammo(1),
+				{ { 0, "fire", nil, 1 }, { 10, "can", "EMPTY", false }, { 10, "mag", nil, 0 } },
+			},
+			{
+				"Magazine (2 rounds < size)",
+				MAGAZINE,
+				ammo(2),
+				{ { 0, "mag", nil, 2 }, { 0, "fire", nil, 1 }, { 2, "fire", nil, 1 }, { 100, "can", "EMPTY", false } },
+			},
+			{
+				"Autoreloader (3 rounds = size)",
+				AUTO,
+				ammo(3),
+				{
+					{ 0, "fire", nil, 1 },
+					{ 2, "fire", nil, 1 },
+					{ 4, "fire", nil, 1 },
+					{ 4, "can", "EMPTY", false },
+					{ 50, "mag", nil, 0 },
+				},
+			},
+			{
+				"DualGun (1 round)",
+				DUAL,
+				ammo(1),
+				{ { 0, "mag", nil, 1 }, { 0, "fire", nil, 1 }, { 30, "can", "EMPTY", false } },
+			},
+			{
+				"Single falls through to the next shell",
+				SINGLE,
+				ammo(1, 1),
+				{ { 0, "fire", nil, 1 }, { 2, "fire", nil, 2 }, { 4, "can", "EMPTY", false } },
+			},
+		}
+		for _, row in rows do
+			local state = GunState.new(gun(row[2]), row[3])
+			local ok, err = pcall(run, state, row[4])
+			if not ok then
+				error(`{row[1]}: {tostring(err)}`)
+			end
+			expect(GunState.totalAmmo(state)).toBe(0)
+		end
+	end)
+
+	it("drives a real VehicleStats gun: crew-scaled reload and an Intuition-shortened swap", function()
+		local registry = ContentRegistry.get()
+		local def = registry:getVehicle("iu_bulmal") :: any
+		local stats = (StatsCalculator.compute(def, def.top, nil, registry) :: any).value
+		local load = {
+			{ shell = "iu_76mm_ap", count = 30 },
+			{ shell = "iu_76mm_apcr", count = 10 },
+			{ shell = "iu_76mm_he", count = 10 },
+		}
+		local state = GunState.new(stats.gun, load)
+		local shot = GunState.fire(state, 0) :: any
+		expect(shot.shell.damage).toBe(75)
+		expect((GunState.canFire(state, 2.999))).toBe(false)
+		expect((GunState.canFire(state, 3.0))).toBe(true)
+		-- swap away from the loaded AP: full reload × shellSwapS / reloadS (= 1 without skills)
+		GunState.selectShell(state, 2, 3)
+		expect(GunState.snapshot(state, 3).reloadRemainingS).toBeCloseTo(3.0, 1e-9)
+		local fast = table.clone(stats.gun)
+		fast.shellSwapS = 1.8 -- Intuition on both loaders (× 0.6)
+		local quick = GunState.new(fast, load)
+		GunState.selectShell(quick, 3, 0)
+		expect(GunState.snapshot(quick, 0).reloadRemainingS).toBeCloseTo(1.8, 1e-9)
+		expect(GunState.snapshot(quick, 0).loadedSlot).toBe(0)
+		expect(GunState.ammoOf(quick, 1)).toBe(30) -- the unloaded AP went back to the rack
 	end)
 end)

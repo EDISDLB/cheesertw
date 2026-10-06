@@ -12,8 +12,9 @@
 	Error handling:   No throws; rejected activations return (false, "DEAD" | "IMMOBILE" | "ACTIVE" | "COOLDOWN").
 	Performance notes: O(1); the modifier list is built once in new().
 
-	Exotic (Tier XI / Event only, Common.allowedOn). VehicleSim currently runs its own copy of this machine for the
-	power factor; this module is the reusable contract (same phases and timings).
+	Exotic (Tier XI / Event only, Common.allowedOn). Mechanics/Controller runs this machine and writes its phase into
+	VehicleSim's external mode; VehicleSim applies the power factor while the phase is On (same phases and timings
+	as its built-in copy, which only runs when no controller owns the mechanic).
 ]]
 
 local Common = require("./Common")

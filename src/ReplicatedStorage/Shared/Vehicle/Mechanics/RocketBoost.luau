@@ -16,8 +16,9 @@
 	Error handling:   No throws; rejected presses return (false, "DEAD" | "IMMOBILE" | "ACTIVE" | "NO_CHARGES").
 	Performance notes: O(charges) per update (<= 10), allocation-free after new().
 
-	Note: VehicleSim's built-in copy currently treats `charges` as per-battle uses with one global cooldown; the
-	recharge rule here is the one the HUD spec describes (flagged in docs/design/vehicle-stats.md).
+	Note: VehicleSim's built-in copy treats `charges` as per-battle uses with one global cooldown; the recharge rule
+	here is the one the HUD spec describes. Battles run this machine through Mechanics/Controller (VehicleSim's
+	external mode), so this rule is the live one (docs/design/vehicle-stats.md §5).
 ]]
 
 local Common = require("./Common")

@@ -13,9 +13,9 @@
 	Error handling:   No throws; begin() while dead returns (false, "DEAD").
 	Performance notes: O(1), allocation-free.
 
-	Movement rule: roster §2.7 (the mechanic spec) allows moving while charging; the HUD spec (ui-ux H-05) resets
-	the arc on hull movement. Default follows roster §2.7; `opts.resetOnMove = true` switches to the HUD rule (the
-	charge restarts at 0 while the hull moves > Config.Spotting.STOP_SPEED_KMH and resumes when it stops).
+	Movement rule (roster §2.7 signature rules, ui-ux H-05): hull movement above Config.Spotting.STOP_SPEED_KMH resets
+	the charge to 0 and charging resumes when the hull stops. The machine takes it as `opts.resetOnMove`; GunState
+	passes DEFAULTS.CHARGED_SHOT_RESET_ON_MOVE (true). Without the option the charge runs while moving.
 ]]
 
 local Common = require("./Common")
@@ -45,6 +45,7 @@ export type State = {
 	dispersionMul: number, -- applied to a fully charged shot
 	damageMul: number,
 	resetOnMove: boolean,
+	moving: boolean, -- hull moving at the last update (resetOnMove: the charge restarts when it stops)
 }
 
 local ChargedShot = {}
@@ -65,11 +66,19 @@ function ChargedShot.new(spec: Spec, now: number?, opts: { resetOnMove: boolean?
 		dispersionMul = if accuracy then Common.positive(spec.dispersionMul, 1) else 1,
 		damageMul = if accuracy then 1 else Common.positive(spec.damageMul, 1),
 		resetOnMove = opts ~= nil and opts.resetOnMove == true,
+		moving = false,
 	}
 end
 
---- Advances the charge to `now`; with resetOnMove, a moving hull (ctx.stationaryForS = 0, i.e. faster than the
---- stop speed) holds the charge at 0 until it stops. Death drops the charge. True on a phase change.
+local function restart(state: State, t: number)
+	state.phase = "Engaging"
+	state.phaseStart = t
+	state.phaseEnd = t + state.chargeTimeS
+end
+
+--- Advances the charge to `now`; with resetOnMove, a moving hull (ctx.stationaryForS <= 0, i.e. faster than the
+--- stop speed) holds the charge at 0, and the charge restarts from 0 at the update that reports the hull stopped
+--- (callers report the stop at its exact time). Death drops the charge. True on a phase change.
 function ChargedShot.update(state: State, now: number, ctx: Context?): boolean
 	local t = Common.time(now, state.time)
 	if t < state.time then
@@ -77,16 +86,20 @@ function ChargedShot.update(state: State, now: number, ctx: Context?): boolean
 	end
 	state.time = t
 	local before = state.phase
+	local moving = state.moving
+	if ctx ~= nil then
+		moving = ctx.stationaryForS <= 0
+	end
 	if state.phase ~= "Off" and ctx ~= nil and not ctx.alive then
 		state.phase = "Off"
 		state.phaseEnd = math.huge
-	elseif state.phase ~= "Off" and state.resetOnMove and ctx ~= nil and ctx.stationaryForS <= 0 then
-		state.phase = "Engaging"
-		state.phaseStart = t
-		state.phaseEnd = t + state.chargeTimeS
+	elseif state.phase ~= "Off" and state.resetOnMove and (moving or state.moving) then
+		-- moving: hold at 0; just stopped (moving -> still): the charge starts over now
+		restart(state, t)
 	elseif state.phase == "Engaging" and Common.reached(t, state.phaseEnd) then
 		state.phase = "On"
 	end
+	state.moving = moving
 	return state.phase ~= before
 end
 
@@ -100,9 +113,7 @@ function ChargedShot.begin(state: State, at: number, ctx: Context?): (boolean, s
 		return false, "ACTIVE"
 	end
 	local t = Common.time(at, state.time)
-	state.phase = "Engaging"
-	state.phaseStart = t
-	state.phaseEnd = t + state.chargeTimeS
+	restart(state, t)
 	if t > state.time then
 		state.time = t
 	end
@@ -143,9 +154,14 @@ function ChargedShot.isActive(state: State): boolean
 	return state.phase ~= "Off"
 end
 
---- Charge progress 0..1 at `now` (0 when idle).
+-- Held at 0: reset-on-move while the hull moves.
+local function held(state: State): boolean
+	return state.resetOnMove and state.moving
+end
+
+--- Charge progress 0..1 at `now` (0 when idle or held at 0 by a moving hull).
 function ChargedShot.progress(state: State, now: number): number
-	if state.phase == "Off" then
+	if state.phase == "Off" or held(state) then
 		return 0
 	elseif state.phase == "On" then
 		return 1
@@ -167,7 +183,7 @@ function ChargedShot.modifiers(_state: State): { StatModifier }?
 end
 
 function ChargedShot.nextChange(state: State): number
-	return if state.phase == "Engaging" then state.phaseEnd else math.huge
+	return if state.phase == "Engaging" and not held(state) then state.phaseEnd else math.huge
 end
 
 function ChargedShot.snapshot(state: State, now: number, out: Snapshot?): Snapshot
@@ -185,8 +201,9 @@ function ChargedShot.snapshot(state: State, now: number, out: Snapshot?): Snapsh
 		math.huge,
 		0
 	)
-	if state.phase == "Off" then
+	if state.phase == "Off" or held(state) then
 		snap.progress = 0
+		snap.remainingS = if state.phase == "Off" then 0 else state.chargeTimeS
 	end
 	return snap
 end

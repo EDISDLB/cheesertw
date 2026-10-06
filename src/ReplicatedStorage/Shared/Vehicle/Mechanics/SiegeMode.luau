@@ -15,9 +15,10 @@
 	Performance notes: O(1), allocation-free (modifiers() returns the spec's own frozen list).
 
 	Auto-engage (player option): engages once the hull has been stationary for autoEngageS. A manual disengage
-	suppresses it until the hull moves again (so it never fights the player). Placement: VehicleSim runs the
-	mobility side of siege today; this module is the reusable machine and the source of the non-mobility siege
-	modifiers (aim, dispersion) for StatsCalculator's runtime.
+	suppresses it until the hull moves again (so it never fights the player). Placement: Mechanics/Controller runs
+	this machine and writes its phase into VehicleSim's external mode (VehicleSim applies the speed cap, travel
+	reverse and the mobility/arc modifiers of the phase); modifiers() also feed StatsCalculator's runtime, which
+	applies the non-mobility ones (aim, dispersion).
 ]]
 
 local Common = require("./Common")

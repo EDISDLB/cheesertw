@@ -219,6 +219,20 @@ function Modifiers.scaledValue(mod: StatModifier, scale: number?): number
 	return mod.value * s
 end
 
+--- A new StatModifier equal to `mod` with its value applied at share `scale` (setup-time; allocates). Used to hand
+--- conditional modifiers of a partly-trained skill or a category-slot item to the runtime already scaled.
+function Modifiers.scaledCopy(mod: StatModifier, scale: number?): StatModifier
+	return {
+		stat = mod.stat,
+		op = mod.op,
+		value = Modifiers.scaledValue(mod, scale),
+		condition = mod.condition,
+		durationS = mod.durationS,
+		rangeM = mod.rangeM,
+		module = mod.module,
+	}
+end
+
 --- A fresh accumulator (identity: every add 0, every mul 1).
 function Modifiers.newAccumulator(): Accumulator
 	local add = table.create(NUM_SLOTS, 0)

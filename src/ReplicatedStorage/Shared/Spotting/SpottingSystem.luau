@@ -7,11 +7,13 @@
 
 	Purpose:          THE anti-wallhack source: replication sends an enemy's state to a client only if
 	                  isVisibleTo(clientTeam, enemyId) (full state only within ENEMY_DRAW_RANGE_M, see replicationTier).
-	                  Scoring reads Spotted events (first detection) and spottersOf (assist credit).
+	                  Scoring reads Spotted events (first detection); the battle ledger's Attribution receives every
+	                  successful per-observer check (noteSeen) and fills the spotting-assist lists from it.
 	Dependencies:     Config (Spotting), Core/RNG (pair hash), Core/Units, Types/World, Types/Spotting,
-	                  Spotting/VisibilityModel.
+	                  Spotting/VisibilityModel, Battle/Ledger/Attribution (noteSeen sink, optional per battle).
 	State:            Per battle: vehicle records (sorted by id), directed enemy pairs (schedule, last success),
-	                  per-team visible sets / first-detection flags / last-known markers, a reused event buffer.
+	                  per-team visible sets / first-detection flags / last-known markers, a reused event buffer; an
+	                  optional reference to the battle's AttributionState (written only through Attribution.noteSeen).
 	Validation:       update() raises on structural mistakes (non-table record, non-number id/team, duplicate id, team
 	                  change, missing CFrame/pivots/camo, non-finite or decreasing `now`). Non-finite poses skip the
 	                  vehicle's pairs that tick; non-finite VR/camo degrade per VisibilityModel.
@@ -35,8 +37,12 @@
 	    FOLIAGE_OBSERVER_CLEAR_M of the port never conceals; foliage within FOLIAGE_SHOOTER_CLEAR_M of the checkpoint
 	    stops concealing for SHOT_FOLIAGE_PENALTY_S after t fires (sub-segment queries only when foliage decides).
 	    The first successful ray wins.
-	  * A team sees t while some observer of the team succeeded within SPOT_LINGER_S (dead observers keep their past
-	    sightings if DEAD_SPOTTER_KEEPS_LINGER but never start new ones). Transitions emit Spotted / Lost; Lost leaves a
+	  * Every successful check (LOS success, and every update a pair is inside the proximity radius) is a sighting:
+	    pair.lastSeen = now and, when an Attribution state is attached, Attribution.noteSeen(observer, target, now).
+	  * A team sees t while some observer of the team succeeded within the linger (dead observers keep their past
+	    sightings if DEAD_SPOTTER_KEEPS_LINGER but never start new ones). The linger is the attached Attribution's
+	    window (ModeSettings.assistSpotWindowS = Battle.LEDGER.ASSIST_SPOT_WINDOW_S), else SPOT_LINGER_S, so team
+	    visibility and the spotting-assist window can never disagree. Transitions emit Spotted / Lost; Lost leaves a
 	    last-known marker for LAST_KNOWN_MARKER_S.
 	  * Wrecks (alive = false) are visible to every team, never observe, and leave the visible sets silently.
 	  * Sixth Sense: one SixthSense event SIXTH_SENSE_DELAY_S after a vehicle first becomes visible to any enemy team,
@@ -50,6 +56,7 @@ local Units = require("@game/ReplicatedStorage/Shared/Core/Units")
 local WorldTypes = require("@game/ReplicatedStorage/Shared/Types/World")
 local SpottingTypes = require("@game/ReplicatedStorage/Shared/Types/Spotting")
 local VisibilityModel = require("./VisibilityModel")
+local Attribution = require("@game/ReplicatedStorage/Shared/Battle/Ledger/Attribution")
 
 type World = WorldTypes.World
 type SpottingVehicle = SpottingTypes.SpottingVehicle
@@ -60,6 +67,7 @@ type SpottingStats = SpottingTypes.SpottingStats
 type SpottingOptions = SpottingTypes.SpottingOptions
 type ReplicationTier = SpottingTypes.ReplicationTier
 type PairInfo = SpottingTypes.PairInfo
+type AttributionState = Attribution.AttributionState
 
 type FoliageFn = (any, Vector3, Vector3) -> number
 
@@ -151,6 +159,7 @@ type SystemData = {
 	_probes: number,
 	_stats: SpottingStats,
 	_visibilityMult: number,
+	_attribution: AttributionState?,
 }
 
 export type SpottingSystem = typeof(setmetatable({} :: SystemData, SpottingSystemClass))
@@ -191,6 +200,19 @@ local function shotTime(v: SpottingVehicle): number
 		return s
 	end
 	return NEVER
+end
+
+-- The linger window (s): the attached Attribution's spot-assist window (so team visibility and assist credit share one
+-- number, battle-rules §7.1), else Config SPOT_LINGER_S (standalone use: tests, tools, client previews).
+local function lingerOf(self: SpottingSystem, C: any): number
+	local attribution = self._attribution
+	if attribution ~= nil then
+		local w = attribution.windowS
+		if type(w) == "number" and isFinite(w) and w >= 0 then
+			return w
+		end
+	end
+	return C.SPOT_LINGER_S
 end
 
 local function validateRecord(v: any, index: number)
@@ -612,6 +634,7 @@ local function schedulePairs(self: SpottingSystem, C: any, now: number): number
 	local deferPriority = C.DEFER_PRIORITY_S
 	local stats = self._stats
 	local due = self._due
+	local attribution = self._attribution
 	local nDue = 0
 	for _, pair in self._pairs do
 		local o, t = pair.observer, pair.target
@@ -623,12 +646,15 @@ local function schedulePairs(self: SpottingSystem, C: any, now: number): number
 		local distM = math.sqrt(dx * dx + dy * dy + dz * dz) / STUDS_PER_M
 		pair.distM = distM
 		if distM <= prox then
-			-- Proximity: spotted through anything, evaluated every update (no ray).
+			-- Proximity: spotted through anything, evaluated every update (no ray). A successful check.
 			pair.lastSeen = now
 			pair.lastCheck = now
 			pair.nextCheck = now
 			pair.forced = false
 			stats.proximitySpots += 1
+			if attribution ~= nil then
+				Attribution.noteSeen(attribution, o.id, t.id, now)
+			end
 			continue
 		end
 		if not pair.forced and pair.nextCheck > now + TIME_EPS then
@@ -764,6 +790,7 @@ local function runChecks(self: SpottingSystem, C: any, world: World, nDue: numbe
 	end
 	local stats = self._stats
 	local due = self._due
+	local attribution = self._attribution
 	for i = 1, nDue do
 		local pair = due[i]
 		if self._rays >= budget then
@@ -780,6 +807,9 @@ local function runChecks(self: SpottingSystem, C: any, world: World, nDue: numbe
 		pair.forced = false
 		if result > 0 then
 			pair.lastSeen = now
+			if attribution ~= nil then
+				Attribution.noteSeen(attribution, pair.observer.id, pair.target.id, now)
+			end
 		end
 		schedule(pair, now, pair.distM)
 	end
@@ -790,7 +820,7 @@ end
 --------------------------------------------------------------------------------
 
 local function updateTeams(self: SpottingSystem, C: any, now: number)
-	local linger = C.SPOT_LINGER_S
+	local linger = lingerOf(self, C)
 	local keepDead = C.DEAD_SPOTTER_KEEPS_LINGER == true
 	local markerLife = C.LAST_KNOWN_MARKER_S
 	local teams = self._teams
@@ -895,11 +925,20 @@ end
 -- Public API
 --------------------------------------------------------------------------------
 
---- A spotting state for one battle. Raises if Config.Spotting.SIGNAL_RELAY_ENABLED (relay is not implemented).
-function SpottingSystem.new(options: SpottingOptions?): SpottingSystem
+--- A spotting state for one battle. `attribution` is the battle ledger's AttributionState (Battle/Ledger/Attribution):
+--- when given, every successful per-observer check calls Attribution.noteSeen(observer, target, now), and its window
+--- (ModeSettings.assistSpotWindowS) is the linger. Raises if Config.Spotting.SIGNAL_RELAY_ENABLED (relay is not
+--- implemented) or on a malformed option / attribution state.
+function SpottingSystem.new(options: SpottingOptions?, attribution: AttributionState?): SpottingSystem
 	local C = Config.Spotting
 	if C.SIGNAL_RELAY_ENABLED then
 		error("SpottingSystem.new: SIGNAL_RELAY_ENABLED (relay chains) is not implemented in v1", 2)
+	end
+	if attribution ~= nil then
+		local a: any = attribution
+		if type(a) ~= "table" or type(a.seen) ~= "table" or type(a.teamOf) ~= "table" then
+			error("SpottingSystem.new: attribution must be an AttributionState (Attribution.new)", 2)
+		end
 	end
 	local mult = C.VISIBILITY_MULT_DEFAULT
 	if options ~= nil and options.visibilityMult ~= nil then
@@ -939,6 +978,7 @@ function SpottingSystem.new(options: SpottingOptions?): SpottingSystem
 			cheapRejects = 0,
 		},
 		_visibilityMult = mult,
+		_attribution = attribution,
 	}
 	return setmetatable(data, SpottingSystemClass)
 end
@@ -1047,8 +1087,9 @@ function SpottingSystemClass.isExposed(self: SpottingSystem, vehicleId: number):
 	return rec ~= nil and rec.exposed
 end
 
---- Observers (ascending ids, optionally only of `team`) whose last successful check of the target is within
---- ASSIST_WINDOW_S of `now` — the spotting-assist split. Destroyed spotters count if DEAD_SPOTTER_ASSIST_CREDIT.
+--- Observers (ascending ids, optionally only of `team`) whose last successful check of the target is within the
+--- linger window of `now` (lingerS()). Destroyed spotters count if DEAD_SPOTTER_ASSIST_CREDIT. The battle ledger's
+--- assist lists come from Attribution.fill (fed by noteSeen); this is the same set, for HUD/bots/debug.
 --- Fills and returns `out` (cleared) or a new array.
 function SpottingSystemClass.spottersOf(
 	self: SpottingSystem,
@@ -1064,7 +1105,7 @@ function SpottingSystemClass.spottersOf(
 		return result
 	end
 	local C = Config.Spotting
-	local window = C.ASSIST_WINDOW_S
+	local window = lingerOf(self, C)
 	local creditDead = C.DEAD_SPOTTER_ASSIST_CREDIT == true
 	for _, pair in rec.asTarget do
 		local o = pair.observer
@@ -1126,6 +1167,11 @@ end
 function SpottingSystemClass.bodyCamoOf(self: SpottingSystem, vehicleId: number): number?
 	local rec = self._byId[vehicleId]
 	return if rec ~= nil then rec.body else nil
+end
+
+--- The linger window (s) in force: the attached Attribution's spot-assist window, else Config SPOT_LINGER_S.
+function SpottingSystemClass.lingerS(self: SpottingSystem): number
+	return lingerOf(self, Config.Spotting)
 end
 
 --- Forces a check of every pair involving the vehicle at the next update (e.g. a consumable or mode event).

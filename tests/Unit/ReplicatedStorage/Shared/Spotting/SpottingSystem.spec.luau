@@ -1,10 +1,12 @@
 -- covers: 00-DECISIONS §5; research 02-R2/R11; REG-SPT-01, -02, -03, -04, -05, -06, -07, -09, -10 (15 m rules),
--- REG-SPT-08 (filter API), REG-MINI-01 (wreck ordering), REG-MINI-03 (VR readout within 1 tick)
+-- REG-SPT-08 (filter API), REG-MINI-01 (wreck ordering), REG-MINI-03 (VR readout within 1 tick); battle-rules §7.1
+-- (Attribution.noteSeen on every successful check, linger = LEDGER.ASSIST_SPOT_WINDOW_S)
 local Test = require("@tests/Harness/Test")
 local describe, it, expect = Test.describe, Test.it, Test.expect
 
 local Config = require("@game/ReplicatedStorage/Shared/Config")
 local RNG = require("@game/ReplicatedStorage/Shared/Core/RNG")
+local Attribution = require("@game/ReplicatedStorage/Shared/Battle/Ledger/Attribution")
 local SpottingSystem = require("@game/ReplicatedStorage/Shared/Spotting/SpottingSystem")
 local VisibilityModel = require("@game/ReplicatedStorage/Shared/Spotting/VisibilityModel")
 local F = require("./SpottingFixtures")
@@ -856,6 +858,127 @@ describe("SpottingSystem", function()
 		end)
 	end)
 
+	describe("battle ledger attribution (Attribution.noteSeen, battle-rules §7.1, REG-SPT-07)", function()
+		local function rosterOf(vehicles: { any }): { any }
+			local roster = {}
+			for _, v in vehicles do
+				table.insert(roster, { participantId = v.id, team = v.team })
+			end
+			return roster
+		end
+
+		local function damageAt(attacker: number, target: number, t: number): any
+			return {
+				t = t,
+				attacker = attacker,
+				target = target,
+				kind = "Shell",
+				damage = 100,
+				potentialDamage = 100,
+				modulesHit = {},
+				crewInjured = {},
+				fireStarted = false,
+				killed = false,
+				assistSpotters = {},
+				assistTrackers = {},
+				assistStunners = {},
+			}
+		end
+
+		it("every successful check (LOS and proximity) reaches noteSeen with the same time, every tick", function()
+			-- A sees T over 200 m of open ground (scheduled checks); B sits 40 m from T (proximity, every update);
+			-- C is behind a wall 200 m from T (never); U is 600 m away (cheap reject, never).
+			local world = F.flatWorld({ boxes = { { x = 100, y = 10, z = -200, sx = 3, sy = 20, sz = 100 } } })
+			local a = F.vehicle(1, 1, 0, 0)
+			local b = F.vehicle(2, 1, 0, -160)
+			local c = F.vehicle(3, 1, 200, -200)
+			local t = F.vehicle(10, 2, 0, -200, { headingDeg = 180, moving = true })
+			local u = F.vehicle(11, 2, 0, -600, { headingDeg = 180 })
+			local vehicles = { a, b, c, t, u }
+			local attribution = Attribution.new(rosterOf(vehicles))
+			local sys = SpottingSystem.new(nil, attribution)
+			local distinctA = {}
+			F.run(sys, vehicles, world, 1, 30 * 6, function(_, now)
+				F.place(t, 2 * math.sin(now), -200) -- keeps the scene live; distances barely change
+				for _, o in vehicles do
+					for _, x in vehicles do
+						if o.team ~= x.team then
+							expect(attribution.seen[x.id][o.id]).toBe(sys:lastSeenBy(o.id, x.id))
+						end
+					end
+				end
+				expect(attribution.seen[10][2]).toBe(now) -- proximity: a success every update
+				distinctA[attribution.seen[10][1]] = true
+			end)
+			local successesA = 0
+			for _ in distinctA do
+				successesA += 1
+			end
+			expect(successesA >= 6).toBe(true) -- A's scheduled checks (<= 1 s apart) each reached the ledger
+			expect(attribution.seen[10][3]).toBeNil() -- behind the wall
+			expect(attribution.seen[11][1]).toBeNil() -- beyond 445 m
+			expect(attribution.seen[11][2]).toBeNil()
+			expect(attribution.seen[1][10]).toBe(sys:lastSeenBy(10, 1)) -- the other direction too
+			expect(attribution.seen[1][10] ~= nil).toBe(true)
+		end)
+
+		it(
+			"Attribution.fill lists exactly the allies whose own check saw the target, dead spotters included",
+			function()
+				local world = F.flatWorld()
+				local a = F.vehicle(1, 1, -20, 0)
+				local b = F.vehicle(2, 1, 20, 0)
+				local c = F.vehicle(3, 1, 60, 0, { viewRangeM = 0 }) -- blind ally (no own sighting)
+				local t = F.vehicle(10, 2, 0, -200, { viewRangeM = 0, headingDeg = 180 })
+				local vehicles = { a, b, c, t }
+				local attribution = Attribution.new(rosterOf(vehicles))
+				local sys = SpottingSystem.new(nil, attribution)
+				F.run(sys, vehicles, world, 1, 60)
+				expect(Attribution.fill(attribution, damageAt(3, 10, 2)).assistSpotters).toEqual({ 1, 2 })
+				expect(sys:spottersOf(10, 2, 1)).toEqual({ 1, 2 }) -- the same set from the spotting side
+				expect(Attribution.fill(attribution, damageAt(2, 10, 2)).assistSpotters).toEqual({ 1 }) -- not the shooter
+				expect(Attribution.fill(attribution, damageAt(10, 1, 2)).assistSpotters).toEqual({}) -- T's team is blind
+				-- A dies at 2 s: credited until 10 s after its last own sighting (REG-SPT-07), never refreshed again
+				a.alive = false
+				F.run(sys, vehicles, world, 61, 90)
+				local lastA = sys:lastSeenBy(1, 10)
+				expect(attribution.seen[10][1]).toBe(lastA)
+				expect(lastA <= 2 + 1e-9).toBe(true)
+				expect(Attribution.fill(attribution, damageAt(3, 10, lastA + 9.9)).assistSpotters).toEqual({ 1, 2 })
+				expect(Attribution.fill(attribution, damageAt(3, 10, lastA + 10.1)).assistSpotters).toEqual({ 2 })
+			end
+		)
+
+		it("the linger IS the ledger window: overriding LEDGER.ASSIST_SPOT_WINDOW_S moves the loss", function()
+			expect(Config.applyOverrides({ Battle = { LEDGER = { ASSIST_SPOT_WINDOW_S = 4 } } })).toBeOk()
+			local world = F.flatWorld()
+			local a, b = duel(300, nil, { viewRangeM = 0 })
+			local attribution = Attribution.new(rosterOf({ a, b }))
+			local sys = SpottingSystem.new(nil, attribution)
+			expect(sys:lingerS()).toBe(4)
+			expect(SpottingSystem.new():lingerS()).toBe(Config.Spotting.SPOT_LINGER_S) -- standalone: 10
+			F.run(sys, { a, b }, world, 1, 30)
+			expect(sys:isVisibleTo(1, 2)).toBe(true)
+			world:addBox({ id = "wall", cframe = CFrame.new(0, 30, -450), size = Vector3.new(180, 60, 3) })
+			local lastSeen = sys:lastSeenBy(1, 2)
+			local lostAt = nil
+			F.run(sys, { a, b }, world, 31, 30 * 8, function(_, now, events)
+				if #F.filter(events, "Lost") > 0 then
+					lostAt = now
+				end
+				-- team-visible ⇔ some ally's ledger sighting is inside the window
+				local seen = attribution.seen[2][1]
+				local credited = seen ~= nil and now - seen <= attribution.windowS + 1e-6
+				expect(sys:isVisibleTo(1, 2)).toBe(credited)
+			end)
+			expect(lostAt ~= nil).toBe(true)
+			expect(lostAt - lastSeen > 4).toBe(true)
+			expect(lostAt - lastSeen <= 4 + TICK + 1e-6).toBe(true)
+			expect(sys:spottersOf(2, lastSeen + 3.9)).toEqual({ 1 })
+			expect(sys:spottersOf(2, lastSeen + 4.1)).toEqual({})
+		end)
+	end)
+
 	describe("replication filter (REG-SPT-08 API)", function()
 		it("allies Full; visible enemies Full ≤ 564 m, Minimap beyond; unspotted None", function()
 			local world = F.flatWorld()
@@ -900,6 +1023,9 @@ describe("SpottingSystem", function()
 			expect(function()
 				SpottingSystem.new({ visibilityMult = -1 })
 			end).toThrow("visibilityMult")
+			expect(function()
+				SpottingSystem.new(nil, { windowS = 10 } :: any)
+			end).toThrow("AttributionState")
 			expect(function()
 				sys:setVisibilityMult(0 / 0)
 			end).toThrow("finite")

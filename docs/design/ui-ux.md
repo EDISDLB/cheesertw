@@ -30,6 +30,11 @@
 > * IP-sensitive display names.
 >
 > The geometry checks are reproducible from the rules in this document. Every rectangle table states its anchors.
+>
+> **Revision 3 (cross-doc alignment, 2026-10-06).** Aligned with `battle-rules.md`, `spotting.md`, `combat.md` and
+> `movement.md`: `Practice` is the solo **Firing range** (not a bot mode), countdown length per mode (§S30),
+> `BV.phase` / `BV.outcome` names (§0.5), outcome reasons and the cancelled-battle banner (§S37), the Spotted alert
+> after a commander recovers (H-14), and minimap zoom steps beside the size steps (H-04).
 
 ---
 
@@ -74,7 +79,7 @@ Internal ids stay as they are in code and content. The UI shows only the right-h
 | Internal id / research term | UI display (headings · body) | Notes |
 |---|---|---|
 | Mode `Random` | `OPEN TRIALS` · Open Trials | Lore: the Ridge Accord's Trials (roster §0.4). 15 v 15 with labelled bots. |
-| Mode `Practice` | `DRILL` · Drill | Versus bots only, normal rewards ×0.75 when no human enemies (D§8). |
+| Mode `Practice` | `FIRING RANGE` · Firing range | Solo map explorer and shooting range (report 04 R11; battle-rules §2: 3 s countdown, 30 min cap, no objectives). No rewards and no costs (**O**, §5.4 #13). Not "Drill": Proving Field steps are called drills. |
 | Mode `Bootcamp` | `PROVING FIELD` · Proving Field | Guided first battles (§S27). |
 | Mode `Training` | `PRIVATE TRIAL` · Private trial | Custom rooms (P2). |
 | Mode `Event` | Event's own `name` | From `EventModeDefinition.name`. |
@@ -126,7 +131,8 @@ client preferences:
 ### 0.5 BattleView fields the HUD binds to (contract for the Battle client team)
 
 ```
-BV.phase            "Loading" | "Countdown" | "Running" | "Ended"
+BV.phase            "Preparing" | "Loading" | "Countdown" | "Active" | "Ending" | "Results" (battle-rules §3 `Phases`)
+BV.outcome          { result ("Win"|"Loss"|"Draw"), reason ("Destruction"|"Capture"|"Simultaneous"|"Timeout"|"DefenderHeld"|"Aborted"), abortReason? }
 BV.countdownEndsAt  number (client clock)          BV.timeLeftS  number          BV.mode / BV.battleType / BV.mapId
 BV.teams[1|2]       { alive, total, hp, hpMax, kills, baseIds }
 BV.capture[baseId]  { team, points (0..100), cappers, contested, owner }
@@ -157,7 +163,7 @@ response (REG-ECO-02), so the UI never applies results from the response itself;
 | Remote (proposed) | Kind / dir | Domain file | Rate (D§19) | Used by |
 |---|---|---|---|---|
 | `GarageRequest` `{op, requestId, payload}` → `Result` | Function C2S | Progression | 5/s | Every garage transaction. `op` ∈ `ResearchVehicle, ResearchModule, BuyVehicle, SellVehicle, BuybackVehicle, MountModule, SetEquipment, DemountEquipment, BuyEquipment, SetAmmo, SetConsumables, SetAutoResupply, AssignCrew, RecruitCrew, RetrainCrew, LearnPerk, ResetPerks, UseCrewBook, ConvertXP, ExchangeBullion, BuyCustomization, ApplyCustomization, ClaimMission, RerollDaily, ClaimPassStage, BuyPassPaid, SetFavorite, SelectFieldKit, ResearchApexNode, ActivateBooster, BuyStoreItem, BuyPremiumTime, AckFlag, SetTutorialStep, SetMatchmakingPrefs, SetPlusVehicle` (each = one `Transactions` function, A§7; `AckFlag` sets `PV.account.flags.*`; `ClaimPassStage` and `ClaimMission` take a list of ≤ 30 keys so `CLAIM ALL` is one request inside the 5/s bucket). |
-| `QueueJoin` `{mode, vehicleId, requestId}` / `QueueLeave` / `QueueStartWithBots` | Function C2S | Matchmaking | 1/s | §S06 |
+| `QueueJoin` `{mode, vehicleId, requestId, mapId?}` (`mapId` only for `Practice`) / `QueueLeave` / `QueueStartWithBots` | Function C2S | Matchmaking | 1/s | §S06 |
 | `QueueState` | Event S2C | Matchmaking | – | `SS.queue` |
 | `MatchFound` `{mapId, mode, battleType, etaS}` / `TeleportStatus` | Event S2C | Matchmaking | – | §S06, §S28 |
 | `ReturnToBattle` `{requestId}` | Function C2S | Matchmaking | 1/s | Garage CTA when `PV.activeBattle` |
@@ -986,7 +992,7 @@ unknown ids never errors.
 | Row | Content | Availability |
 |---|---|---|
 | `OPEN TRIALS` | 15 v 15, "Contest, Crossroads, Breach" + battle-type opt-out toggles (Crossroads and Breach from Tier IV, D§8; opt-outs lower their weight, never remove them; binds `PV.matchmaking.battleTypeOptOuts`) and `MAP PREFERENCES ›` (modal §1.6.1: blacklist 1 slot, 2 with Premium Time, once ≥ 8 maps exist; binds `PV.matchmaking.mapBlacklist`, `LIMITS.MAP_BLACKLIST`). Both write `→ SetMatchmakingPrefs`. | always |
-| `DRILL` | "Versus bots. Rewards ×0.75." | always |
+| `FIRING RANGE` | "Alone on a map of your choice. No rewards." + `MAP ›` picker (maps whose `modes` include `Practice`; the pick is kept in `ST.gp.mode` as `Practice/<mapId>`, default the proving grounds). There is no queue: `TO BATTLE` goes `Joining` → `Found` as soon as the reserved server is ready. | solo only: in a platoon of 2+ the row is disabled with "Leave the platoon to use the range" |
 | `PROVING FIELD` | "Guided drills" | always; badge until completed |
 | Event mode(s) | event name, art strip, time left; Ranked events add the player's ladder rank chip (`PV.events[id].ranked.rank`) | while live |
 | `PRIVATE TRIAL` | "Create or join a room" | P2 |
@@ -1689,7 +1695,7 @@ read only by the battle client apply on the next frame there too. Controller: `[
 HUD, CAMERA, CONTROLS / CONTROLLER / TOUCH sensitivities and ACCESSIBILITY only.
 
 **Keys.** Stored in `PV.settings` (≤ 128 keys). Device-class keys end in `.pc`, `.mob` or `.con`. Encoded keys hold a
-compact string. This table defines **118 keys**; a new setting must join an encoded key if the total would exceed 120.
+compact string. This table defines **119 keys**; a new setting must join an encoded key if the total would exceed 120.
 
 | Category | Setting → key · control · values · **default** |
 |---|---|
@@ -1705,8 +1711,8 @@ compact string. This table defines **118 keys**; a new setting must join an enco
 | CAMERA | Field of view `cam.fov` 60–90 **70** (D§16) · Starting distance `cam.distance` Near / Mid / Far **Mid** · Sniper horizontal stabilisation `cam.sniperStab` **On** · Zoom steps `cam.zoomSteps` (multi-select of ×2/×4/×8/×16/×25, optics-limited) **×2 ×4 ×8** · Free look returns `cam.freeLookReturn` Instantly / Smoothly **Smoothly** · Last sniper zoom step `cam.lastZoom` (internal, restored next battle, REG-MINI-06) **×2**. (6) |
 | ACCESSIBILITY | Team colours `a11y.scheme` Default / Deuteranopia / Protanopia / Tritanopia **Default** (live preview card) · High contrast `a11y.highContrast` **Off** · Text size boost `a11y.textBoost` Follow Roblox / +15 % / +30 % **Follow** · Reduced motion `a11y.reducedMotion` Follow Roblox / On / Off **Follow** · Reduced effects `a11y.reducedEffects` **Off** · Captions `a11y.captions` Off / Crew / Crew + radio **(first-launch choice)** · Caption size `a11y.captionSize` Normal / Large **Normal** · Sound visualisation `a11y.soundViz` **Off** · Hold-to-confirm `a11y.holdConfirm` 0.6–2.0 s / Two-step **1.2 s**. (9) |
 | NOTIFICATIONS | Categories `ntf.categories` (encoded: rewards, research, missions, social, store; all **On**) · Toast duration `ntf.duration` Normal / Long (×2) **Normal** · Notification sound `ntf.sound` **On** · Quiet while queued `ntf.dndQueue` **On** · Friend online alerts `ntf.friendOnline` **Off** · Platoon invites from `ntf.invitesFrom` Everyone in this server / Friends / Nobody **Everyone**. System notices cannot be turned off. (6) |
-| MINIMAP | Size `map.size` 224 / 288 / 352 / 416 / 480 **352** (D§16) · Opacity `map.opacity` 40–100 % **90** · Rotate with camera `map.rotate` **Off** · Circles `map.circles` (encoded: view range On, 445 m spotting limit On, 564 m draw limit Off) · Last-known markers `map.lastKnown` **On** (30 s, D§21 #11) · Grid labels `map.grid` **On** · Names on minimap `map.names` Off / Platoon / All **Platoon** · Camera cone `map.cone` **On**. (8) |
-| GAMEPLAY | Last mode `gp.mode` (internal) · Region `gp.region` Auto / NA / SA / EU / APAC / OCE **Auto** (D§8 pool key) · Auto-spectate after destruction `gp.autoSpectate` **On** · Offer "start now with bots" `gp.botsPrompt` **On** · Platoon auto-ready `gp.autoReady` **Off**. Battle-type opt-outs and map blacklist live in `PV.matchmaking` (§S06), not here. (5) |
+| MINIMAP | Size `map.size` 224 / 288 / 352 / 416 / 480 **352** (D§16) · Opacity `map.opacity` 40–100 % **90** · Rotate with camera `map.rotate` **Off** · Circles `map.circles` (encoded: view range On, 445 m spotting limit On, 564 m draw limit Off) · Last-known markers `map.lastKnown` **On** (30 s, D§21 #11) · Grid labels `map.grid` **On** · Names on minimap `map.names` Off / Platoon / All **Platoon** · Camera cone `map.cone` **On** · Zoom `map.zoom` ×1 / ×1.5 / ×2 **×1** (H-04). (9) |
+| GAMEPLAY | Last mode `gp.mode` (internal; the Firing range stores `Practice/<mapId>`, §S06) · Region `gp.region` Auto / NA / SA / EU / APAC / OCE **Auto** (D§8 pool key) · Auto-spectate after destruction `gp.autoSpectate` **On** · Offer "start now with bots" `gp.botsPrompt` **On** · Platoon auto-ready `gp.autoReady` **Off**. Battle-type opt-outs and map blacklist live in `PV.matchmaking` (§S06), not here. (5) |
 | PERFORMANCE | `perf.<dc>` (encoded): stats overlay Off / FPS / FPS + ping **Off** · low-memory mode **Off** (mobile < 4 GB: **On**) · garage scene Full / Static **Full** · pause hangar animation behind full screens **On**. (3) |
 | (internal) | `garage.selected`, `garage.rows` (1/2), `garage.filters`, `garage.sort`, `garage.lineup1` … `garage.lineup5`, `seen` (encoded per area), `tut.hints` (encoded coach-mark flags). (11) |
 
@@ -1814,6 +1820,8 @@ card. Drills: **1 Drive and look** (reach 3 markers, use sniper view), **2 Fire 
 3/2/1 reticle segments, angle your hull against a bot, read the damage panel, use a repair kit), **3 Spot and capture**
 (stay hidden in bushes, spot with the team, capture a base). Completion sets `bootcampCompleted` and grants the
 content-defined reward (reward toast in the Garage). Every drill can be restarted or skipped from the Field menu.
+Each drill is one `Bootcamp` battle (10 s countdown, 10 min cap, battle-rules §2); the battle clock stays hidden until
+2:00 remain (**O**), so new players are not rushed.
 
 **Acceptance:** coach marks never trap the player (Back always offers "Skip tutorial"); no tutorial step blocks a
 purchase confirm or the queue; the chain resumes at the stored step after a rejoin.
@@ -1868,16 +1876,20 @@ arrives (setting `ui.resultsAuto`), or a `ResultsReady` toast if the player has 
 | Crossroads | Hold the central base or destroy every enemy vehicle. Capturing stops while both teams are inside. |
 | Breach (attackers) | Capture the defenders' base before time runs out, or destroy every defender. |
 | Breach (defenders) | Hold your base until time runs out, or destroy every attacker. |
-| Drill | Practice against bots. Rewards are reduced. |
+| Firing range | Learn the map and test your gun. No rewards. The range closes after 30 minutes. |
 
 **Music:** `LOADING` cue (AU§11). **Compact:** lists collapse to class glyph + tier + vehicle (24 px rows), map card
 on top, tip hidden. **Acceptance:** rosters render the moment `BV.roster` arrives (no waiting for the map); the
-progress line never claims "ready" before `MapReady`; bot rows are always labelled.
+progress line never claims "ready" before `MapReady`; bot rows are always labelled. **Firing range:** no team
+lists; the map card is centred and its objective line is the §S29.1 range sentence.
 
 ### S30 Pre-battle countdown (`Screens/Countdown`, over the HUD)
 
 The 3D scene and HUD are live; the player can look around, aim and enter sniper view, but cannot move or fire
-(server-enforced until GO). Duration **20 s** (D§9).
+(server-enforced until GO; turret and aim are allowed, battle-rules §3 "Allowed actions"). Duration comes from the
+mode's rule snapshot through `BV.countdownEndsAt`: **20 s** Open Trials, events and private trials (D§9), **10 s**
+Proving Field, **3 s** Firing range (battle-rules §2). When the countdown is 3 s or less, only the 3-2-1-GO
+sequence plays (no countdown block, objective card or waiting line).
 
 | Element | Rect | Content |
 |---|---|---|
@@ -1967,7 +1979,8 @@ outline) growing outward from the clock, with `mono` totals under each ("14,250"
 Full / Bar only / % only / None (D§16). Timer states: normal `text.primary`; < 2:00 `state.warning` + `ui/timer`
 glyph; < 0:30 `state.danger` + a 1 Hz scale pulse 1.00 → 1.06 (none under reduced motion; the glyph carries it).
 Binding: `BV.teams`, `BV.timeLeftS`. Team HP of the enemy team is the sum the server sends for the scoreboard
-(public), not derived from spotted vehicles.
+(public), not derived from spotted vehicles. Firing range: only the clock shows (time left of the 30 min cap); scores,
+team-HP bars, team panels (H-03) and capture bars (H-02) are hidden.
 
 #### H-02 Objective and capture bars
 
@@ -2002,6 +2015,19 @@ top). Hover / focus a glyph (big map only) shows vehicle and player name. **Inpu
 spotted here" ping (`ping_spotted`), `[RMB]` = "Moving here" (`ping_position`) (D§9); `[-]`/`[=]` size; touch: tap to
 open the big map (§S34). Rotation: north-up (default) or camera-up (`map.rotate`). Updates in `PreRender`; the image
 is static.
+
+**Size and zoom steps** (two separate controls, both kept in settings and restored next battle):
+
+| Control | Steps | Keyboard | Pad (arcade view) | Touch |
+|---|---|---|---|---|
+| Size (`map.size`, frame on screen) | 224 · 288 · 352 · 416 · 480 px (D§16); Compact fixed 160 | `[-]` / `[=]` | `[D↓]` cycles up, wrapping 480 → 224 | Settings only |
+| Zoom (`map.zoom`, map scale inside the frame) | ×1 whole map · ×1.5 · ×2 | `[N]` cycles | `[D↑]` cycles | `ZOOM` segmented control on the big map (§S34); the minimap follows it |
+
+At ×1.5 and ×2 the view centres on the player and clamps to the map edges (the self arrow leaves the centre near an
+edge); grid labels stay on the frame edges and show only the visible columns and rows; off-view pings and bases pin
+to the frame edge as 10 px chevrons. Each step animates the scale over `base` (150 ms, instant under reduced motion)
+with `ui_slider_tick`. The 445 m and 564 m circles and the artillery rings scale with the zoom. A `micro` chip `×1.5` sits in
+the frame's top-left corner while zoomed.
 
 #### H-05 Reticle, dispersion and reload
 
@@ -2156,7 +2182,8 @@ The bearing is the shell's own path (the impact reveals it), not the shooter's p
 
 The dusk crest chevron with two expanding ripple arcs at (928, 176), 2 s (D§5, D§21 #12), plus `cue_sixth_sense`
 (ducks other buses 4 dB, AU§3.3). It fires 3 s after the server reports the player first team-visible to the enemy;
-it does not fire while the commander is injured (the damage panel shows the injured commander), and there is no
+it does not fire while the commander is injured (the damage panel shows the injured commander); if he is injured at
+the 3 s mark, the alert fires when he recovers, if the player is still spotted (spotting.md §2.6). There is no
 "unspotted" cue. Exactly one alert per spotting episode, and only if the player is still team-visible at the 3 s
 mark. A new episode starts only after the player has been unseen by the enemy team (their 10 s linger expired,
 D§5; REG-SPT-05 as amended by D§21 #12). Reduced motion: the chevron fades in and out without ripples.
@@ -2290,7 +2317,8 @@ HE splash note).
   The ids and starting progress come from the teleport `tracked` snapshot (§0.4). The client evaluates them with the
   shared `Missions` conditions against its own `BV` counters; they are display only.
 * **Big map** (`[M]`, `[D←]`, minimap tap): 800 × 800 centred map with all minimap layers, larger glyphs (20 px) and
-  names on hover; pings by click / cursor + `[A]` (pad moves a cursor with the left stick); legend strip below.
+  names on hover; pings by click / cursor + `[A]` (pad moves a cursor with the left stick); legend strip below with the
+  `ZOOM ×1 · ×1.5 · ×2` segmented control (sets `map.zoom` for the minimap; the big map itself always shows the whole map).
   The battle continues; the player's vehicle keeps its last input released (throttle 0) while the map is open on
   touch and gamepad **O**.
 
@@ -2327,14 +2355,27 @@ On `Ended`: input locks, a full-width band (0, 380, 1920, 240) of `bg.scrim` sli
 (fade under reduced motion), `display.hero` `VICTORY` (`text.brand` with the dusk ridge underline) / `DEFEAT`
 (`text.primary`) / `DRAW` (`text.secondary`), `battle_logo` above, and the reason line (`body.l`): "All enemy vehicles
 destroyed" · "Enemy base captured" · "Your base was captured" · "Your team was destroyed" · "Time ran out" · "The
-defenders held" · "Both sides fell at once". Stays **6 s** (D§9), then "Returning to garage…" and §S28. Music switches
-to the `RESULTS_*` cue at the banner (AU§11).
+defenders held" · "Both sides fell at once" · "Both bases fell at once". Stays **6 s** (D§9, `END_BANNER_S`), then
+"Returning to garage…" and §S28. Music switches to the `RESULTS_*` cue at the banner (AU§11).
+
+| `BV.outcome.reason` (battle-rules §5) | Reason line (from the player's side) |
+|---|---|
+| `Destruction` | Win: "All enemy vehicles destroyed" · Loss: "Your team was destroyed" |
+| `Capture` | Win: "Enemy base captured" (Crossroads: "Central base captured") · Loss: "Your base was captured" (Crossroads: "The enemy took the central base") |
+| `Simultaneous` | Draw: "Both sides fell at once" (mutual wipe, or a capture and a wipe on the same tick) · "Both bases fell at once" (double capture) |
+| `Timeout` | Draw: "Time ran out" |
+| `DefenderHeld` | Defenders win: "The defenders held" · Attackers lose: "Time ran out before the breach" |
+| `Aborted` | Header `BATTLE CANCELLED` (`text.secondary`, no win / loss / draw word) and "No win or loss is recorded." plus the cause: `TooFewHumans` "Not enough commanders arrived" · `ServerClosing` "The battle server is shutting down" · `PrepareTimeout`, `StaleAccessCode`, `Internal` "The battle could not start". The banner holds 3 s, then §S28. |
+
+Firing range sessions end without a banner: leaving or the 30-minute cap goes straight to §S28.
 
 ### S38 Debrief / Results (`Screens/Results/*`, Hub, overlay over the Garage)
 
 **Purpose.** Explain the battle and its rewards, line by line from the server ledger, and get the player back into
 battle in one press (D§14). **Entry:** automatically after returning (`ui.resultsAuto`), the `ResultsReady` toast, the
-notification center, or Profile › Battles. **Exit:** `TO BATTLE` (re-queues the same vehicle and mode), `GARAGE`, Back.
+notification center, or Profile › Battles. Never after a Firing range session (§5.4 #13). After an aborted battle it
+opens only if `ResultsReady` arrives, with the header `BATTLE CANCELLED` and the §S37 cause line in place of the
+outcome. **Exit:** `TO BATTLE` (re-queues the same vehicle and mode), `GARAGE`, Back.
 
 ```
 ┌[‹] DEBRIEF ┊ Cinder Valley · Open Trials · Contest · 8:42 ┊ currencies                                         ┐
@@ -2464,7 +2505,7 @@ at W 933–1,120 × H 700 (checked). Menus on tablets stay Regular (§1.14).
 | `[X]` | Smart consumable: extinguisher if burning → repair kit if a module is destroyed → medkit if crew injured or stunned → repair kit if damaged | Consumable radial (slots 4–6 + event abilities) |
 | `[B]` | Vehicle mechanic (< 250 ms, on release) | Field menu (0.6 s) |
 | `[A]` | – | Info overlay: names and HP numbers on markers (`ctl.info` toggle option) |
-| `[D↑]` / `[D↓]` | Sniper: zoom in / out · Arcade: minimap size up / down | – |
+| `[D↑]` / `[D↓]` | Sniper: zoom in / out · Arcade: `[D↑]` minimap zoom cycle, `[D↓]` minimap size cycle (H-04) | – |
 | `[D←]` | Big map toggle | – |
 | `[D→]` | Team panel mode cycle | Scoreboard (fallback if `[View]` is captured by the engine, §5.5) |
 | `[L3]` | Cruise control cycle: off → ½ → full (client throttle hold; any stick input cancels) | – |
@@ -2490,6 +2531,7 @@ menus and on H-10 slots (`[X]` glyph on the smart-consumable target slot). Hapti
 | `[Enter]` | Chat (engine chat bar; `/` also works) | `[R]` | Cruise control cycle |
 | `[Bksp]` | Field menu | `[Q]` / `[E]` | Spectate: previous / next ally |
 | `[F]` | Smart consumable (same rule as pad `[X]`) | `[V]` | Camera distance cycle |
+| `[N]` | Minimap zoom cycle ×1 → ×1.5 → ×2 (H-04) | | |
 
 Never bound: Esc, F9, F10 (Roblox graphics hotkey), F11, F12, PrintScreen (D§16). Hold / tap thresholds are 0.25 s
 everywhere except the Field-menu hold (0.6 s); `ctl.*` / `pad.*` hold-or-toggle settings replace the hold where offered.
@@ -2809,6 +2851,13 @@ Generic engineering terms (Rammer, Spall Lining, Coated Lenses, Turbo Kit) can s
     of leaving (§S36) (Matchmaking).
 12. **Teleports:** send per-player (or per-platoon) `TeleportOptions` with the settings payload, both ways (§0.4).
     The return teleport carries only changed keys (Matchmaking, Battle).
+13. **Firing range (`Practice`, §S06):** `QueueJoin {mode = "Practice", mapId}` reserves a solo Battle server at once
+    (no ticket, no bots, platoon of 1 only) (Matchmaking). Range sessions grant no rewards, charge no repair or ammo
+    costs, and do not count toward stats, battle history, missions, achievements or the pass (**O**; Economy and
+    Progression to confirm). The client skips the Debrief after a range session.
+14. **Outcome to clients:** the `Ended` event the HUD receives carries `{winner?, reason, abortReason?}` from
+    `Outcome` / `Phases.abort` (battle-rules §3, §5), including aborts before GO, so §S37 can show `BATTLE CANCELLED`
+    with its cause (Battle).
 
 ### 5.5 In-engine verification items (add to D§22)
 

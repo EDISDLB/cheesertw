@@ -8,16 +8,17 @@
 	Purpose:          canFire / fire / setTrigger decide every shot; reload progress runs on exact absolute times with
 	                  a runtime reload multiplier (loader injured, ammo rack damaged, stun, conditional skills) and
 	                  ActiveCooling windows, so the outcome never depends on the tick rate.
-	Dependencies:     Config (optional VehicleStats section, see DEFAULTS), Mechanics/Common, Mechanics/ChargedShot,
-	                  Mechanics/ActiveCooling, Types/Vehicle, Types/Content (type-only).
+	Dependencies:     Config (optional VehicleStats section, see DEFAULTS), Combat/DamageModel (setAmmoStored),
+	                  Mechanics/Common, Mechanics/ChargedShot, Mechanics/ActiveCooling, Types/Vehicle, Types/Content,
+	                  Types/Combat (type-only).
 	State:            One GunState record per vehicle (timers, magazine/barrels, ammo slots, trigger, mechanics, a
 	                  reused ShotInfo record). No module-level state.
 	Validation:       Times that are NaN/±inf or earlier than the state's clock are ignored (time never runs
 	                  backwards); reload multipliers are clamped to [MIN_RELOAD_MUL, MAX_RELOAD_MUL]; ammo counts are
 	                  floored to whole rounds >= 0 and capped at ammoCapacity; unknown shells in the loadout are dropped.
-	Error handling:   No throws. Refusals return (nil | false, reason) with reasons DEAD, GUN_DESTROYED, RELOADING,
-	                  INTRA_CLIP, SALVO_DELAY, EMPTY, NO_AMMO, UNKNOWN_SHELL, FULL, NOT_SUPPORTED, NO_MECHANIC,
-	                  ACTIVE, COOLDOWN (mapped to NOT_ALLOWED at the remote boundary).
+	Error handling:   No throws. Refusals return (nil | false, reason) with reasons DEAD, GUN_DESTROYED, OVERTURNED,
+	                  RELOADING, INTRA_CLIP, SALVO_DELAY, EMPTY, NO_AMMO, UNKNOWN_SHELL, FULL, NOT_SUPPORTED,
+	                  NO_MECHANIC, ACTIVE, COOLDOWN (mapped to NOT_ALLOWED at the remote boundary).
 	Performance notes: Every call advances event-to-event (at most a few timer completions per tick); no table is
 	                  allocated after new(): shots reuse `state.shot`, snapshots write into a caller-owned record.
 
@@ -38,16 +39,22 @@
 	    chargeTimeS after the later of the press and the second barrel loading; releasing a charging volley cancels
 	    it. ChargedShot: hold charges while loaded, release fires (bonus only at full charge).
 	  * Death freezes everything; a timer that completes exactly at the death time counts as completed (inclusive),
-	    but nothing fires after kill(). A destroyed gun blocks firing and cancels charges; reloads keep running.
+	    but nothing fires after kill(). A destroyed gun or an overturned vehicle (00-DECISIONS §2 "gun off") blocks
+	    firing and cancels charges; reloads keep running (the crew still loads).
+	  * DamageModel's ammo-rack detonation needs >= 1 stored shell: storedAmmo() = rounds not in the gun (rack and
+	    rounds being loaded); syncAmmoStored() writes it after every change (shot, swap, reload start).
 ]]
 
 local Config = require("@game/ReplicatedStorage/Shared/Config")
+local DamageModel = require("@game/ReplicatedStorage/Shared/Combat/DamageModel")
 local Common = require("./Mechanics/Common")
 local ChargedShot = require("./Mechanics/ChargedShot")
 local ActiveCooling = require("./Mechanics/ActiveCooling")
 local VehicleTypes = require("@game/ReplicatedStorage/Shared/Types/Vehicle")
 local ContentTypes = require("@game/ReplicatedStorage/Shared/Types/Content")
+local CombatTypes = require("@game/ReplicatedStorage/Shared/Types/Combat")
 
+type VehicleCombatState = CombatTypes.VehicleCombatState
 type GunStats = VehicleTypes.GunStats
 type ShellStats = VehicleTypes.ShellStats
 type AmmoLoad = VehicleTypes.AmmoLoad
@@ -96,6 +103,7 @@ export type GunSnapshot = {
 	phase: GunPhase,
 	alive: boolean,
 	enabled: boolean,
+	overturned: boolean,
 	canFire: boolean,
 	selectedSlot: number,
 	loadedSlot: number, -- shell slot of the round(s) ready in the gun (0 = none)
@@ -130,7 +138,8 @@ export type GunState = {
 	selected: number, -- slot the next load uses (0 = no ammo slots)
 	time: number,
 	alive: boolean,
-	enabled: boolean,
+	enabled: boolean, -- gun module working (not Destroyed)
+	overturned: boolean, -- vehicle overturned: gun off until righted
 	reloadMul: number,
 	swapFactor: number,
 	-- resolved reload numbers (base seconds)
@@ -181,8 +190,9 @@ local GunState = {}
 local DEFAULTS = table.freeze({
 	--- DualGun: a press shorter than this fires one barrel on release; longer holds charge a volley (ui-ux H-05).
 	DUAL_GUN_TAP_S = 0.25,
-	--- ChargedShot: reset the charge while the hull moves (ui-ux H-05) instead of roster §2.7's "moving allowed".
-	CHARGED_SHOT_RESET_ON_MOVE = false,
+	--- ChargedShot: hull movement above the stop speed resets the charge to 0; it resumes when the hull stops
+	--- (roster §2.7 signature rules + ui-ux H-05: "a positional commitment, never a free brawling buff").
+	CHARGED_SHOT_RESET_ON_MOVE = true,
 	--- Guns start the battle loaded (magazines full).
 	START_LOADED = true,
 	--- Clamp of the runtime reload multiplier (stacked injuries/stun cannot freeze or invert a reload).
@@ -371,12 +381,16 @@ local function realTime(state: GunState, work: number): number
 	return work * mul
 end
 
+-- The gun may fire / charge (alive, gun module working, vehicle not overturned).
+local function armed(state: GunState): boolean
+	return state.alive and state.enabled and not state.overturned
+end
+
 local function chargingVolley(state: GunState): boolean
 	return state.kind == "DualGun"
 		and state.triggerHeld
 		and not state.triggerConsumed
-		and state.alive
-		and state.enabled
+		and armed(state)
 		and state.barrelSlot[1] ~= 0
 		and state.barrelSlot[1] == state.barrelSlot[2]
 end
@@ -442,7 +456,7 @@ local function onLoaded(state: GunState, timer: Timer)
 		state.loadedSlot = timer.slot
 		state.loadedAt = state.time
 		local charged = state.charged
-		if charged ~= nil and state.triggerHeld and not state.triggerConsumed and state.enabled then
+		if charged ~= nil and state.triggerHeld and not state.triggerConsumed and armed(state) then
 			ChargedShot.begin(charged, state.time, state.ctx)
 		end
 	elseif kind == "Magazine" then
@@ -662,6 +676,7 @@ function GunState.new(gun: GunStats, ammo: { AmmoLoad }?, opts: GunStateOptions?
 		time = now,
 		alive = true,
 		enabled = true,
+		overturned = false,
 		reloadMul = 1,
 		swapFactor = swapFactor,
 		reloadS = reloadS,
@@ -770,6 +785,8 @@ local function fireCheck(state: GunState): (boolean, string?)
 		return false, "DEAD"
 	elseif not state.enabled then
 		return false, "GUN_DESTROYED"
+	elseif state.overturned then
+		return false, "OVERTURNED"
 	end
 	local kind = state.kind
 	if kind == "Single" then
@@ -810,6 +827,19 @@ end
 --- Every round left (rack + gun): DamageModel's `ammoStored` (detonation needs >= 1).
 function GunState.totalAmmo(state: GunState): number
 	return totalAmmo(state)
+end
+
+--- Rounds stored outside the gun (rack + rounds a running reload is loading): DamageModel's ammo-rack detonation
+--- count (00-DECISIONS §2: detonation if >= 1 shell stored).
+function GunState.storedAmmo(state: GunState): number
+	return math.max(0, totalAmmo(state) - roundsLoaded(state))
+end
+
+--- Writes storedAmmo() into the vehicle's combat state (DamageModel.setAmmoStored). Returns the count written.
+function GunState.syncAmmoStored(state: GunState, combat: VehicleCombatState): number
+	local stored = GunState.storedAmmo(state)
+	DamageModel.setAmmoStored(combat, stored)
+	return stored
 end
 
 --- Rounds ready to fire (Single 0/1, magazine rounds, loaded barrels).
@@ -895,7 +925,7 @@ local function onPress(state: GunState): ShotInfo?
 	end
 	local charged = state.charged
 	if charged ~= nil then
-		if state.loadedSlot ~= 0 and state.enabled and state.alive then
+		if state.loadedSlot ~= 0 and armed(state) then
 			ChargedShot.begin(charged, state.time, state.ctx)
 		end
 		return nil
@@ -1115,6 +1145,9 @@ function GunState.selectShell(state: GunState, slot: number, now: number): (bool
 	return true, nil
 end
 
+--- Alias of selectShell (brief / HUD naming).
+GunState.switchShell = GunState.selectShell
+
 --- Selects the slot holding `shellId`.
 function GunState.selectShellById(state: GunState, shellId: string, now: number): (boolean, string?)
 	for i, slot in state.slots do
@@ -1226,6 +1259,22 @@ function GunState.setEnabled(state: GunState, enabled: boolean, now: number)
 	state.enabled = enabled
 end
 
+--- Vehicle overturned (VehicleSimState.overturned): blocks firing and cancels charges until righted; reloads keep
+--- running.
+function GunState.setOverturned(state: GunState, overturned: boolean, now: number)
+	advance(state, now)
+	if overturned and not state.overturned then
+		dropCharges(state)
+	end
+	state.overturned = overturned
+end
+
+--- Applies the StatsCalculator runtime (RuntimeStats.reloadMul / canFire) from `now` on.
+function GunState.applyRuntime(state: GunState, runtime: { reloadMul: number, canFire: boolean }, now: number)
+	GunState.setReloadMul(state, runtime.reloadMul, now)
+	GunState.setEnabled(state, runtime.canFire, now)
+end
+
 --- Hull moving (ChargedShot reset-on-move rule only).
 function GunState.setMoving(state: GunState, moving: boolean, now: number)
 	advance(state, now)
@@ -1261,6 +1310,7 @@ function GunState.newSnapshot(state: GunState): GunSnapshot
 		phase = "Ready",
 		alive = true,
 		enabled = true,
+		overturned = false,
 		canFire = false,
 		selectedSlot = 0,
 		loadedSlot = 0,
@@ -1297,6 +1347,7 @@ function GunState.snapshot(state: GunState, now: number, out: GunSnapshot?): Gun
 	s.kind = kind
 	s.alive = state.alive
 	s.enabled = state.enabled
+	s.overturned = state.overturned
 	s.canFire = ok
 	s.selectedSlot = state.selected
 	s.roundsLoaded = roundsLoaded(state)
@@ -1345,17 +1396,16 @@ function GunState.snapshot(state: GunState, now: number, out: GunSnapshot?): Gun
 		s.reloadRemainingS = 0
 		s.reloadDurationS = 0
 	end
-	-- next shot
-	if not state.alive or not state.enabled then
-		s.nextShotS = math.huge
-	elseif ok then
-		s.nextShotS = 0
-	elseif s.roundsLoaded > 0 then
-		s.nextShotS = s.intraClipRemainingS
-	elseif main ~= nil and main.active then
-		s.nextShotS = s.reloadRemainingS
-	else
-		s.nextShotS = math.huge
+	-- next shot (math.huge = not without help: blocked, or empty with nothing loading)
+	s.nextShotS = math.huge
+	if armed(state) then
+		if ok then
+			s.nextShotS = 0
+		elseif s.roundsLoaded > 0 then
+			s.nextShotS = s.intraClipRemainingS
+		elseif main ~= nil and main.active then
+			s.nextShotS = s.reloadRemainingS
+		end
 	end
 	-- charge
 	s.chargeProgress = 0
@@ -1376,7 +1426,7 @@ function GunState.snapshot(state: GunState, now: number, out: GunSnapshot?): Gun
 	-- phase
 	if not state.alive then
 		s.phase = "Dead"
-	elseif not state.enabled then
+	elseif not state.enabled or state.overturned then
 		s.phase = "Disabled"
 	elseif s.chargeProgress > 0 then
 		s.phase = "Charging"
