@@ -194,57 +194,67 @@ def garage_theme() -> Cue:
 
 # =========================================================================== loading theme
 def loading_theme() -> Cue:
-    """Loading screen: tension build, 96 BPM, 20 bars (50 s), seamless loop (build -> hit -> rebuild)."""
+    """Loading screen: tension build, 96 BPM, 24 bars (60 s), seamless loop (build -> hit -> rebuild).
+
+    Sections: pedal (1), celli ostinato (5), trombone motif (9), horns answer with the full call (13),
+    Phrygian D/Eb menace (17), hit and rebuild into the loop point (21). (Was 20 bars / 50 s, under
+    the 60-150 s length window for music loops; the horn answer adds four bars of build.)"""
     bpb = 4
     s1 = prog("Dm:4 | Dm:4 | Bb/D:4 | Gm/D:4", B(1))
     s2 = prog("Dm:4 | Bb:4 | Gm:4 | A:4", B(5))
     s3 = prog("Dm:4 | Bb:4 | Gm:4 | A:4", B(9))
-    s4 = prog("Dm:4 | Eb:4 | Dm:4 | Eb:4", B(13))
-    s5 = prog("Bb:4 | Gm:4 | Asus4:2 A:2 | A7:4", B(17))
-    whole = s1 + s2 + s3 + s4 + s5
+    s3b = prog("Dm:4 | Bb:4 | Gm:4 | A:4", B(13))
+    s4 = prog("Dm:4 | Eb:4 | Dm:4 | Eb:4", B(17))
+    s5 = prog("Bb:4 | Gm:4 | Asus4:2 A:2 | A7:4", B(21))
+    whole = s1 + s2 + s3 + s3b + s4 + s5
     pedal = seq("D2:4 | D2:4 | D2:4 | D2:4 | D2:4 | Bb1:4 | G1:4 | A1:4 | D2:4 | Bb1:4 | G1:4 | A1:4 | "
-                "D2:4 | Eb2:4 | D2:4 | Eb2:4 | Bb1:4 | G1:4 | A1:4 | A1:4", 0, vel=0.55, bar=4)
-    dyn = ramp([(0, 0.6), (B(5), 0.7), (B(9), 0.85), (B(13), 1.0), (B(17), 1.05), (B(18), 0.75), (B(21), 1.0)])
+                "D2:4 | Bb1:4 | G1:4 | A1:4 | D2:4 | Eb2:4 | D2:4 | Eb2:4 | Bb1:4 | G1:4 | A1:4 | A1:4", 0, vel=0.55, bar=4)
+    dyn = ramp([(0, 0.6), (B(5), 0.7), (B(9), 0.85), (B(13), 0.92), (B(17), 1.0), (B(21), 1.05), (B(22), 0.75),
+                (B(25), 1.0)])
     pedal = scale_vel(pedal, 1.0, dyn)
     sub = scale_vel(bass(whole, 1, "pulse", vel=0.55, step=1.0, pluck=0.7), 1.0, dyn)
     ticks = []
-    for b in range(1, 21):
+    for b in range(1, 25):
         for i in range(8):
             ticks.append(Note(B(b) + i * 0.5, 0.25, 94.7 if i % 2 == 0 else 90.6, 0.55 if i % 2 == 0 else 0.4))
     ost_cell = "D3:1/2 D3 A3 D3 Bb3 A3 G3 A3"
     ost = []
-    for b in range(5, 21):
-        if b == 17:
+    for b in range(5, 25):
+        if b == 21:
             continue
-        ost += seq(ost_cell, B(b), vel=0.58 + 0.03 * ((b - 5) // 4))
-    vla16 = ostinato(s3 + s4 + s5[1:], ["r", "r", "5", "r", "3", "r", "5", "8"], octave=4, step=0.25, vel=0.5,
+        ost += seq(ost_cell, B(b), vel=0.58 + 0.025 * ((b - 5) // 4))
+    vla16 = ostinato(s3 + s3b + s4 + s5[1:], ["r", "r", "5", "r", "3", "r", "5", "8"], octave=4, step=0.25, vel=0.5,
                      accents=[0.15, 0, 0, 0, 0.1, 0, 0, 0])
     harmonics = with_params(seq("A5:8 | Bb5:8 |", B(1), vel=0.4), art="flautando") + \
-        with_params(seq("A5:4 | Bb5:4 | A5:4 | Bb5:4 | A5:4 | Bb5:4 | A5:4 | Bb5:4", B(9), vel=0.5), art="tremolo")
-    choir = chords(s2 + s3, 52, 3, vel=0.5)
-    horn_call = head(B(7), "D4", vel=0.45, last=2.0)
-    trb_motif = motif(B(9), "D3", vel=0.75)
-    menace = (head(B(13), "D3", vel=0.85, last=2.0) + head(B(14), "Eb3", vel=0.85, last=2.0)
-              + head(B(15), "D3", vel=0.9, last=2.0) + head(B(16), "Eb3", vel=0.95, last=2.0))
+        with_params(seq("A5:4 | Bb5:4 | A5:4 | Bb5:4 | A5:4 | Bb5:4 | A5:4 | Bb5:4 | A5:4 | Bb5:4 | A5:4 | Bb5:4", B(9),
+                        vel=0.5), art="tremolo")
+    choir = chords(s2 + s3 + s3b, 52, 3, vel=0.5)
+    horn_call = head(B(7), "D4", vel=0.45, last=2.0) + motif(B(13), "D4", vel=0.72)
+    trb_motif = motif(B(9), "D3", vel=0.75) + head(B(15), "D3", vel=0.7, last=2.0)
+    menace = (head(B(17), "D3", vel=0.85, last=2.0) + head(B(18), "Eb3", vel=0.85, last=2.0)
+              + head(B(19), "D3", vel=0.9, last=2.0) + head(B(20), "Eb3", vel=0.95, last=2.0))
     for n in menace:
         n.params = {"art": "stab"}
-    hit17 = chords(prog("Bb:2", B(17)), 50, 3, vel=1.0)
-    for n in hit17:
+    hit21 = chords(prog("Bb:2", B(21)), 50, 3, vel=1.0)
+    for n in hit21:
         n.params = {"art": "stab"}
     timp = pitched(hits("X", B(1), vel=0.9), "D2") + roll(B(4), 4, 8, 0.1, 0.45, pitch=38) + \
-        roll(B(8), 4, 8, 0.15, 0.6, pitch=45) + roll(B(12), 4, 8, 0.2, 0.75, pitch=45) + \
-        pitched(hits("X", B(17), vel=1.0), "Bb2") + roll(B(20), 4, 9, 0.2, 0.95, pitch=45)
+        roll(B(8), 4, 8, 0.15, 0.6, pitch=45) + roll(B(12), 4, 8, 0.18, 0.68, pitch=45) + \
+        roll(B(16), 4, 8, 0.2, 0.78, pitch=45) + pitched(hits("X", B(21), vel=1.0), "Bb2") + \
+        roll(B(24), 4, 9, 0.2, 0.95, pitch=45)
     taiko = []
     for b in range(9, 13):
         taiko += hits("X.......x.......", B(b), 0.25, vel=0.7)
     for b in range(13, 17):
-        taiko += hits("X.x.X.x.X.x.Xxxx" if b == 16 else "X...x.x.X...x...", B(b), 0.25, vel=0.85)
-    taiko += hits("X", B(17), vel=1.0) + hits("x.......x.......", B(19), 0.25, vel=0.6) + \
-        hits("X.x.X.x.XxxxXXXX", B(20), 0.25, vel=0.85)
-    snare = roll(B(16), 4, 8, 0.1, 0.8) + roll(B(20), 4, 8, 0.1, 0.9)
-    swell = [Note(B(16), 4, None, 0.7), Note(B(20), 4, None, 0.85)]
-    crash = hits("X", B(17), vel=0.9) + hits("o", B(1), vel=0.5)
-    shepard = [Note(i * 10.0, 80.0, None, 0.5) for i in range(8)]  # one octave per 4 bars; 8-octave grains
+        taiko += hits("X...x...X...x...", B(b), 0.25, vel=0.75)
+    for b in range(17, 21):
+        taiko += hits("X.x.X.x.X.x.Xxxx" if b == 20 else "X...x.x.X...x...", B(b), 0.25, vel=0.85)
+    taiko += hits("X", B(21), vel=1.0) + hits("x.......x.......", B(23), 0.25, vel=0.6) + \
+        hits("X.x.X.x.XxxxXXXX", B(24), 0.25, vel=0.85)
+    snare = roll(B(20), 4, 8, 0.1, 0.8) + roll(B(24), 4, 8, 0.1, 0.9)
+    swell = [Note(B(20), 4, None, 0.7), Note(B(24), 4, None, 0.85)]
+    crash = hits("X", B(21), vel=0.9) + hits("o", B(1), vel=0.5)
+    shepard = [Note(i * 12.0, 96.0, None, 0.5) for i in range(8)]  # one octave per 3 bars; 8-octave grains
 
     parts = [
         strings("pedal_basses", "basses", pedal, -23.0, reverb=0.2),
@@ -255,7 +265,7 @@ def loading_theme() -> Cue:
         strings("violins_high", "violins", harmonics, -28.0, reverb=0.45),
         P("choir", "choir", choir, -27.0, params={"vowel": "oo"}, reverb=0.45),
         brass("horn_call", "horn", horn_call, -25.0, reverb=0.45, params={"players": 2}),
-        brass("trombones", "trombone", trb_motif + menace + hit17, -21.0, reverb=0.3),
+        brass("trombones", "trombone", trb_motif + menace + hit21, -21.0, reverb=0.3),
         P("timpani", "timpani", timp, -23.0, reverb=0.3, pan=-0.1, rr=6),
         P("taiko", "taiko", taiko, -23.0, reverb=0.3, params={"f0": 55.0}),
         P("snare_roll", "snare", snare, -29.0, params={"kind": "field"}, reverb=0.25, pan=0.15, rr=8),
@@ -264,11 +274,13 @@ def loading_theme() -> Cue:
         P("riser", "shepard", shepard, -31.0, params={"f_lo": 35.0, "octaves": 8.0}, reverb=0.4, rr=0, humanize=0.0,
           vel_jitter=0.0),
     ]
-    return Cue("loading_theme", "Loading", "loop", 96, bpb, 20, "D minor", "4/4", parts, -19.0,
+    return Cue("loading_theme", "Loading", "loop", 96, bpb, 24, "D minor", "4/4", parts, -19.0,
                description="Battle loading screen. Tension build: ticking pulse, D pedal and an endless Shepard-Risset "
-                           "riser; a motif ostinato in the celli, the horn call, trombone motif, then a menacing "
-                           "D/Eb Phrygian section, a hit at bar 17 and a rebuild into the loop point.",
-               state="LOADING", volume=0.7, meta={"sections": {"pedal": 1, "ostinato": 5, "motif": 9, "menace": 13, "hit": 17}})
+                           "riser; a motif ostinato in the celli, the horn call, the trombone motif answered by the full "
+                           "call in the horns, then a menacing D/Eb Phrygian section, a hit at bar 21 and a rebuild "
+                           "into the loop point.",
+               state="LOADING", volume=0.7,
+               meta={"sections": {"pedal": 1, "ostinato": 5, "motif": 9, "answer": 13, "menace": 17, "hit": 21}})
 
 
 # =========================================================================== results theme

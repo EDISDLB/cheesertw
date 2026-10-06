@@ -52,7 +52,19 @@ class Bed:
             far = mix.circular(lambda z: filters.lowpass(z, far_lp, 2), far, 2)
             ir = reverb.impulse_response(space, self.rng, stereo=True)
             far = reverb.convolve_circular(far, ir, wet=far_wet, dry=1.0)
-        return self.near + far
+        return mono_bass(self.near + far)
+
+
+def mono_bass(x: np.ndarray, fc: float = 120.0) -> np.ndarray:
+    """Keep a stereo loop's low end mono-compatible: high-pass the side (L-R) signal at ``fc``.
+
+    Independent per-channel noise beds are uncorrelated by construction, but over a 40 s loop their
+    sub-150 Hz content can come out anti-correlated by chance (the harbor bed measured -0.24), which
+    cancels the rumble on mono or phone playback. Mid/side bass management fixes that and leaves the
+    stereo image above ``fc`` untouched. Circular, so the loop stays seamless."""
+    mid = 0.5 * (x[:, 0] + x[:, 1])
+    side = mix.circular(lambda z: filters.highpass(z, fc, 2), 0.5 * (x[:, 0] - x[:, 1]), 2)
+    return np.stack([mid + side, mid - side], axis=1)
 
 
 def circ(fn, x):

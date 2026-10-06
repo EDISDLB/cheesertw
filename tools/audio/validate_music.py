@@ -51,7 +51,7 @@ MUSIC = os.path.join(REPO, "assets", "music")
 OUT = os.path.join(REPO, "build", "audio_review")
 
 DURATION = {  # role windows (seconds)
-    "main_theme": (90, 120), "garage_theme": (120, 150), "loading_theme": (45, 60), "battle_": (60, 90),
+    "main_theme": (90, 120), "garage_theme": (120, 150), "loading_theme": (60, 90), "battle_": (60, 90),
     "results_theme": (55, 65), "victory": (20, 40), "defeat": (20, 40), "draw": (15, 30), "map_": (10, 20),
 }
 LUFS_WINDOW = (-24.0, -14.0)

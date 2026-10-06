@@ -61,6 +61,11 @@ BANK_LEAD_S = 0.05
 BANK_GAP_S = 0.5
 ROTATE_SEARCH_S = 0.02
 STINGER_LEAD_S = 0.01  # silent lead-in before beat 1 of a stinger (clean decoder start)
+# Vorbis pre-echo smears a stinger's first downbeat back into the 10 ms lead-in (the lossless master is
+# exactly zero there). A short raised-cosine fade on the downbeat keeps it below LEAD_SILENT_DB; the
+# shortest fade that passes on the decoded file is used (QA found map_old_fortress at -59 dBFS with 2 ms).
+STINGER_ONSET_FADES_S = (0.005, 0.01, 0.02)
+LEAD_SILENT_DB = -62.0  # decoded lead-in ceiling (validate_music.py fails above -60 dBFS)
 
 # --------------------------------------------------------------------------- music director data
 # The client MusicDirector reads these tables from the catalogue; docs/design/audio.md section 11
@@ -251,7 +256,18 @@ def render_job(name: str, out_dir: str) -> list[dict]:
     stems = music.render_cue(cue)
     t_render = time.time() - t0
     stems, info = master(cue, stems)
-    decoded, trim = encode_group(cue, stems, out_dir)
+    if cue.kind == "stinger":
+        lead = n_of(STINGER_LEAD_S)
+        for fade_s in STINGER_ONSET_FADES_S:
+            trial = {k: np.concatenate([v[:lead], fade(v[lead:], fade_s, 0.0)], axis=0) for k, v in stems.items()}
+            decoded, trim = encode_group(cue, trial, out_dir)
+            head = max(float(np.max(np.abs(d[: max(1, lead - n_of(0.002))]))) for d in decoded.values())
+            if 20 * np.log10(max(head, 1e-12)) <= LEAD_SILENT_DB:
+                break
+        stems = trial
+        info["onsetFadeS"] = fade_s
+    else:
+        decoded, trim = encode_group(cue, stems, out_dir)
     os.makedirs(MASTERS, exist_ok=True)
     entries = []
     for stem, dec in decoded.items():

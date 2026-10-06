@@ -129,18 +129,20 @@ def armor_penetration(rng, variant):
     dur = 1.5
     n = n_of(dur)
     y = np.zeros(n)
+    # transients are staggered by a few ms (crack, then burst, grit, then the boom/hull body): stacked
+    # on one sample their peaks only fed the limiter, which capped the sound ~3.7 dB under target
     mix.place(y, _n(kit.crack(1.0)), 0, 0.55)
-    mix.place(y, _n(kit.noise_burst(rng, 0.2, 0.0003, 0.05, 500, 9000, "white")), 0, 0.5)
-    mix.place(y, _n(kit.boom(0.9, rng.uniform(110, 130), 48, 0.03, 0.4)), 0, 0.9)
-    mix.place(y, _n(kit.noise_burst(rng, 0.8, 0.002, 0.35, 45, 500, "brown")), 0, 0.5)
+    mix.place(y, _n(kit.noise_burst(rng, 0.2, 0.0003, 0.05, 500, 9000, "white")), 0.0015, 0.5)
+    mix.place(y, _n(kit.boom(0.9, rng.uniform(110, 130), 48, 0.03, 0.4)), 0.004, 0.9)
+    mix.place(y, _n(kit.noise_burst(rng, 0.8, 0.002, 0.35, 45, 500, "brown")), 0.004, 0.5)
     crunch = kit.debris(rng, 0.5, 1400, "crunch", 0.09, (600, 4000))
     grit = kit.noise_burst(rng, 0.4, 0.001, 0.14, 400, 3000, "white")
     grit = fx.bitcrush(fx.saturate(_n(grit), 4.0), 6, 3)
     mix.place(y, _n(crunch), 0.003, 0.8)
-    mix.place(y, _n(grit), 0.0, 0.4)
+    mix.place(y, _n(grit), 0.002, 0.4)
     mix.place(y, tear_layer(rng, 0.8, rng.uniform(2500, 3100), rng.uniform(550, 750)), 0.03, 0.8)
     hull = kit.modal_hit(rng, 1.0, rng.uniform(100, 125), "hull", t60=0.6, modes=8, bright=0.4, click=0.0)
-    mix.place(y, _n(filters.lowpass(hull, 1500, 2)), 0.0, 0.35)
+    mix.place(y, _n(filters.lowpass(hull, 1500, 2)), 0.004, 0.35)
     mix.place(y, _n(kit.debris(rng, 1.2, 12, "metal", 0.4, (2000, 5000), start=0.3)), 0, 0.07)
     y = filters.highpass(fx.saturate(_n(y), 2.0, "tanh"), 40, 2)
     return kit.space(y, rng, "outdoor_slapback", -14.0)
@@ -188,24 +190,27 @@ def armor_critical(rng, variant):
     dur = 0.95
     n = n_of(dur)
     y = np.zeros(n)
+    # The snap, HF burst and tink are staggered (stacked on sample 0 their peaks capped the sound 4.5 dB
+    # under target) and the arcing buzz / sparks carry more of the energy. Critical always plays with or
+    # right after armor_penetration, so it owns the electric top and leaves the low end to it: no thump,
+    # buzz harmonics 0.5-7 kHz, high-passed at 200 Hz (QA: centroid ~1.3 kHz vs ~0.4 kHz penetration).
     mix.place(y, _n(kit.crack(0.35, hp=2000)), 0, 0.7)
-    mix.place(y, _n(kit.noise_burst(rng, 0.06, 0.0001, 0.012, 3000, 15000, "white")), 0, 0.6)
+    mix.place(y, _n(kit.noise_burst(rng, 0.06, 0.0001, 0.012, 3000, 15000, "white")), 0.0015, 0.6)
     zn = n_of(0.09)
-    zf = np.geomspace(rng.uniform(3200, 4000), 250, zn)
+    zf = np.geomspace(rng.uniform(3200, 4000), 400, zn)
     zap = (osc.square(zf, zn) * 0.5 + osc.sine(zf, zn)) * env.perc(zn, 0.0005, 0.085)
     mix.place(y, _n(filters.lowpass(zap, 7000, 2)), 0.002, 0.55)
-    bn = n_of(0.5)
+    bn = n_of(0.55)
     hum = osc.square(rng.uniform(115, 150) * (1 + 0.04 * noise.smooth_random(bn, rng, 20.0)), bn, pw=0.3)
     gate = (noise.smooth_random(bn, rng, 45.0) > -0.1).astype(float)
     gate = filters.smooth(gate, 0.0015)
-    buzz = filters.band(fx.saturate(hum * gate, 3.0, "hard"), 300, 6000, 2) * env.perc(bn, 0.004, 0.42)
-    mix.place(y, _n(buzz), 0.012, 0.45)
+    buzz = filters.band(fx.saturate(hum * gate, 3.0, "hard"), 500, 7000, 2) * env.perc(bn, 0.004, 0.5)
+    mix.place(y, _n(buzz), 0.012, 0.7)
     sparks = kit.crackle(rng, n_of(0.7), 700, 2000, 12000) * env.perc(n_of(0.7), 0.002, 0.45)
-    mix.place(y, _n(sparks), 0.005, 0.4)
+    mix.place(y, _n(sparks), 0.005, 0.55)
     tink = kit.modal_hit(rng, 0.5, rng.uniform(3600, 4200), "bar", t60=0.25, modes=3, bright=0.9, click=0.5)
-    mix.place(y, _n(tink), 0.0, 0.3)
-    mix.place(y, _n(kit.boom(0.2, 220, 120, 0.01, 0.07)), 0, 0.3)
-    y = filters.highpass(y, 80, 2)
+    mix.place(y, _n(tink), 0.004, 0.3)
+    y = filters.highpass(y, 200, 2)
     return kit.space(y, rng, "outdoor_slapback", -16.0)
 
 
@@ -575,15 +580,15 @@ def _register() -> None:
               f"Shell (any type) hits terrain/prop of material '{m}' (HE adds its explosion layer separately if desired).",
               variants="abc", level=-13.0 if m != "snow" else -15.0, min_m=8, max_m=450, group="impact")
     sound("armor_penetration", "armor", armor_penetration, "PENETRATION: heavy boom, dense metal crunch and a tearing metal sweep.",
-          "Shell penetrates a vehicle (shooter hears it 2D at priority 95; others positional).", variants="abc", level=-10.0,
+          "Shell penetrates a vehicle (shooter hears it 2D at priority 95; others positional).", variants="abc", level=-12.0,
           priority=96, group="armor_result")
     sound("armor_ricochet", "armor", armor_ricochet, "RICOCHET: bright high ping and a falling, tumbling whine.",
-          "Shell ricochets off armor.", variants="abc", level=-11.5, priority=95, group="armor_result")
+          "Shell ricochets off armor.", variants="abc", level=-13.5, priority=95, group="armor_result")
     sound("armor_blocked", "armor", armor_blocked, "NON-PENETRATION: dull, short, low-mid clang with a thud.",
-          "Shell hits but does not penetrate (blocked / absorbed by spaced armor).", variants="abc", level=-11.5, priority=95,
+          "Shell hits but does not penetrate (blocked / absorbed by spaced armor).", variants="abc", level=-13.5, priority=95,
           group="armor_result")
     sound("armor_critical", "armor", armor_critical, "CRITICAL MODULE HIT: razor snap, electric zap, arcing buzz and sparks.",
-          "Penetration that damages a module or crew (plays with/after the penetration cue).", variants="abc", level=-11.0,
+          "Penetration that damages a module or crew (plays with/after the penetration cue).", variants="abc", level=-13.0,
           priority=96, group="armor_result")
     sound("armor_hit_taken_pen", "armor", hit_taken_pen, "HIT TAKEN (inside, penetrated): muffled heavy thud, hull bong, interior crunch.",
           "Own vehicle penetrated (2D, interior perspective; duck Vehicles/Ambience).", variants="abc", level=-11.0, priority=97,

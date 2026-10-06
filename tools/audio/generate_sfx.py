@@ -48,6 +48,8 @@ MAX_PEAK_DB = -1.0  # hard requirement on the decoded file (sample peak)
 MAX_TRUE_PEAK_DB = -0.5  # inter-sample peak guard (device resampling headroom)
 MAX_GR_DB = 12.0  # most transient peak reduction (clipper + limiter) allowed on a one-shot
 MAX_ONESHOT_S = {"ui": 3.5, "cues": 3.5, "radio": 2.5, "default": 9.5}  # hard caps (tails faded)
+LEAD_FLOOR_DB = -60.0  # one-shots: lead-in below this (dBFS, mastered level) is trimmed ...
+LEAD_KEEP_S = 0.002  # ... down to this much pre-roll (QA limit: 30 ms of leading silence)
 SCHEMA = "hulldown.audio.catalog/1"
 
 
@@ -134,8 +136,29 @@ def master(s: Sound, x: np.ndarray) -> tuple[np.ndarray, dict]:
             x = mix.gain_db(x, min(short, MAX_GR_DB - (pk - PRE_CEILING_DB)))
         if mix.peak_db(x) > PRE_CEILING_DB:
             notes["peakReductionDb"] = round(mix.peak_db(x) - PRE_CEILING_DB, 2)
+        y, lead = trim_lead(y, s)
+        if lead:
+            notes["leadTrimS"] = round(lead / SR, 4)
         x = zero_mean(y)
     return x, notes
+
+
+def trim_lead(x: np.ndarray, s: Sound) -> tuple[np.ndarray, int]:
+    """Cut inaudible lead-in from a mastered one-shot so it speaks the moment it is triggered.
+
+    Fade-ins from zero (risers, swells) and late-starting layers left up to 0.6 s below -60 dBFS at
+    the head of some files. Everything before the first sample above LEAD_FLOOR_DB is dropped except
+    LEAD_KEEP_S, which becomes a raised-cosine fade-in. Sounds whose timing is anchored to the file
+    start (``meta.closestApproachS``) are left alone."""
+    if (s.meta or {}).get("closestApproachS") is not None:
+        return x, 0
+    mag = np.abs(x) if x.ndim == 1 else np.max(np.abs(x), axis=1)
+    above = np.flatnonzero(mag > 10 ** (LEAD_FLOOR_DB / 20.0))
+    keep = n_of(LEAD_KEEP_S)
+    if not above.size or above[0] <= keep:
+        return x, 0
+    cut = int(above[0]) - keep
+    return fade(x[cut:], LEAD_KEEP_S, 0.0), cut
 
 
 def encode_checked(path: str, x: np.ndarray, key: str, quality: float) -> tuple[np.ndarray, float]:

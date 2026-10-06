@@ -120,7 +120,11 @@ def _k_filter(x: np.ndarray, sr: int) -> np.ndarray:
     # ITU-R BS.1770 K-weighting (pre-filter shelf + RLB high-pass), any sample rate
     f0, G, Q = 1681.974450955533, 3.999843853973347, 0.7071752369554196
     K = np.tan(np.pi * f0 / sr)
-    Vh, Vb = 10 ** (G / 20.0), 10 ** (G / 20.0) ** 0.4996667741545416
+    # Vb = Vh ** 0.4997 (NOT 10 ** ((G/20) ** 0.4997): '**' is right-associative, and that slip
+    # once inflated the 0.5-3 kHz weighting by up to +6.9 dB). At 48 kHz this reproduces the
+    # BS.1770 pre-filter b = [1.53512486, -2.69169619, 1.19839281], a = [1, -1.69065929, 0.73248077].
+    Vh = 10 ** (G / 20.0)
+    Vb = Vh ** 0.4996667741545416
     a0 = 1.0 + K / Q + K * K
     b1 = [(Vh + Vb * K / Q + K * K) / a0, 2.0 * (K * K - Vh) / a0, (Vh - Vb * K / Q + K * K) / a0]
     a1 = [1.0, 2.0 * (K * K - 1.0) / a0, (1.0 - K / Q + K * K) / a0]

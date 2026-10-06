@@ -241,7 +241,7 @@
   "banks": {
     "music_stingers_1": {
       "file": "banks/music_stingers_1.ogg",
-      "durationS": 105.626,
+      "durationS": 105.519,
       "channels": 2,
       "contents": [
         "victory",
@@ -250,11 +250,11 @@
         "map_dust_basin",
         "map_frozen_front"
       ],
-      "peakDb": -3.54
+      "peakDb": -2.53
     },
     "music_stingers_2": {
       "file": "banks/music_stingers_2.ogg",
-      "durationS": 101.401,
+      "durationS": 101.524,
       "channels": 2,
       "contents": [
         "map_harbor_district",
@@ -264,7 +264,7 @@
         "map_open_plains",
         "map_river_town"
       ],
-      "peakDb": -2.34
+      "peakDb": -1.38
     }
   },
   "cues": {
@@ -291,12 +291,12 @@
         "fadeOutS": 2.0,
         "quantize": "bar"
       },
-      "loudnessLufs": -22.35,
-      "peakDb": -1.69,
-      "truePeakDb": -1.69,
+      "loudnessLufs": -22.4,
+      "peakDb": -1.43,
+      "truePeakDb": -1.41,
       "master": {
-        "glueMaxGrDb": 2.53,
-        "limiterMaxGrDb": 0.87,
+        "glueMaxGrDb": 3.46,
+        "limiterMaxGrDb": 2.62,
         "gridOffsetSamples": 203,
         "encodeTrimDb": 0.0,
         "targetLufs": -17.0
@@ -316,9 +316,9 @@
         "gridOffsetS": 0.004229,
         "seamless": true,
         "seam": {
-          "jumpRatio": 0.201,
-          "hfBurstDb": -9.82,
-          "firstSampleAbs": 0.04091
+          "jumpRatio": 0.035,
+          "hfBurstDb": -10.81,
+          "firstSampleAbs": 0.03946
         }
       },
       "group": "battle",
@@ -355,13 +355,13 @@
         "fadeOutS": 2.0,
         "quantize": "bar"
       },
-      "loudnessLufs": -17.04,
-      "peakDb": -1.52,
-      "truePeakDb": -1.51,
+      "loudnessLufs": -17.03,
+      "peakDb": -1.4,
+      "truePeakDb": -1.4,
       "master": {
-        "glueMaxGrDb": 2.81,
-        "limiterMaxGrDb": 0.02,
-        "gridOffsetSamples": 882,
+        "glueMaxGrDb": 3.72,
+        "limiterMaxGrDb": 1.62,
+        "gridOffsetSamples": 537,
         "encodeTrimDb": 0.0,
         "targetLufs": -17.0
       },
@@ -451,13 +451,13 @@
       "loop": {
         "startS": 0.0,
         "endS": 64.0,
-        "gridOffsetSamples": 882,
-        "gridOffsetS": 0.018375,
+        "gridOffsetSamples": 537,
+        "gridOffsetS": 0.011187,
         "seamless": true,
         "seam": {
-          "jumpRatio": 0.144,
-          "hfBurstDb": 4.43,
-          "firstSampleAbs": 0.03357
+          "jumpRatio": 0.091,
+          "hfBurstDb": 4.05,
+          "firstSampleAbs": 0.01616
         }
       },
       "sectionsBar": {
@@ -490,12 +490,12 @@
         "fadeOutS": 2.0,
         "quantize": "bar"
       },
-      "loudnessLufs": -20.67,
-      "peakDb": -8.76,
-      "truePeakDb": -8.72,
+      "loudnessLufs": -20.72,
+      "peakDb": -6.29,
+      "truePeakDb": -6.24,
       "master": {
-        "glueMaxGrDb": 2.53,
-        "limiterMaxGrDb": 0.87,
+        "glueMaxGrDb": 3.46,
+        "limiterMaxGrDb": 2.62,
         "gridOffsetSamples": 203,
         "encodeTrimDb": 0.0,
         "targetLufs": -17.0
@@ -672,9 +672,9 @@
         "gridOffsetS": 0.004229,
         "seamless": true,
         "seam": {
-          "jumpRatio": 0.096,
-          "hfBurstDb": 1.97,
-          "firstSampleAbs": 0.0133
+          "jumpRatio": 0.038,
+          "hfBurstDb": 1.19,
+          "firstSampleAbs": 0.03342
         }
       },
       "group": "battle",
@@ -711,12 +711,12 @@
         "fadeOutS": 2.0,
         "quantize": "bar"
       },
-      "loudnessLufs": -22.73,
-      "peakDb": -9.24,
-      "truePeakDb": -9.21,
+      "loudnessLufs": -22.57,
+      "peakDb": -6.24,
+      "truePeakDb": -6.23,
       "master": {
-        "glueMaxGrDb": 2.53,
-        "limiterMaxGrDb": 0.87,
+        "glueMaxGrDb": 3.46,
+        "limiterMaxGrDb": 2.62,
         "gridOffsetSamples": 203,
         "encodeTrimDb": 0.0,
         "targetLufs": -17.0
@@ -733,9 +733,9 @@
         "gridOffsetS": 0.004229,
         "seamless": true,
         "seam": {
-          "jumpRatio": 0.002,
-          "hfBurstDb": -6.88,
-          "firstSampleAbs": 0.01711
+          "jumpRatio": 0.051,
+          "hfBurstDb": -7.1,
+          "firstSampleAbs": 0.02661
         }
       },
       "group": "battle",
@@ -755,8 +755,8 @@
       "description": "Defeat: a lone horn states the motif and sighs downward; it tries the call again but stalls on Bb-A over a muffled timpani, a distant bell and a dark choir; ends on D minor.",
       "state": "RESULT_STINGER",
       "kind": "stinger",
-      "durationS": 26.678146,
-      "samples": 1280551,
+      "durationS": 26.678208,
+      "samples": 1280554,
       "channels": 2,
       "bpm": 60,
       "meter": "4/4",
@@ -771,13 +771,14 @@
         "fadeInS": 0.0,
         "fadeOutS": 0.5
       },
-      "loudnessLufs": -18.02,
-      "peakDb": -9.26,
-      "truePeakDb": -9.26,
+      "loudnessLufs": -17.99,
+      "peakDb": -7.5,
+      "truePeakDb": -7.49,
       "master": {
-        "glueMaxGrDb": 0.64,
+        "glueMaxGrDb": 1.36,
         "limiterMaxGrDb": -0.0,
         "gridOffsetSamples": 480,
+        "onsetFadeS": 0.005,
         "encodeTrimDb": 0.0,
         "targetLufs": -18.0
       },
@@ -811,8 +812,8 @@
       },
       "bankRegion": {
         "bank": "banks/music_stingers_1.ogg",
-        "startS": 27.447437,
-        "endS": 54.125583
+        "startS": 27.440042,
+        "endS": 54.11825
       }
     },
     "draw": {
@@ -821,8 +822,8 @@
       "description": "Draw: the motif in the horns over suspended harmony (sus2/sus4) on a D pedal, a soft echo of the call, ending on a bare D-A fifth - neither major nor minor.",
       "state": "RESULT_STINGER",
       "kind": "stinger",
-      "durationS": 16.736563,
-      "samples": 803355,
+      "durationS": 16.600125,
+      "samples": 796806,
       "channels": 2,
       "bpm": 72,
       "meter": "4/4",
@@ -837,13 +838,14 @@
         "fadeInS": 0.0,
         "fadeOutS": 0.5
       },
-      "loudnessLufs": -18.51,
-      "peakDb": -10.16,
-      "truePeakDb": -10.15,
+      "loudnessLufs": -18.49,
+      "peakDb": -7.5,
+      "truePeakDb": -7.5,
       "master": {
-        "glueMaxGrDb": 0.53,
+        "glueMaxGrDb": 1.8,
         "limiterMaxGrDb": -0.0,
         "gridOffsetSamples": 480,
+        "onsetFadeS": 0.005,
         "encodeTrimDb": 0.0,
         "targetLufs": -18.5
       },
@@ -871,12 +873,12 @@
       "stinger": {
         "leadS": 0.01,
         "bodyEndS": 13.343333,
-        "tailS": 3.393
+        "tailS": 3.257
       },
       "bankRegion": {
         "bank": "banks/music_stingers_1.ogg",
-        "startS": 54.625583,
-        "endS": 71.362146
+        "startS": 54.61825,
+        "endS": 71.218375
       }
     },
     "garage_theme": {
@@ -902,13 +904,13 @@
         "fadeOutS": 2.0,
         "quantize": "bar"
       },
-      "loudnessLufs": -20.01,
-      "peakDb": -8.57,
-      "truePeakDb": -8.55,
+      "loudnessLufs": -19.99,
+      "peakDb": -5.83,
+      "truePeakDb": -5.82,
       "master": {
-        "glueMaxGrDb": 1.52,
+        "glueMaxGrDb": 3.09,
         "limiterMaxGrDb": -0.0,
-        "gridOffsetSamples": 742,
+        "gridOffsetSamples": 690,
         "encodeTrimDb": 0.0,
         "targetLufs": -20.0
       },
@@ -969,13 +971,13 @@
       "loop": {
         "startS": 0.0,
         "endS": 132.0,
-        "gridOffsetSamples": 742,
-        "gridOffsetS": 0.015458,
+        "gridOffsetSamples": 690,
+        "gridOffsetS": 0.014375,
         "seamless": true,
         "seam": {
-          "jumpRatio": 0.052,
-          "hfBurstDb": -4.22,
-          "firstSampleAbs": 0.00212
+          "jumpRatio": 0.132,
+          "hfBurstDb": -3.85,
+          "firstSampleAbs": 0.01258
         }
       },
       "sectionsBar": {
@@ -990,16 +992,16 @@
     "loading_theme": {
       "file": "loading_theme.ogg",
       "title": "Loading",
-      "description": "Battle loading screen. Tension build: ticking pulse, D pedal and an endless Shepard-Risset riser; a motif ostinato in the celli, the horn call, trombone motif, then a menacing D/Eb Phrygian section, a hit at bar 17 and a rebuild into the loop point.",
+      "description": "Battle loading screen. Tension build: ticking pulse, D pedal and an endless Shepard-Risset riser; a motif ostinato in the celli, the horn call, the trombone motif answered by the full call in the horns, then a menacing D/Eb Phrygian section, a hit at bar 21 and a rebuild into the loop point.",
       "state": "LOADING",
       "kind": "loop",
-      "durationS": 50.0,
-      "samples": 2400000,
+      "durationS": 60.0,
+      "samples": 2880000,
       "channels": 2,
       "bpm": 96,
       "meter": "4/4",
       "beatsPerBar": 4,
-      "bars": 20,
+      "bars": 24,
       "beatS": 0.625,
       "barS": 2.5,
       "samplesPerBeat": 30000.0,
@@ -1010,13 +1012,13 @@
         "fadeOutS": 2.0,
         "quantize": "bar"
       },
-      "loudnessLufs": -19.05,
-      "peakDb": -1.52,
-      "truePeakDb": -1.52,
+      "loudnessLufs": -19.02,
+      "peakDb": -1.56,
+      "truePeakDb": -1.53,
       "master": {
-        "glueMaxGrDb": 4.24,
-        "limiterMaxGrDb": 0.26,
-        "gridOffsetSamples": 12,
+        "glueMaxGrDb": 4.22,
+        "limiterMaxGrDb": 1.13,
+        "gridOffsetSamples": 764,
         "encodeTrimDb": 0.0,
         "targetLufs": -19.0
       },
@@ -1036,18 +1038,11 @@
           "tonicPc": 2
         },
         {
-          "part": "trombones",
-          "form": "motif_head",
+          "part": "horn_call",
+          "form": "motif",
           "bar": 13,
           "beat": 1.0,
           "tonicPc": 2
-        },
-        {
-          "part": "trombones",
-          "form": "motif_head",
-          "bar": 14,
-          "beat": 1.0,
-          "tonicPc": 3
         },
         {
           "part": "trombones",
@@ -1059,7 +1054,28 @@
         {
           "part": "trombones",
           "form": "motif_head",
-          "bar": 16,
+          "bar": 17,
+          "beat": 1.0,
+          "tonicPc": 2
+        },
+        {
+          "part": "trombones",
+          "form": "motif_head",
+          "bar": 18,
+          "beat": 1.0,
+          "tonicPc": 3
+        },
+        {
+          "part": "trombones",
+          "form": "motif_head",
+          "bar": 19,
+          "beat": 1.0,
+          "tonicPc": 2
+        },
+        {
+          "part": "trombones",
+          "form": "motif_head",
+          "bar": 20,
           "beat": 1.0,
           "tonicPc": 3
         }
@@ -1078,22 +1094,23 @@
       ],
       "loop": {
         "startS": 0.0,
-        "endS": 50.0,
-        "gridOffsetSamples": 12,
-        "gridOffsetS": 0.00025,
+        "endS": 60.0,
+        "gridOffsetSamples": 764,
+        "gridOffsetS": 0.015917,
         "seamless": true,
         "seam": {
-          "jumpRatio": 0.062,
-          "hfBurstDb": 8.96,
-          "firstSampleAbs": 0.02464
+          "jumpRatio": 0.143,
+          "hfBurstDb": 8.91,
+          "firstSampleAbs": 0.01544
         }
       },
       "sectionsBar": {
         "pedal": 1,
         "ostinato": 5,
         "motif": 9,
-        "menace": 13,
-        "hit": 17
+        "answer": 13,
+        "menace": 17,
+        "hit": 21
       }
     },
     "main_theme": {
@@ -1119,11 +1136,11 @@
         "fadeOutS": 2.0,
         "quantize": "bar"
       },
-      "loudnessLufs": -18.04,
-      "peakDb": -5.81,
-      "truePeakDb": -5.79,
+      "loudnessLufs": -18.02,
+      "peakDb": -3.53,
+      "truePeakDb": -3.52,
       "master": {
-        "glueMaxGrDb": 2.47,
+        "glueMaxGrDb": 3.78,
         "limiterMaxGrDb": -0.0,
         "gridOffsetSamples": 591,
         "encodeTrimDb": 0.0,
@@ -1198,9 +1215,9 @@
         "gridOffsetS": 0.012313,
         "seamless": true,
         "seam": {
-          "jumpRatio": 0.002,
-          "hfBurstDb": -25.24,
-          "firstSampleAbs": 0.00787
+          "jumpRatio": 0.06,
+          "hfBurstDb": -24.74,
+          "firstSampleAbs": 0.01125
         }
       },
       "sectionsBar": {
@@ -1217,8 +1234,8 @@
       "description": "Desert basin: the motif on an oud (with tremolo on the held A) over a maqsum frame-drum rhythm, a duduk drone and a Hijaz answer resolving Eb-D.",
       "state": "LOADING_MAP_STINGER",
       "kind": "stinger",
-      "durationS": 15.420979,
-      "samples": 740207,
+      "durationS": 15.456917,
+      "samples": 741932,
       "channels": 2,
       "bpm": 90,
       "meter": "4/4",
@@ -1233,13 +1250,14 @@
         "fadeInS": 0.0,
         "fadeOutS": 0.5
       },
-      "loudnessLufs": -17.98,
-      "peakDb": -3.62,
-      "truePeakDb": -3.62,
+      "loudnessLufs": -17.97,
+      "peakDb": -2.53,
+      "truePeakDb": -2.51,
       "master": {
-        "glueMaxGrDb": 1.52,
+        "glueMaxGrDb": 2.73,
         "limiterMaxGrDb": -0.0,
         "gridOffsetSamples": 480,
+        "onsetFadeS": 0.005,
         "encodeTrimDb": 0.0,
         "targetLufs": -18.0
       },
@@ -1261,14 +1279,14 @@
       "stinger": {
         "leadS": 0.01,
         "bodyEndS": 13.343333,
-        "tailS": 2.078
+        "tailS": 2.114
       },
       "map": "dust_basin",
       "biome": "desert",
       "bankRegion": {
         "bank": "banks/music_stingers_1.ogg",
-        "startS": 71.862146,
-        "endS": 87.283125
+        "startS": 71.718375,
+        "endS": 87.175292
       }
     },
     "map_frozen_front": {
@@ -1293,13 +1311,14 @@
         "fadeInS": 0.0,
         "fadeOutS": 0.5
       },
-      "loudnessLufs": -17.97,
-      "peakDb": -9.93,
-      "truePeakDb": -9.92,
+      "loudnessLufs": -17.96,
+      "peakDb": -5.58,
+      "truePeakDb": -5.57,
       "master": {
-        "glueMaxGrDb": 0.48,
+        "glueMaxGrDb": 1.74,
         "limiterMaxGrDb": -0.0,
         "gridOffsetSamples": 480,
+        "onsetFadeS": 0.005,
         "encodeTrimDb": 0.0,
         "targetLufs": -18.0
       },
@@ -1335,8 +1354,8 @@
       "biome": "winter",
       "bankRegion": {
         "bank": "banks/music_stingers_1.ogg",
-        "startS": 87.783125,
-        "endS": 105.126458
+        "startS": 87.675292,
+        "endS": 105.018625
       }
     },
     "map_harbor_district": {
@@ -1345,8 +1364,8 @@
       "description": "Harbor: a 6/8 sway in D Dorian - the motif on accordion over pizzicato bass and accordion comping, a low tuba 'foghorn' swell and a buoy bell.",
       "state": "LOADING_MAP_STINGER",
       "kind": "stinger",
-      "durationS": 14.587375,
-      "samples": 700194,
+      "durationS": 14.641771,
+      "samples": 702805,
       "channels": 2,
       "bpm": 120,
       "meter": "6/8",
@@ -1362,12 +1381,13 @@
         "fadeOutS": 0.5
       },
       "loudnessLufs": -17.99,
-      "peakDb": -5.19,
-      "truePeakDb": -5.18,
+      "peakDb": -4.09,
+      "truePeakDb": -4.08,
       "master": {
-        "glueMaxGrDb": 0.82,
+        "glueMaxGrDb": 1.6,
         "limiterMaxGrDb": -0.0,
         "gridOffsetSamples": 480,
+        "onsetFadeS": 0.005,
         "encodeTrimDb": 0.0,
         "targetLufs": -18.0
       },
@@ -1390,14 +1410,14 @@
       "stinger": {
         "leadS": 0.01,
         "bodyEndS": 12.01,
-        "tailS": 2.577
+        "tailS": 2.632
       },
       "map": "harbor_district",
       "biome": "harbor",
       "bankRegion": {
         "bank": "banks/music_stingers_2.ogg",
         "startS": 0.05,
-        "endS": 14.637375
+        "endS": 14.691771
       }
     },
     "map_iron_valley": {
@@ -1406,8 +1426,8 @@
       "description": "Industrial valley: anvils on a 3+3+2 grid, the motif in trombones and tuba over a celli pulse, a Phrygian Eb call in the horns, and a tutti D-minor hit.",
       "state": "LOADING_MAP_STINGER",
       "kind": "stinger",
-      "durationS": 13.889938,
-      "samples": 666717,
+      "durationS": 14.040021,
+      "samples": 673921,
       "channels": 2,
       "bpm": 100,
       "meter": "4/4",
@@ -1422,13 +1442,14 @@
         "fadeInS": 0.0,
         "fadeOutS": 0.5
       },
-      "loudnessLufs": -18.06,
-      "peakDb": -2.24,
-      "truePeakDb": -2.23,
+      "loudnessLufs": -18.07,
+      "peakDb": -1.5,
+      "truePeakDb": -1.43,
       "master": {
-        "glueMaxGrDb": 2.61,
-        "limiterMaxGrDb": -0.0,
+        "glueMaxGrDb": 4.06,
+        "limiterMaxGrDb": 1.84,
         "gridOffsetSamples": 480,
+        "onsetFadeS": 0.005,
         "encodeTrimDb": 0.0,
         "targetLufs": -18.0
       },
@@ -1459,14 +1480,14 @@
       "stinger": {
         "leadS": 0.01,
         "bodyEndS": 12.01,
-        "tailS": 1.88
+        "tailS": 2.03
       },
       "map": "iron_valley",
       "biome": "temperate_valley_industrial",
       "bankRegion": {
         "bank": "banks/music_stingers_2.ogg",
-        "startS": 15.137375,
-        "endS": 29.027313
+        "startS": 15.191771,
+        "endS": 29.231792
       }
     },
     "map_mountain_pass": {
@@ -1491,13 +1512,14 @@
         "fadeInS": 0.0,
         "fadeOutS": 0.5
       },
-      "loudnessLufs": -17.97,
-      "peakDb": -9.37,
-      "truePeakDb": -9.36,
+      "loudnessLufs": -17.96,
+      "peakDb": -6.88,
+      "truePeakDb": -6.88,
       "master": {
-        "glueMaxGrDb": 0.56,
+        "glueMaxGrDb": 1.77,
         "limiterMaxGrDb": -0.0,
         "gridOffsetSamples": 480,
+        "onsetFadeS": 0.005,
         "encodeTrimDb": 0.0,
         "targetLufs": -18.0
       },
@@ -1539,8 +1561,8 @@
       "biome": "mountain",
       "bankRegion": {
         "bank": "banks/music_stingers_2.ogg",
-        "startS": 29.527313,
-        "endS": 48.537312
+        "startS": 29.731792,
+        "endS": 48.741792
       }
     },
     "map_old_fortress": {
@@ -1565,13 +1587,14 @@
         "fadeInS": 0.0,
         "fadeOutS": 0.5
       },
-      "loudnessLufs": -18.02,
-      "peakDb": -5.56,
-      "truePeakDb": -5.56,
+      "loudnessLufs": -17.99,
+      "peakDb": -4.29,
+      "truePeakDb": -4.28,
       "master": {
-        "glueMaxGrDb": 1.87,
+        "glueMaxGrDb": 2.75,
         "limiterMaxGrDb": -0.0,
         "gridOffsetSamples": 480,
+        "onsetFadeS": 0.005,
         "encodeTrimDb": 0.0,
         "targetLufs": -18.0
       },
@@ -1614,8 +1637,8 @@
       "biome": "fortress_old",
       "bankRegion": {
         "bank": "banks/music_stingers_2.ogg",
-        "startS": 49.037312,
-        "endS": 67.547313
+        "startS": 49.241792,
+        "endS": 67.751792
       }
     },
     "map_open_plains": {
@@ -1624,8 +1647,8 @@
       "description": "Open plains: the motif in D major on horns over open-string guitar arpeggios and wide strings, a Mixolydian C-major answer, soft timpani.",
       "state": "LOADING_MAP_STINGER",
       "kind": "stinger",
-      "durationS": 16.843625,
-      "samples": 808494,
+      "durationS": 16.762208,
+      "samples": 804586,
       "channels": 2,
       "bpm": 72,
       "meter": "4/4",
@@ -1640,13 +1663,14 @@
         "fadeInS": 0.0,
         "fadeOutS": 0.5
       },
-      "loudnessLufs": -17.99,
-      "peakDb": -8.05,
-      "truePeakDb": -8.05,
+      "loudnessLufs": -17.98,
+      "peakDb": -5.73,
+      "truePeakDb": -5.73,
       "master": {
-        "glueMaxGrDb": 0.65,
+        "glueMaxGrDb": 1.64,
         "limiterMaxGrDb": -0.0,
         "gridOffsetSamples": 480,
+        "onsetFadeS": 0.005,
         "encodeTrimDb": 0.0,
         "targetLufs": -18.0
       },
@@ -1668,14 +1692,14 @@
       "stinger": {
         "leadS": 0.01,
         "bodyEndS": 13.343333,
-        "tailS": 3.5
+        "tailS": 3.419
       },
       "map": "open_plains",
       "biome": "plains",
       "bankRegion": {
         "bank": "banks/music_stingers_2.ogg",
-        "startS": 68.047313,
-        "endS": 84.890938
+        "startS": 68.251792,
+        "endS": 85.014
       }
     },
     "map_river_town": {
@@ -1700,13 +1724,14 @@
         "fadeInS": 0.0,
         "fadeOutS": 0.5
       },
-      "loudnessLufs": -18.01,
-      "peakDb": -6.48,
-      "truePeakDb": -6.47,
+      "loudnessLufs": -17.99,
+      "peakDb": -3.62,
+      "truePeakDb": -3.62,
       "master": {
-        "glueMaxGrDb": 0.75,
+        "glueMaxGrDb": 1.99,
         "limiterMaxGrDb": -0.0,
         "gridOffsetSamples": 480,
+        "onsetFadeS": 0.005,
         "encodeTrimDb": 0.0,
         "targetLufs": -18.0
       },
@@ -1734,8 +1759,8 @@
       "biome": "river_town",
       "bankRegion": {
         "bank": "banks/music_stingers_2.ogg",
-        "startS": 85.390938,
-        "endS": 100.900937
+        "startS": 85.514,
+        "endS": 101.024
       }
     },
     "results_theme": {
@@ -1761,13 +1786,13 @@
         "fadeOutS": 2.0,
         "quantize": "bar"
       },
-      "loudnessLufs": -21.01,
-      "peakDb": -9.51,
-      "truePeakDb": -9.5,
+      "loudnessLufs": -20.99,
+      "peakDb": -6.99,
+      "truePeakDb": -6.98,
       "master": {
-        "glueMaxGrDb": 1.48,
+        "glueMaxGrDb": 2.73,
         "limiterMaxGrDb": -0.0,
-        "gridOffsetSamples": 507,
+        "gridOffsetSamples": 498,
         "encodeTrimDb": 0.0,
         "targetLufs": -21.0
       },
@@ -1791,13 +1816,13 @@
       "loop": {
         "startS": 0.0,
         "endS": 60.0,
-        "gridOffsetSamples": 507,
-        "gridOffsetS": 0.010563,
+        "gridOffsetSamples": 498,
+        "gridOffsetS": 0.010375,
         "seamless": true,
         "seam": {
-          "jumpRatio": 0.077,
-          "hfBurstDb": -7.08,
-          "firstSampleAbs": 0.01219
+          "jumpRatio": 0.028,
+          "hfBurstDb": -5.14,
+          "firstSampleAbs": 0.00356
         }
       }
     },
@@ -1807,8 +1832,8 @@
       "description": "Victory: snare and timpani roll on the dominant, the motif as a D-major brass fanfare, a rising answer, and a held tutti D-major chord with bells and choir.",
       "state": "RESULT_STINGER",
       "kind": "stinger",
-      "durationS": 26.897437,
-      "samples": 1291077,
+      "durationS": 26.890042,
+      "samples": 1290722,
       "channels": 2,
       "bpm": 80,
       "meter": "4/4",
@@ -1823,13 +1848,14 @@
         "fadeInS": 0.0,
         "fadeOutS": 0.5
       },
-      "loudnessLufs": -16.03,
-      "peakDb": -6.24,
-      "truePeakDb": -6.23,
+      "loudnessLufs": -16.02,
+      "peakDb": -4.45,
+      "truePeakDb": -4.44,
       "master": {
-        "glueMaxGrDb": 0.99,
+        "glueMaxGrDb": 2.04,
         "limiterMaxGrDb": -0.0,
         "gridOffsetSamples": 480,
+        "onsetFadeS": 0.005,
         "encodeTrimDb": 0.0,
         "targetLufs": -16.0
       },
@@ -1861,12 +1887,12 @@
       "stinger": {
         "leadS": 0.01,
         "bodyEndS": 24.01,
-        "tailS": 2.887
+        "tailS": 2.88
       },
       "bankRegion": {
         "bank": "banks/music_stingers_1.ogg",
         "startS": 0.05,
-        "endS": 26.947437
+        "endS": 26.940042
       }
     }
   }

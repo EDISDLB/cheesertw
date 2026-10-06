@@ -186,12 +186,17 @@ def whoosh(
 
 
 def bubble(f0: float, dur: float, rise: float = 0.5, amp: float = 1.0, sr: int = SR) -> np.ndarray:
-    """Minnaert-style bubble: a damped sine whose pitch rises as it decays (water)."""
-    n = n_of(dur, sr)
-    t = t_of(n, sr)
+    """Minnaert-style bubble: a damped sine whose pitch rises as it decays (water).
+
+    ``dur`` is a minimum: the bubble always rings until its decay reaches -60 dB (6.9 tau) and then
+    tapers to exactly zero. (A fixed 60 ms length cut low bubbles - tau = 61 ms at 120 Hz - off at
+    a third of their amplitude, which put audible clicks into the mud and water loops.)"""
     tau = 0.003 + 7.0 / f0
+    n = n_of(max(dur, 6.9 * tau), sr)
+    t = t_of(n, sr)
     f = f0 * (1.0 + rise * (1.0 - np.exp(-t / (tau * 1.5))))
-    return amp * osc.sine(f, n, sr) * np.exp(-t / tau) * (1 - np.exp(-t / 0.0004))
+    y = amp * osc.sine(f, n, sr) * np.exp(-t / tau) * (1 - np.exp(-t / 0.0004))
+    return env.fade(y, 0.0, min(0.004, 0.25 * n / sr), sr)
 
 
 def bubbles(rng: np.random.Generator, dur: float, rate: float, f_range=(300.0, 2500.0), decay: float = 1e9,

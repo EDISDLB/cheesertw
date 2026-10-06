@@ -57,9 +57,9 @@
       "loop": true,
       "durationS": 40.0,
       "channels": 2,
-      "peakDb": -17.56,
-      "rmsDb": -36.63,
-      "loudnessLufs": -27.39,
+      "peakDb": -12.7,
+      "rmsDb": -32.18,
+      "loudnessLufs": -27.37,
       "loudnessMode": "integrated",
       "suggested": {
         "volume": 0.5,
@@ -73,8 +73,8 @@
       "event": "Map 'desert' biome: always-on 2D bed (crossfade 3 s on load).",
       "group": "amb_desert",
       "loopSeam": {
-        "jumpRatioMax": 0.055,
-        "hfBurstDbMax": -10.47
+        "jumpRatioMax": 0.111,
+        "hfBurstDbMax": -10.48
       },
       "meta": {
         "biome": "desert"
@@ -85,11 +85,11 @@
       "category": "ambience",
       "bus": "Ambience",
       "loop": false,
-      "durationS": 5.0425,
+      "durationS": 4.9558,
       "channels": 1,
-      "peakDb": -8.41,
-      "rmsDb": -31.56,
-      "loudnessLufs": -23.98,
+      "peakDb": -5.43,
+      "rmsDb": -28.81,
+      "loudnessLufs": -23.95,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.5,
@@ -111,29 +111,29 @@
       "variantStats": [
         {
           "file": "ambience/amb_desert_spot_metal_creak_a.ogg",
-          "durationS": 5.0425,
-          "peakDb": -8.41,
-          "rmsDb": -31.27,
-          "loudnessLufs": -23.98
+          "durationS": 4.9558,
+          "peakDb": -5.43,
+          "rmsDb": -28.35,
+          "loudnessLufs": -23.97
         },
         {
           "file": "ambience/amb_desert_spot_metal_creak_b.ogg",
-          "durationS": 5.1553,
-          "peakDb": -9.45,
-          "rmsDb": -31.85,
-          "loudnessLufs": -23.97
+          "durationS": 5.0686,
+          "peakDb": -6.8,
+          "rmsDb": -29.27,
+          "loudnessLufs": -23.94
         }
       ],
       "bankRegions": [
         {
           "bank": "banks/ambience_m1.ogg",
           "startS": 0.05,
-          "endS": 5.092479
+          "endS": 5.005771
         },
         {
           "bank": "banks/ambience_m1.ogg",
-          "startS": 5.342479,
-          "endS": 10.497771
+          "startS": 5.255771,
+          "endS": 10.324417
         }
       ]
     },
@@ -142,11 +142,11 @@
       "category": "ambience",
       "bus": "Ambience",
       "loop": false,
-      "durationS": 2.5722,
+      "durationS": 2.5233,
       "channels": 1,
-      "peakDb": -17.37,
-      "rmsDb": -34.8,
-      "loudnessLufs": -24.31,
+      "peakDb": -13.52,
+      "rmsDb": -30.71,
+      "loudnessLufs": -24.35,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.5,
@@ -165,8 +165,8 @@
       "bankRegions": [
         {
           "bank": "banks/ambience_m1.ogg",
-          "startS": 10.747771,
-          "endS": 13.32
+          "startS": 10.574417,
+          "endS": 13.097708
         }
       ]
     },
@@ -177,9 +177,9 @@
       "loop": true,
       "durationS": 40.0,
       "channels": 2,
-      "peakDb": -18.11,
-      "rmsDb": -34.66,
-      "loudnessLufs": -27.25,
+      "peakDb": -14.07,
+      "rmsDb": -30.14,
+      "loudnessLufs": -27.19,
       "loudnessMode": "integrated",
       "suggested": {
         "volume": 0.5,
@@ -193,8 +193,8 @@
       "event": "Map 'fortress_old' biome: always-on 2D bed (crossfade 3 s on load).",
       "group": "amb_fortress_old",
       "loopSeam": {
-        "jumpRatioMax": 0.67,
-        "hfBurstDbMax": -2.58
+        "jumpRatioMax": 0.077,
+        "hfBurstDbMax": -2.74
       },
       "meta": {
         "biome": "fortress_old"
@@ -207,8 +207,8 @@
       "loop": false,
       "durationS": 7.1302,
       "channels": 1,
-      "peakDb": -13.26,
-      "rmsDb": -34.85,
+      "peakDb": -10.42,
+      "rmsDb": -32.02,
       "loudnessLufs": -23.96,
       "loudnessMode": "momentaryMax",
       "suggested": {
@@ -228,8 +228,8 @@
       "bankRegions": [
         {
           "bank": "banks/ambience_m1.ogg",
-          "startS": 13.57,
-          "endS": 20.700229
+          "startS": 13.347708,
+          "endS": 20.477937
         }
       ]
     },
@@ -240,9 +240,9 @@
       "loop": false,
       "durationS": 2.6329,
       "channels": 1,
-      "peakDb": -15.61,
-      "rmsDb": -36.88,
-      "loudnessLufs": -24.02,
+      "peakDb": -9.44,
+      "rmsDb": -30.64,
+      "loudnessLufs": -23.99,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.5,
@@ -265,28 +265,28 @@
         {
           "file": "ambience/amb_fortress_old_spot_crow_a.ogg",
           "durationS": 2.6329,
-          "peakDb": -15.61,
-          "rmsDb": -36.44,
-          "loudnessLufs": -24.02
+          "peakDb": -9.44,
+          "rmsDb": -30.32,
+          "loudnessLufs": -23.99
         },
         {
           "file": "ambience/amb_fortress_old_spot_crow_b.ogg",
           "durationS": 2.733,
-          "peakDb": -16.73,
-          "rmsDb": -37.33,
-          "loudnessLufs": -24.03
+          "peakDb": -10.39,
+          "rmsDb": -30.96,
+          "loudnessLufs": -23.99
         }
       ],
       "bankRegions": [
         {
           "bank": "banks/ambience_m1.ogg",
-          "startS": 20.950229,
-          "endS": 23.583125
+          "startS": 20.727937,
+          "endS": 23.360833
         },
         {
           "bank": "banks/ambience_m1.ogg",
-          "startS": 23.833125,
-          "endS": 26.566146
+          "startS": 23.610833,
+          "endS": 26.343854
         }
       ]
     },
@@ -297,9 +297,9 @@
       "loop": true,
       "durationS": 40.0,
       "channels": 2,
-      "peakDb": -10.63,
-      "rmsDb": -30.73,
-      "loudnessLufs": -26.18,
+      "peakDb": -10.31,
+      "rmsDb": -27.94,
+      "loudnessLufs": -26.13,
       "loudnessMode": "integrated",
       "suggested": {
         "volume": 0.5,
@@ -313,8 +313,8 @@
       "event": "Map 'harbor' biome: always-on 2D bed (crossfade 3 s on load).",
       "group": "amb_harbor",
       "loopSeam": {
-        "jumpRatioMax": 0.47,
-        "hfBurstDbMax": -5.84
+        "jumpRatioMax": 0.111,
+        "hfBurstDbMax": -5.47
       },
       "meta": {
         "biome": "harbor"
@@ -327,9 +327,9 @@
       "loop": false,
       "durationS": 5.0058,
       "channels": 1,
-      "peakDb": -15.27,
-      "rmsDb": -35.39,
-      "loudnessLufs": -23.94,
+      "peakDb": -10.34,
+      "rmsDb": -30.5,
+      "loudnessLufs": -23.93,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.5,
@@ -348,8 +348,8 @@
       "bankRegions": [
         {
           "bank": "banks/ambience_m1.ogg",
-          "startS": 26.816146,
-          "endS": 31.821917
+          "startS": 26.593854,
+          "endS": 31.599625
         }
       ]
     },
@@ -360,9 +360,9 @@
       "loop": false,
       "durationS": 3.9927,
       "channels": 1,
-      "peakDb": -6.79,
-      "rmsDb": -31.46,
-      "loudnessLufs": -23.98,
+      "peakDb": -5.15,
+      "rmsDb": -30.11,
+      "loudnessLufs": -23.94,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.5,
@@ -385,28 +385,28 @@
         {
           "file": "ambience/amb_harbor_spot_crane_clank_a.ogg",
           "durationS": 3.9927,
-          "peakDb": -6.79,
-          "rmsDb": -31.53,
+          "peakDb": -5.15,
+          "rmsDb": -29.82,
           "loudnessLufs": -23.96
         },
         {
           "file": "ambience/amb_harbor_spot_crane_clank_b.ogg",
           "durationS": 3.7702,
-          "peakDb": -8.25,
-          "rmsDb": -31.39,
-          "loudnessLufs": -23.99
+          "peakDb": -7.13,
+          "rmsDb": -30.4,
+          "loudnessLufs": -23.91
         }
       ],
       "bankRegions": [
         {
           "bank": "banks/ambience_m1.ogg",
-          "startS": 32.071917,
-          "endS": 36.064583
+          "startS": 31.849625,
+          "endS": 35.842292
         },
         {
           "bank": "banks/ambience_m1.ogg",
-          "startS": 36.314583,
-          "endS": 40.08475
+          "startS": 36.092292,
+          "endS": 39.862458
         }
       ]
     },
@@ -415,11 +415,11 @@
       "category": "ambience",
       "bus": "Ambience",
       "loop": false,
-      "durationS": 6.8005,
+      "durationS": 6.7786,
       "channels": 1,
-      "peakDb": -16.81,
-      "rmsDb": -28.52,
-      "loudnessLufs": -23.97,
+      "peakDb": -16.06,
+      "rmsDb": -27.76,
+      "loudnessLufs": -23.96,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.5,
@@ -438,8 +438,8 @@
       "bankRegions": [
         {
           "bank": "banks/ambience_m1.ogg",
-          "startS": 40.33475,
-          "endS": 47.135208
+          "startS": 40.112458,
+          "endS": 46.891021
         }
       ]
     },
@@ -450,9 +450,9 @@
       "loop": false,
       "durationS": 1.9488,
       "channels": 1,
-      "peakDb": -20.36,
-      "rmsDb": -35.36,
-      "loudnessLufs": -24.09,
+      "peakDb": -15.6,
+      "rmsDb": -30.59,
+      "loudnessLufs": -24.1,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.5,
@@ -476,40 +476,40 @@
         {
           "file": "ambience/amb_harbor_spot_gull_a.ogg",
           "durationS": 1.9488,
-          "peakDb": -21.1,
-          "rmsDb": -34.62,
-          "loudnessLufs": -24.11
+          "peakDb": -16.11,
+          "rmsDb": -29.85,
+          "loudnessLufs": -24.15
         },
         {
           "file": "ambience/amb_harbor_spot_gull_b.ogg",
           "durationS": 2.0901,
-          "peakDb": -20.36,
-          "rmsDb": -35.15,
-          "loudnessLufs": -24.12
+          "peakDb": -15.6,
+          "rmsDb": -30.39,
+          "loudnessLufs": -24.11
         },
         {
           "file": "ambience/amb_harbor_spot_gull_c.ogg",
-          "durationS": 1.7971,
-          "peakDb": -23.16,
-          "rmsDb": -36.32,
-          "loudnessLufs": -24.03
+          "durationS": 1.7969,
+          "peakDb": -18.56,
+          "rmsDb": -31.52,
+          "loudnessLufs": -24.05
         }
       ],
       "bankRegions": [
         {
           "bank": "banks/ambience_m1.ogg",
-          "startS": 47.385208,
-          "endS": 49.333979
+          "startS": 47.141021,
+          "endS": 49.089792
         },
         {
           "bank": "banks/ambience_m1.ogg",
-          "startS": 49.583979,
-          "endS": 51.674042
+          "startS": 49.339792,
+          "endS": 51.429854
         },
         {
           "bank": "banks/ambience_m1.ogg",
-          "startS": 51.924042,
-          "endS": 53.721146
+          "startS": 51.679854,
+          "endS": 53.476771
         }
       ]
     },
@@ -520,9 +520,9 @@
       "loop": true,
       "durationS": 40.0,
       "channels": 2,
-      "peakDb": -15.11,
-      "rmsDb": -33.96,
-      "loudnessLufs": -26.25,
+      "peakDb": -10.3,
+      "rmsDb": -29.39,
+      "loudnessLufs": -26.22,
       "loudnessMode": "integrated",
       "suggested": {
         "volume": 0.5,
@@ -536,8 +536,8 @@
       "event": "Map 'mountain' biome: always-on 2D bed (crossfade 3 s on load).",
       "group": "amb_mountain",
       "loopSeam": {
-        "jumpRatioMax": 0.176,
-        "hfBurstDbMax": -16.02
+        "jumpRatioMax": 0.0,
+        "hfBurstDbMax": -16.96
       },
       "meta": {
         "biome": "mountain"
@@ -548,10 +548,10 @@
       "category": "ambience",
       "bus": "Ambience",
       "loop": false,
-      "durationS": 3.414,
+      "durationS": 3.3082,
       "channels": 1,
-      "peakDb": -14.22,
-      "rmsDb": -33.11,
+      "peakDb": -11.66,
+      "rmsDb": -30.07,
       "loudnessLufs": -24.03,
       "loudnessMode": "momentaryMax",
       "suggested": {
@@ -571,8 +571,8 @@
       "bankRegions": [
         {
           "bank": "banks/ambience_m1.ogg",
-          "startS": 53.971146,
-          "endS": 57.385188
+          "startS": 53.726771,
+          "endS": 57.034958
         }
       ]
     },
@@ -581,11 +581,11 @@
       "category": "ambience",
       "bus": "Ambience",
       "loop": false,
-      "durationS": 5.1456,
+      "durationS": 5.1303,
       "channels": 1,
-      "peakDb": -9.87,
-      "rmsDb": -30.75,
-      "loudnessLufs": -23.99,
+      "peakDb": -7.31,
+      "rmsDb": -27.42,
+      "loudnessLufs": -23.9,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.5,
@@ -607,29 +607,29 @@
       "variantStats": [
         {
           "file": "ambience/amb_mountain_spot_rockfall_a.ogg",
-          "durationS": 5.1456,
-          "peakDb": -11.35,
-          "rmsDb": -31.62,
-          "loudnessLufs": -24.0
+          "durationS": 5.1303,
+          "peakDb": -7.31,
+          "rmsDb": -27.54,
+          "loudnessLufs": -23.91
         },
         {
           "file": "ambience/amb_mountain_spot_rockfall_b.ogg",
-          "durationS": 5.596,
-          "peakDb": -9.87,
-          "rmsDb": -29.87,
-          "loudnessLufs": -23.98
+          "durationS": 5.5807,
+          "peakDb": -7.35,
+          "rmsDb": -27.3,
+          "loudnessLufs": -23.89
         }
       ],
       "bankRegions": [
         {
           "bank": "banks/ambience_m1.ogg",
-          "startS": 57.635188,
-          "endS": 62.780813
+          "startS": 57.284958,
+          "endS": 62.415208
         },
         {
           "bank": "banks/ambience_m1.ogg",
-          "startS": 63.030813,
-          "endS": 68.626792
+          "startS": 62.665208,
+          "endS": 68.245937
         }
       ]
     },
@@ -640,9 +640,9 @@
       "loop": true,
       "durationS": 40.0,
       "channels": 2,
-      "peakDb": -20.35,
-      "rmsDb": -36.68,
-      "loudnessLufs": -27.41,
+      "peakDb": -16.75,
+      "rmsDb": -33.05,
+      "loudnessLufs": -27.4,
       "loudnessMode": "integrated",
       "suggested": {
         "volume": 0.5,
@@ -656,8 +656,8 @@
       "event": "Map 'plains' biome: always-on 2D bed (crossfade 3 s on load).",
       "group": "amb_plains",
       "loopSeam": {
-        "jumpRatioMax": 0.009,
-        "hfBurstDbMax": -12.1
+        "jumpRatioMax": 0.036,
+        "hfBurstDbMax": -12.32
       },
       "meta": {
         "biome": "plains"
@@ -668,11 +668,11 @@
       "category": "ambience",
       "bus": "Ambience",
       "loop": false,
-      "durationS": 8.3388,
+      "durationS": 7.8714,
       "channels": 1,
-      "peakDb": -8.21,
-      "rmsDb": -29.48,
-      "loudnessLufs": -24.04,
+      "peakDb": -8.08,
+      "rmsDb": -28.96,
+      "loudnessLufs": -23.95,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.5,
@@ -694,29 +694,29 @@
       "variantStats": [
         {
           "file": "ambience/amb_plains_spot_distant_thunder_a.ogg",
-          "durationS": 8.3388,
-          "peakDb": -8.21,
-          "rmsDb": -28.7,
-          "loudnessLufs": -24.02
+          "durationS": 7.8714,
+          "peakDb": -8.08,
+          "rmsDb": -28.21,
+          "loudnessLufs": -23.96
         },
         {
           "file": "ambience/amb_plains_spot_distant_thunder_b.ogg",
-          "durationS": 9.3472,
-          "peakDb": -10.27,
-          "rmsDb": -30.26,
-          "loudnessLufs": -24.05
+          "durationS": 8.7639,
+          "peakDb": -9.66,
+          "rmsDb": -29.71,
+          "loudnessLufs": -23.95
         }
       ],
       "bankRegions": [
         {
           "bank": "banks/ambience_m1.ogg",
-          "startS": 68.876792,
-          "endS": 77.215625
+          "startS": 68.495937,
+          "endS": 76.367375
         },
         {
           "bank": "banks/ambience_m1.ogg",
-          "startS": 77.465625,
-          "endS": 86.812792
+          "startS": 76.617375,
+          "endS": 85.381313
         }
       ]
     },
@@ -725,11 +725,11 @@
       "category": "ambience",
       "bus": "Ambience",
       "loop": false,
-      "durationS": 2.4819,
+      "durationS": 2.4349,
       "channels": 1,
-      "peakDb": -13.39,
-      "rmsDb": -35.07,
-      "loudnessLufs": -24.1,
+      "peakDb": -9.12,
+      "rmsDb": -30.74,
+      "loudnessLufs": -24.05,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.5,
@@ -748,8 +748,8 @@
       "bankRegions": [
         {
           "bank": "banks/ambience_m1.ogg",
-          "startS": 87.062792,
-          "endS": 89.544708
+          "startS": 85.631313,
+          "endS": 88.06625
         }
       ]
     },
@@ -760,9 +760,9 @@
       "loop": true,
       "durationS": 40.0,
       "channels": 2,
-      "peakDb": -20.58,
-      "rmsDb": -35.39,
-      "loudnessLufs": -27.33,
+      "peakDb": -16.44,
+      "rmsDb": -31.09,
+      "loudnessLufs": -27.3,
       "loudnessMode": "integrated",
       "suggested": {
         "volume": 0.5,
@@ -776,8 +776,8 @@
       "event": "Map 'river_town' biome: always-on 2D bed (crossfade 3 s on load).",
       "group": "amb_river_town",
       "loopSeam": {
-        "jumpRatioMax": 0.319,
-        "hfBurstDbMax": -0.48
+        "jumpRatioMax": 0.121,
+        "hfBurstDbMax": 0.71
       },
       "meta": {
         "biome": "river_town"
@@ -790,8 +790,8 @@
       "loop": false,
       "durationS": 5.6584,
       "channels": 1,
-      "peakDb": -11.84,
-      "rmsDb": -32.45,
+      "peakDb": -10.08,
+      "rmsDb": -30.87,
       "loudnessLufs": -23.98,
       "loudnessMode": "momentaryMax",
       "suggested": {
@@ -815,28 +815,28 @@
         {
           "file": "ambience/amb_river_town_spot_church_bell_a.ogg",
           "durationS": 5.6584,
-          "peakDb": -11.84,
-          "rmsDb": -32.85,
-          "loudnessLufs": -23.99
+          "peakDb": -10.08,
+          "rmsDb": -31.13,
+          "loudnessLufs": -23.98
         },
         {
           "file": "ambience/amb_river_town_spot_church_bell_b.ogg",
           "durationS": 9.5,
-          "peakDb": -13.74,
-          "rmsDb": -32.06,
-          "loudnessLufs": -23.98
+          "peakDb": -12.21,
+          "rmsDb": -30.6,
+          "loudnessLufs": -23.97
         }
       ],
       "bankRegions": [
         {
           "bank": "banks/ambience_m1.ogg",
-          "startS": 89.794708,
-          "endS": 95.453146
+          "startS": 88.31625,
+          "endS": 93.974688
         },
         {
           "bank": "banks/ambience_m1.ogg",
-          "startS": 95.703146,
-          "endS": 105.203146
+          "startS": 94.224688,
+          "endS": 103.724688
         }
       ]
     },
@@ -847,9 +847,9 @@
       "loop": false,
       "durationS": 1.9219,
       "channels": 1,
-      "peakDb": -8.35,
-      "rmsDb": -31.16,
-      "loudnessLufs": -24.02,
+      "peakDb": -4.92,
+      "rmsDb": -27.64,
+      "loudnessLufs": -23.99,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.5,
@@ -872,28 +872,28 @@
         {
           "file": "ambience/amb_river_town_spot_shutter_bang_a.ogg",
           "durationS": 1.9219,
-          "peakDb": -8.35,
-          "rmsDb": -30.86,
-          "loudnessLufs": -24.02
+          "peakDb": -4.92,
+          "rmsDb": -27.39,
+          "loudnessLufs": -24.0
         },
         {
           "file": "ambience/amb_river_town_spot_shutter_bang_b.ogg",
           "durationS": 2.0788,
-          "peakDb": -11.83,
-          "rmsDb": -31.45,
-          "loudnessLufs": -24.01
+          "peakDb": -8.32,
+          "rmsDb": -27.89,
+          "loudnessLufs": -23.99
         }
       ],
       "bankRegions": [
         {
           "bank": "banks/ambience_m1.ogg",
-          "startS": 105.453146,
-          "endS": 107.375
+          "startS": 103.974688,
+          "endS": 105.896542
         },
         {
           "bank": "banks/ambience_m1.ogg",
-          "startS": 107.625,
-          "endS": 109.703812
+          "startS": 106.146542,
+          "endS": 108.225354
         }
       ]
     },
@@ -904,9 +904,9 @@
       "loop": true,
       "durationS": 40.0,
       "channels": 2,
-      "peakDb": -17.42,
-      "rmsDb": -33.13,
-      "loudnessLufs": -27.19,
+      "peakDb": -14.31,
+      "rmsDb": -29.65,
+      "loudnessLufs": -27.14,
       "loudnessMode": "integrated",
       "suggested": {
         "volume": 0.5,
@@ -920,8 +920,8 @@
       "event": "Map 'temperate_valley_industrial' biome: always-on 2D bed (crossfade 3 s on load).",
       "group": "amb_temperate_valley_industrial",
       "loopSeam": {
-        "jumpRatioMax": 0.039,
-        "hfBurstDbMax": -11.04
+        "jumpRatioMax": 0.151,
+        "hfBurstDbMax": -11.83
       },
       "meta": {
         "biome": "temperate_valley_industrial"
@@ -934,9 +934,9 @@
       "loop": false,
       "durationS": 1.0369,
       "channels": 1,
-      "peakDb": -16.92,
-      "rmsDb": -34.01,
-      "loudnessLufs": -24.2,
+      "peakDb": -14.99,
+      "rmsDb": -31.03,
+      "loudnessLufs": -24.17,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.5,
@@ -960,40 +960,40 @@
         {
           "file": "ambience/amb_temperate_valley_industrial_spot_bird_a.ogg",
           "durationS": 1.0369,
-          "peakDb": -18.83,
-          "rmsDb": -34.03,
+          "peakDb": -15.31,
+          "rmsDb": -30.65,
           "loudnessLufs": -24.12
         },
         {
           "file": "ambience/amb_temperate_valley_industrial_spot_bird_b.ogg",
           "durationS": 1.493,
-          "peakDb": -16.92,
-          "rmsDb": -32.77,
-          "loudnessLufs": -24.37
+          "peakDb": -14.99,
+          "rmsDb": -30.56,
+          "loudnessLufs": -24.33
         },
         {
           "file": "ambience/amb_temperate_valley_industrial_spot_bird_c.ogg",
           "durationS": 1.4922,
-          "peakDb": -21.53,
-          "rmsDb": -35.24,
-          "loudnessLufs": -24.1
+          "peakDb": -18.2,
+          "rmsDb": -31.89,
+          "loudnessLufs": -24.07
         }
       ],
       "bankRegions": [
         {
           "bank": "banks/ambience_m1.ogg",
-          "startS": 109.953812,
-          "endS": 110.990667
+          "startS": 108.475354,
+          "endS": 109.512208
         },
         {
           "bank": "banks/ambience_m1.ogg",
-          "startS": 111.240667,
-          "endS": 112.733646
+          "startS": 109.762208,
+          "endS": 111.255188
         },
         {
           "bank": "banks/ambience_m1.ogg",
-          "startS": 112.983646,
-          "endS": 114.475833
+          "startS": 111.505188,
+          "endS": 112.997375
         }
       ]
     },
@@ -1004,8 +1004,8 @@
       "loop": false,
       "durationS": 3.6402,
       "channels": 1,
-      "peakDb": -10.13,
-      "rmsDb": -34.71,
+      "peakDb": -6.84,
+      "rmsDb": -30.3,
       "loudnessLufs": -23.95,
       "loudnessMode": "momentaryMax",
       "suggested": {
@@ -1029,23 +1029,23 @@
         {
           "file": "ambience/amb_temperate_valley_industrial_spot_machinery_clank_a.ogg",
           "durationS": 3.6402,
-          "peakDb": -10.13,
-          "rmsDb": -33.65,
-          "loudnessLufs": -23.95
+          "peakDb": -6.84,
+          "rmsDb": -30.29,
+          "loudnessLufs": -23.96
         },
         {
           "file": "ambience/amb_temperate_valley_industrial_spot_machinery_clank_b.ogg",
           "durationS": 3.0898,
-          "peakDb": -12.79,
-          "rmsDb": -35.77,
-          "loudnessLufs": -23.94
+          "peakDb": -7.35,
+          "rmsDb": -30.32,
+          "loudnessLufs": -23.93
         }
       ],
       "bankRegions": [
         {
           "bank": "banks/ambience_m1.ogg",
-          "startS": 114.725833,
-          "endS": 118.366042
+          "startS": 113.247375,
+          "endS": 116.887583
         },
         {
           "bank": "banks/ambience_m2.ogg",
@@ -1061,9 +1061,9 @@
       "loop": true,
       "durationS": 40.0,
       "channels": 2,
-      "peakDb": -17.84,
-      "rmsDb": -34.65,
-      "loudnessLufs": -27.24,
+      "peakDb": -12.25,
+      "rmsDb": -30.11,
+      "loudnessLufs": -27.2,
       "loudnessMode": "integrated",
       "suggested": {
         "volume": 0.5,
@@ -1077,8 +1077,8 @@
       "event": "Map 'winter' biome: always-on 2D bed (crossfade 3 s on load).",
       "group": "amb_winter",
       "loopSeam": {
-        "jumpRatioMax": 0.146,
-        "hfBurstDbMax": -3.41
+        "jumpRatioMax": 0.137,
+        "hfBurstDbMax": -3.7
       },
       "meta": {
         "biome": "winter"
@@ -1091,9 +1091,9 @@
       "loop": false,
       "durationS": 3.4836,
       "channels": 1,
-      "peakDb": -14.74,
-      "rmsDb": -38.83,
-      "loudnessLufs": -24.39,
+      "peakDb": -10.85,
+      "rmsDb": -35.17,
+      "loudnessLufs": -24.42,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.5,
@@ -1117,23 +1117,23 @@
         {
           "file": "ambience/amb_winter_spot_ice_crack_a.ogg",
           "durationS": 3.4836,
-          "peakDb": -17.0,
-          "rmsDb": -39.14,
-          "loudnessLufs": -24.38
+          "peakDb": -12.98,
+          "rmsDb": -35.57,
+          "loudnessLufs": -24.44
         },
         {
           "file": "ambience/amb_winter_spot_ice_crack_b.ogg",
           "durationS": 3.7681,
-          "peakDb": -17.52,
-          "rmsDb": -39.13,
-          "loudnessLufs": -24.46
+          "peakDb": -14.0,
+          "rmsDb": -35.55,
+          "loudnessLufs": -24.45
         },
         {
           "file": "ambience/amb_winter_spot_ice_crack_c.ogg",
           "durationS": 3.5443,
-          "peakDb": -14.74,
-          "rmsDb": -38.21,
-          "loudnessLufs": -24.33
+          "peakDb": -10.85,
+          "rmsDb": -34.39,
+          "loudnessLufs": -24.36
         }
       ],
       "bankRegions": [
@@ -1159,11 +1159,11 @@
       "category": "ambience",
       "bus": "Ambience",
       "loop": false,
-      "durationS": 2.9746,
+      "durationS": 2.9066,
       "channels": 1,
-      "peakDb": -21.92,
-      "rmsDb": -35.25,
-      "loudnessLufs": -24.2,
+      "peakDb": -14.82,
+      "rmsDb": -28.32,
+      "loudnessLufs": -24.19,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.5,
@@ -1183,7 +1183,7 @@
         {
           "bank": "banks/ambience_m2.ogg",
           "startS": 14.935729,
-          "endS": 17.910375
+          "endS": 17.842354
         }
       ]
     },
@@ -1195,8 +1195,8 @@
       "durationS": 1.1313,
       "channels": 1,
       "peakDb": -1.28,
-      "rmsDb": -16.99,
-      "loudnessLufs": -12.75,
+      "rmsDb": -17.01,
+      "loudnessLufs": -13.95,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 1.0,
@@ -1218,22 +1218,22 @@
           "file": "armor/armor_blocked_a.ogg",
           "durationS": 1.1313,
           "peakDb": -1.35,
-          "rmsDb": -16.93,
-          "loudnessLufs": -12.59
+          "rmsDb": -16.99,
+          "loudnessLufs": -13.73
         },
         {
           "file": "armor/armor_blocked_b.ogg",
           "durationS": 1.0511,
           "peakDb": -1.28,
           "rmsDb": -16.88,
-          "loudnessLufs": -12.87
+          "loudnessLufs": -13.93
         },
         {
           "file": "armor/armor_blocked_c.ogg",
           "durationS": 1.0399,
           "peakDb": -1.33,
           "rmsDb": -17.16,
-          "loudnessLufs": -12.8
+          "loudnessLufs": -14.18
         }
       ],
       "bankRegions": [
@@ -1259,11 +1259,11 @@
       "category": "armor",
       "bus": "Impacts",
       "loop": false,
-      "durationS": 0.9882,
+      "durationS": 0.9178,
       "channels": 1,
-      "peakDb": -1.6,
-      "rmsDb": -21.37,
-      "loudnessLufs": -12.06,
+      "peakDb": -1.71,
+      "rmsDb": -20.31,
+      "loudnessLufs": -14.34,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 1.0,
@@ -1283,41 +1283,41 @@
       "variantStats": [
         {
           "file": "armor/armor_critical_a.ogg",
-          "durationS": 0.9882,
-          "peakDb": -2.3,
-          "rmsDb": -21.45,
-          "loudnessLufs": -12.49
+          "durationS": 0.9178,
+          "peakDb": -1.71,
+          "rmsDb": -19.88,
+          "loudnessLufs": -14.06
         },
         {
           "file": "armor/armor_critical_b.ogg",
-          "durationS": 1.0518,
-          "peakDb": -1.8,
-          "rmsDb": -21.27,
-          "loudnessLufs": -11.89
+          "durationS": 0.9877,
+          "peakDb": -2.04,
+          "rmsDb": -20.42,
+          "loudnessLufs": -14.28
         },
         {
           "file": "armor/armor_critical_c.ogg",
-          "durationS": 1.0909,
-          "peakDb": -1.6,
-          "rmsDb": -21.4,
-          "loudnessLufs": -11.81
+          "durationS": 0.9587,
+          "peakDb": -2.02,
+          "rmsDb": -20.64,
+          "loudnessLufs": -14.69
         }
       ],
       "bankRegions": [
         {
           "bank": "banks/armor_m1.ogg",
           "startS": 4.022271,
-          "endS": 5.010438
+          "endS": 4.940062
         },
         {
           "bank": "banks/armor_m1.ogg",
-          "startS": 5.260438,
-          "endS": 6.312271
+          "startS": 5.190062,
+          "endS": 6.17775
         },
         {
           "bank": "banks/armor_m1.ogg",
-          "startS": 6.562271,
-          "endS": 7.653187
+          "startS": 6.42775,
+          "endS": 7.386417
         }
       ]
     },
@@ -1328,9 +1328,9 @@
       "loop": false,
       "durationS": 1.0312,
       "channels": 1,
-      "peakDb": -1.34,
-      "rmsDb": -15.51,
-      "loudnessLufs": -12.74,
+      "peakDb": -1.28,
+      "rmsDb": -15.18,
+      "loudnessLufs": -12.83,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 1.0,
@@ -1351,40 +1351,40 @@
         {
           "file": "armor/armor_hit_taken_blocked_a.ogg",
           "durationS": 1.0312,
-          "peakDb": -1.34,
-          "rmsDb": -14.96,
-          "loudnessLufs": -12.75
+          "peakDb": -1.32,
+          "rmsDb": -14.67,
+          "loudnessLufs": -12.79
         },
         {
           "file": "armor/armor_hit_taken_blocked_b.ogg",
           "durationS": 1.0966,
-          "peakDb": -1.34,
-          "rmsDb": -15.65,
-          "loudnessLufs": -12.65
+          "peakDb": -1.28,
+          "rmsDb": -15.19,
+          "loudnessLufs": -12.75
         },
         {
           "file": "armor/armor_hit_taken_blocked_c.ogg",
           "durationS": 1.1755,
-          "peakDb": -1.38,
-          "rmsDb": -15.93,
-          "loudnessLufs": -12.81
+          "peakDb": -1.41,
+          "rmsDb": -15.67,
+          "loudnessLufs": -12.96
         }
       ],
       "bankRegions": [
         {
           "bank": "banks/armor_m1.ogg",
-          "startS": 7.903187,
-          "endS": 8.934375
+          "startS": 7.636417,
+          "endS": 8.667604
         },
         {
           "bank": "banks/armor_m1.ogg",
-          "startS": 9.184375,
-          "endS": 10.280958
+          "startS": 8.917604,
+          "endS": 10.014188
         },
         {
           "bank": "banks/armor_m1.ogg",
-          "startS": 10.530958,
-          "endS": 11.706458
+          "startS": 10.264188,
+          "endS": 11.439687
         }
       ]
     },
@@ -1395,9 +1395,9 @@
       "loop": false,
       "durationS": 1.0428,
       "channels": 1,
-      "peakDb": -1.17,
-      "rmsDb": -14.22,
-      "loudnessLufs": -11.41,
+      "peakDb": -1.18,
+      "rmsDb": -13.29,
+      "loudnessLufs": -11.45,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 1.0,
@@ -1418,40 +1418,40 @@
         {
           "file": "armor/armor_hit_taken_pen_a.ogg",
           "durationS": 1.0428,
-          "peakDb": -1.2,
-          "rmsDb": -14.02,
-          "loudnessLufs": -11.47
+          "peakDb": -1.18,
+          "rmsDb": -12.87,
+          "loudnessLufs": -11.68
         },
         {
           "file": "armor/armor_hit_taken_pen_b.ogg",
           "durationS": 1.3426,
-          "peakDb": -1.17,
-          "rmsDb": -14.63,
-          "loudnessLufs": -11.42
+          "peakDb": -1.2,
+          "rmsDb": -13.56,
+          "loudnessLufs": -11.26
         },
         {
           "file": "armor/armor_hit_taken_pen_c.ogg",
           "durationS": 1.4124,
-          "peakDb": -1.36,
-          "rmsDb": -14.01,
-          "loudnessLufs": -11.33
+          "peakDb": -1.21,
+          "rmsDb": -13.44,
+          "loudnessLufs": -11.4
         }
       ],
       "bankRegions": [
         {
           "bank": "banks/armor_m1.ogg",
-          "startS": 11.956458,
-          "endS": 12.999271
+          "startS": 11.689687,
+          "endS": 12.7325
         },
         {
           "bank": "banks/armor_m1.ogg",
-          "startS": 13.249271,
-          "endS": 14.591833
+          "startS": 12.9825,
+          "endS": 14.325062
         },
         {
           "bank": "banks/armor_m1.ogg",
-          "startS": 14.841833,
-          "endS": 16.25425
+          "startS": 14.575062,
+          "endS": 15.987479
         }
       ]
     },
@@ -1462,9 +1462,9 @@
       "loop": false,
       "durationS": 0.8278,
       "channels": 1,
-      "peakDb": -1.39,
-      "rmsDb": -18.97,
-      "loudnessLufs": -13.65,
+      "peakDb": -1.27,
+      "rmsDb": -16.5,
+      "loudnessLufs": -13.78,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 1.0,
@@ -1485,40 +1485,40 @@
         {
           "file": "armor/armor_hit_taken_ricochet_a.ogg",
           "durationS": 0.8278,
-          "peakDb": -1.45,
-          "rmsDb": -18.94,
-          "loudnessLufs": -13.54
+          "peakDb": -1.27,
+          "rmsDb": -16.56,
+          "loudnessLufs": -13.8
         },
         {
           "file": "armor/armor_hit_taken_ricochet_b.ogg",
           "durationS": 0.8111,
-          "peakDb": -1.46,
-          "rmsDb": -19.2,
-          "loudnessLufs": -13.68
+          "peakDb": -1.34,
+          "rmsDb": -16.62,
+          "loudnessLufs": -13.73
         },
         {
           "file": "armor/armor_hit_taken_ricochet_c.ogg",
           "durationS": 0.8156,
-          "peakDb": -1.39,
-          "rmsDb": -18.78,
-          "loudnessLufs": -13.73
+          "peakDb": -1.34,
+          "rmsDb": -16.33,
+          "loudnessLufs": -13.81
         }
       ],
       "bankRegions": [
         {
           "bank": "banks/armor_m1.ogg",
-          "startS": 16.50425,
-          "endS": 17.332021
+          "startS": 16.237479,
+          "endS": 17.06525
         },
         {
           "bank": "banks/armor_m1.ogg",
-          "startS": 17.582021,
-          "endS": 18.393125
+          "startS": 17.31525,
+          "endS": 18.126354
         },
         {
           "bank": "banks/armor_m1.ogg",
-          "startS": 18.643125,
-          "endS": 19.458729
+          "startS": 18.376354,
+          "endS": 19.191958
         }
       ]
     },
@@ -1527,11 +1527,11 @@
       "category": "armor",
       "bus": "Impacts",
       "loop": false,
-      "durationS": 1.1455,
+      "durationS": 1.1498,
       "channels": 1,
-      "peakDb": -1.3,
-      "rmsDb": -17.1,
-      "loudnessLufs": -11.16,
+      "peakDb": -1.13,
+      "rmsDb": -16.31,
+      "loudnessLufs": -13.0,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 1.0,
@@ -1551,41 +1551,41 @@
       "variantStats": [
         {
           "file": "armor/armor_penetration_a.ogg",
-          "durationS": 1.1455,
-          "peakDb": -1.67,
-          "rmsDb": -16.57,
-          "loudnessLufs": -11.35
+          "durationS": 1.1498,
+          "peakDb": -1.2,
+          "rmsDb": -16.1,
+          "loudnessLufs": -13.11
         },
         {
           "file": "armor/armor_penetration_b.ogg",
-          "durationS": 1.1584,
-          "peakDb": -1.41,
-          "rmsDb": -17.32,
-          "loudnessLufs": -11.21
+          "durationS": 1.1622,
+          "peakDb": -1.28,
+          "rmsDb": -16.38,
+          "loudnessLufs": -13.01
         },
         {
           "file": "armor/armor_penetration_c.ogg",
-          "durationS": 1.202,
-          "peakDb": -1.3,
-          "rmsDb": -17.42,
-          "loudnessLufs": -10.93
+          "durationS": 1.2013,
+          "peakDb": -1.13,
+          "rmsDb": -16.46,
+          "loudnessLufs": -12.88
         }
       ],
       "bankRegions": [
         {
           "bank": "banks/armor_m1.ogg",
-          "startS": 19.708729,
-          "endS": 20.854271
+          "startS": 19.441958,
+          "endS": 20.591729
         },
         {
           "bank": "banks/armor_m1.ogg",
-          "startS": 21.104271,
-          "endS": 22.262646
+          "startS": 20.841729,
+          "endS": 22.003958
         },
         {
           "bank": "banks/armor_m1.ogg",
-          "startS": 22.512646,
-          "endS": 23.714646
+          "startS": 22.253958,
+          "endS": 23.455229
         }
       ]
     },
@@ -1596,9 +1596,9 @@
       "loop": false,
       "durationS": 1.0287,
       "channels": 1,
-      "peakDb": -2.29,
-      "rmsDb": -22.6,
-      "loudnessLufs": -11.56,
+      "peakDb": -1.37,
+      "rmsDb": -20.66,
+      "loudnessLufs": -13.62,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 1.0,
@@ -1619,40 +1619,40 @@
         {
           "file": "armor/armor_ricochet_a.ogg",
           "durationS": 1.0287,
-          "peakDb": -3.0,
-          "rmsDb": -22.52,
-          "loudnessLufs": -11.56
+          "peakDb": -1.52,
+          "rmsDb": -20.69,
+          "loudnessLufs": -13.57
         },
         {
           "file": "armor/armor_ricochet_b.ogg",
           "durationS": 1.0225,
-          "peakDb": -2.29,
-          "rmsDb": -22.69,
-          "loudnessLufs": -11.56
+          "peakDb": -1.58,
+          "rmsDb": -20.66,
+          "loudnessLufs": -13.64
         },
         {
           "file": "armor/armor_ricochet_c.ogg",
           "durationS": 1.0088,
-          "peakDb": -2.68,
-          "rmsDb": -22.58,
-          "loudnessLufs": -11.56
+          "peakDb": -1.37,
+          "rmsDb": -20.64,
+          "loudnessLufs": -13.66
         }
       ],
       "bankRegions": [
         {
           "bank": "banks/armor_m1.ogg",
-          "startS": 23.964646,
-          "endS": 24.993312
+          "startS": 23.705229,
+          "endS": 24.733896
         },
         {
           "bank": "banks/armor_m1.ogg",
-          "startS": 25.243312,
-          "endS": 26.265812
+          "startS": 24.983896,
+          "endS": 26.006396
         },
         {
           "bank": "banks/armor_m1.ogg",
-          "startS": 26.515812,
-          "endS": 27.524625
+          "startS": 26.256396,
+          "endS": 27.265208
         }
       ]
     },
@@ -1663,8 +1663,8 @@
       "loop": false,
       "durationS": 1.0852,
       "channels": 2,
-      "peakDb": -6.73,
-      "rmsDb": -24.76,
+      "peakDb": -4.34,
+      "rmsDb": -22.31,
       "loudnessLufs": -16.94,
       "loudnessMode": "momentaryMax",
       "suggested": {
@@ -1692,9 +1692,9 @@
       "loop": false,
       "durationS": 2.0773,
       "channels": 2,
-      "peakDb": -5.42,
-      "rmsDb": -27.74,
-      "loudnessLufs": -13.98,
+      "peakDb": -1.49,
+      "rmsDb": -23.5,
+      "loudnessLufs": -14.0,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.8,
@@ -1721,8 +1721,8 @@
       "loop": true,
       "durationS": 2.0,
       "channels": 2,
-      "peakDb": -18.19,
-      "rmsDb": -28.05,
+      "peakDb": -12.85,
+      "rmsDb": -22.69,
       "loudnessLufs": -18.92,
       "loudnessMode": "integrated",
       "suggested": {
@@ -1737,7 +1737,7 @@
       "event": "Your base is being captured (loop while capture points > 0).",
       "loopSeam": {
         "jumpRatioMax": 0.0,
-        "hfBurstDbMax": -15.04
+        "hfBurstDbMax": -15.05
       }
     },
     "cue_enemy_destroyed": {
@@ -1747,9 +1747,9 @@
       "loop": false,
       "durationS": 0.6004,
       "channels": 2,
-      "peakDb": -7.83,
-      "rmsDb": -25.53,
-      "loudnessLufs": -15.96,
+      "peakDb": -2.99,
+      "rmsDb": -20.71,
+      "loudnessLufs": -15.95,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.8,
@@ -1776,9 +1776,9 @@
       "loop": false,
       "durationS": 0.6835,
       "channels": 2,
-      "peakDb": -13.33,
-      "rmsDb": -30.6,
-      "loudnessLufs": -16.95,
+      "peakDb": -6.59,
+      "rmsDb": -24.0,
+      "loudnessLufs": -16.99,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.8,
@@ -1805,9 +1805,9 @@
       "loop": false,
       "durationS": 0.6777,
       "channels": 2,
-      "peakDb": -20.01,
-      "rmsDb": -29.18,
-      "loudnessLufs": -17.94,
+      "peakDb": -14.15,
+      "rmsDb": -23.33,
+      "loudnessLufs": -17.93,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.8,
@@ -1834,8 +1834,8 @@
       "loop": true,
       "durationS": 3.2,
       "channels": 2,
-      "peakDb": -5.73,
-      "rmsDb": -22.23,
+      "peakDb": -5.62,
+      "rmsDb": -22.13,
       "loudnessLufs": -20.93,
       "loudnessMode": "integrated",
       "suggested": {
@@ -1850,7 +1850,7 @@
       "event": "Own HP below 15 % (volume rises as HP falls).",
       "loopSeam": {
         "jumpRatioMax": 0.0,
-        "hfBurstDbMax": -106.68
+        "hfBurstDbMax": -106.72
       }
     },
     "cue_objective_update": {
@@ -1860,9 +1860,9 @@
       "loop": false,
       "durationS": 1.0328,
       "channels": 2,
-      "peakDb": -13.46,
-      "rmsDb": -29.97,
-      "loudnessLufs": -17.97,
+      "peakDb": -8.52,
+      "rmsDb": -25.13,
+      "loudnessLufs": -17.96,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.8,
@@ -1889,9 +1889,9 @@
       "loop": false,
       "durationS": 0.3483,
       "channels": 2,
-      "peakDb": -10.81,
-      "rmsDb": -27.87,
-      "loudnessLufs": -18.04,
+      "peakDb": -4.97,
+      "rmsDb": -21.8,
+      "loudnessLufs": -17.93,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.8,
@@ -1918,9 +1918,9 @@
       "loop": false,
       "durationS": 1.3797,
       "channels": 2,
-      "peakDb": -9.13,
-      "rmsDb": -24.68,
-      "loudnessLufs": -12.99,
+      "peakDb": -4.52,
+      "rmsDb": -20.06,
+      "loudnessLufs": -12.96,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.8,
@@ -1947,9 +1947,9 @@
       "loop": false,
       "durationS": 0.3661,
       "channels": 2,
-      "peakDb": -19.12,
-      "rmsDb": -31.19,
-      "loudnessLufs": -20.98,
+      "peakDb": -12.52,
+      "rmsDb": -24.64,
+      "loudnessLufs": -20.99,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.8,
@@ -1976,9 +1976,9 @@
       "loop": false,
       "durationS": 0.345,
       "channels": 2,
-      "peakDb": -21.42,
-      "rmsDb": -34.13,
-      "loudnessLufs": -24.05,
+      "peakDb": -14.79,
+      "rmsDb": -27.35,
+      "loudnessLufs": -24.01,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.8,
@@ -2005,9 +2005,9 @@
       "loop": false,
       "durationS": 1.7351,
       "channels": 1,
-      "peakDb": -6.78,
-      "rmsDb": -22.58,
-      "loudnessLufs": -13.05,
+      "peakDb": -2.06,
+      "rmsDb": -17.79,
+      "loudnessLufs": -13.02,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.85,
@@ -2034,9 +2034,9 @@
       "loop": false,
       "durationS": 5.4552,
       "channels": 1,
-      "peakDb": -1.07,
-      "rmsDb": -18.85,
-      "loudnessLufs": -9.36,
+      "peakDb": -1.18,
+      "rmsDb": -15.71,
+      "loudnessLufs": -10.11,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.85,
@@ -2062,11 +2062,11 @@
       "category": "damage",
       "bus": "Impacts",
       "loop": false,
-      "durationS": 5.4544,
+      "durationS": 5.4516,
       "channels": 1,
-      "peakDb": -2.02,
-      "rmsDb": -18.71,
-      "loudnessLufs": -15.94,
+      "peakDb": -1.97,
+      "rmsDb": -18.66,
+      "loudnessLufs": -15.93,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.85,
@@ -2083,7 +2083,7 @@
         {
           "bank": "banks/damage_m1.ogg",
           "startS": 7.740271,
-          "endS": 13.194667
+          "endS": 13.191875
         }
       ]
     },
@@ -2094,8 +2094,8 @@
       "loop": false,
       "durationS": 1.3592,
       "channels": 2,
-      "peakDb": -18.82,
-      "rmsDb": -26.86,
+      "peakDb": -13.72,
+      "rmsDb": -21.72,
       "loudnessLufs": -16.92,
       "loudnessMode": "momentaryMax",
       "suggested": {
@@ -2123,9 +2123,9 @@
       "loop": false,
       "durationS": 2.3865,
       "channels": 1,
-      "peakDb": -1.39,
-      "rmsDb": -21.63,
-      "loudnessLufs": -15.27,
+      "peakDb": -1.32,
+      "rmsDb": -18.98,
+      "loudnessLufs": -15.34,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.85,
@@ -2144,28 +2144,28 @@
         {
           "file": "damage/dmg_engine_damaged_a.ogg",
           "durationS": 2.3865,
-          "peakDb": -1.41,
-          "rmsDb": -21.64,
-          "loudnessLufs": -15.06
+          "peakDb": -1.38,
+          "rmsDb": -18.98,
+          "loudnessLufs": -15.3
         },
         {
           "file": "damage/dmg_engine_damaged_b.ogg",
           "durationS": 2.3864,
-          "peakDb": -1.39,
-          "rmsDb": -21.62,
-          "loudnessLufs": -15.47
+          "peakDb": -1.32,
+          "rmsDb": -18.98,
+          "loudnessLufs": -15.37
         }
       ],
       "bankRegions": [
         {
           "bank": "banks/damage_m1.ogg",
-          "startS": 13.444667,
-          "endS": 15.831146
+          "startS": 13.441875,
+          "endS": 15.828354
         },
         {
           "bank": "banks/damage_m1.ogg",
-          "startS": 16.081146,
-          "endS": 18.467521
+          "startS": 16.078354,
+          "endS": 18.464729
         }
       ]
     },
@@ -2176,9 +2176,9 @@
       "loop": false,
       "durationS": 2.5157,
       "channels": 1,
-      "peakDb": -6.57,
-      "rmsDb": -23.02,
-      "loudnessLufs": -15.33,
+      "peakDb": -5.24,
+      "rmsDb": -21.56,
+      "loudnessLufs": -15.32,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.85,
@@ -2193,8 +2193,8 @@
       "bankRegions": [
         {
           "bank": "banks/damage_m1.ogg",
-          "startS": 18.717521,
-          "endS": 21.23325
+          "startS": 18.714729,
+          "endS": 21.230458
         }
       ]
     },
@@ -2203,11 +2203,11 @@
       "category": "damage",
       "bus": "Impacts",
       "loop": false,
-      "durationS": 2.7352,
+      "durationS": 2.7316,
       "channels": 1,
-      "peakDb": -4.04,
-      "rmsDb": -20.12,
-      "loudnessLufs": -13.25,
+      "peakDb": -1.54,
+      "rmsDb": -16.89,
+      "loudnessLufs": -13.13,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.85,
@@ -2222,8 +2222,8 @@
       "bankRegions": [
         {
           "bank": "banks/damage_m1.ogg",
-          "startS": 21.48325,
-          "endS": 24.218417
+          "startS": 21.480458,
+          "endS": 24.212021
         }
       ]
     },
@@ -2234,9 +2234,9 @@
       "loop": true,
       "durationS": 5.0,
       "channels": 1,
-      "peakDb": -5.95,
-      "rmsDb": -21.49,
-      "loudnessLufs": -20.21,
+      "peakDb": -3.31,
+      "rmsDb": -18.64,
+      "loudnessLufs": -20.19,
       "loudnessMode": "integrated",
       "suggested": {
         "volume": 0.85,
@@ -2249,8 +2249,8 @@
       "description": "Vehicle fire loop: roaring flames, fluttering, crackle pops.",
       "event": "While a vehicle is burning.",
       "loopSeam": {
-        "jumpRatioMax": 0.009,
-        "hfBurstDbMax": -1.05
+        "jumpRatioMax": 0.014,
+        "hfBurstDbMax": -1.18
       }
     },
     "dmg_module_damaged": {
@@ -2260,9 +2260,9 @@
       "loop": false,
       "durationS": 0.3827,
       "channels": 1,
-      "peakDb": -1.12,
-      "rmsDb": -19.23,
-      "loudnessLufs": -15.48,
+      "peakDb": -1.17,
+      "rmsDb": -16.25,
+      "loudnessLufs": -16.05,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.85,
@@ -2281,28 +2281,28 @@
         {
           "file": "damage/dmg_module_damaged_a.ogg",
           "durationS": 0.3827,
-          "peakDb": -1.39,
-          "rmsDb": -19.31,
-          "loudnessLufs": -15.48
+          "peakDb": -1.19,
+          "rmsDb": -16.43,
+          "loudnessLufs": -16.34
         },
         {
           "file": "damage/dmg_module_damaged_b.ogg",
           "durationS": 0.3872,
-          "peakDb": -1.12,
-          "rmsDb": -19.15,
-          "loudnessLufs": -15.49
+          "peakDb": -1.17,
+          "rmsDb": -16.07,
+          "loudnessLufs": -15.76
         }
       ],
       "bankRegions": [
         {
           "bank": "banks/damage_m1.ogg",
-          "startS": 24.468417,
-          "endS": 24.851125
+          "startS": 24.462021,
+          "endS": 24.844729
         },
         {
           "bank": "banks/damage_m1.ogg",
-          "startS": 25.101125,
-          "endS": 25.488375
+          "startS": 25.094729,
+          "endS": 25.481979
         }
       ]
     },
@@ -2313,9 +2313,9 @@
       "loop": false,
       "durationS": 1.3805,
       "channels": 1,
-      "peakDb": -1.39,
-      "rmsDb": -22.04,
-      "loudnessLufs": -13.33,
+      "peakDb": -1.31,
+      "rmsDb": -17.79,
+      "loudnessLufs": -13.35,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.85,
@@ -2334,28 +2334,28 @@
         {
           "file": "damage/dmg_track_broken_a.ogg",
           "durationS": 1.3805,
-          "peakDb": -1.39,
-          "rmsDb": -22.47,
-          "loudnessLufs": -13.48
+          "peakDb": -1.31,
+          "rmsDb": -17.75,
+          "loudnessLufs": -13.47
         },
         {
           "file": "damage/dmg_track_broken_b.ogg",
           "durationS": 1.4917,
-          "peakDb": -1.41,
-          "rmsDb": -21.6,
-          "loudnessLufs": -13.18
+          "peakDb": -1.36,
+          "rmsDb": -17.83,
+          "loudnessLufs": -13.23
         }
       ],
       "bankRegions": [
         {
           "bank": "banks/damage_m1.ogg",
-          "startS": 25.738375,
-          "endS": 27.118917
+          "startS": 25.731979,
+          "endS": 27.112521
         },
         {
           "bank": "banks/damage_m1.ogg",
-          "startS": 27.368917,
-          "endS": 28.860667
+          "startS": 27.362521,
+          "endS": 28.854271
         }
       ]
     },
@@ -2366,9 +2366,9 @@
       "loop": false,
       "durationS": 5.7652,
       "channels": 1,
-      "peakDb": -1.24,
-      "rmsDb": -20.19,
-      "loudnessLufs": -10.5,
+      "peakDb": -1.13,
+      "rmsDb": -16.81,
+      "loudnessLufs": -10.41,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.85,
@@ -2384,8 +2384,8 @@
       "bankRegions": [
         {
           "bank": "banks/damage_m1.ogg",
-          "startS": 29.110667,
-          "endS": 34.875854
+          "startS": 29.104271,
+          "endS": 34.869458
         }
       ]
     },
@@ -2394,11 +2394,11 @@
       "category": "damage",
       "bus": "Impacts",
       "loop": false,
-      "durationS": 5.2467,
+      "durationS": 5.2447,
       "channels": 1,
-      "peakDb": -1.7,
-      "rmsDb": -19.46,
-      "loudnessLufs": -16.94,
+      "peakDb": -1.73,
+      "rmsDb": -19.42,
+      "loudnessLufs": -16.96,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.85,
@@ -2414,8 +2414,8 @@
       "bankRegions": [
         {
           "bank": "banks/damage_m1.ogg",
-          "startS": 35.125854,
-          "endS": 40.372604
+          "startS": 35.119458,
+          "endS": 40.364208
         }
       ]
     },
@@ -2426,8 +2426,8 @@
       "loop": false,
       "durationS": 4.0201,
       "channels": 1,
-      "peakDb": -1.32,
-      "rmsDb": -20.69,
+      "peakDb": -1.05,
+      "rmsDb": -18.07,
       "loudnessLufs": -11.4,
       "loudnessMode": "momentaryMax",
       "suggested": {
@@ -2444,8 +2444,8 @@
       "bankRegions": [
         {
           "bank": "banks/damage_m1.ogg",
-          "startS": 40.622604,
-          "endS": 44.64275
+          "startS": 40.614208,
+          "endS": 44.634354
         }
       ]
     },
@@ -2454,10 +2454,10 @@
       "category": "damage",
       "bus": "Impacts",
       "loop": false,
-      "durationS": 4.3369,
+      "durationS": 4.334,
       "channels": 1,
-      "peakDb": -1.39,
-      "rmsDb": -19.21,
+      "peakDb": -1.4,
+      "rmsDb": -19.16,
       "loudnessLufs": -17.35,
       "loudnessMode": "momentaryMax",
       "suggested": {
@@ -2474,8 +2474,8 @@
       "bankRegions": [
         {
           "bank": "banks/damage_m1.ogg",
-          "startS": 44.89275,
-          "endS": 49.229646
+          "startS": 44.884354,
+          "endS": 49.218396
         }
       ]
     },
@@ -2486,9 +2486,9 @@
       "loop": true,
       "durationS": 6.0,
       "channels": 1,
-      "peakDb": -9.92,
-      "rmsDb": -25.64,
-      "loudnessLufs": -24.2,
+      "peakDb": -7.33,
+      "rmsDb": -22.76,
+      "loudnessLufs": -24.19,
       "loudnessMode": "integrated",
       "suggested": {
         "volume": 0.85,
@@ -2501,8 +2501,8 @@
       "description": "Burning wreck: low roar, sparse crackle, thermal metal ticks and creaks.",
       "event": "Wreck of a destroyed vehicle (fade out after 30-60 s).",
       "loopSeam": {
-        "jumpRatioMax": 0.048,
-        "hfBurstDbMax": -0.61
+        "jumpRatioMax": 0.015,
+        "hfBurstDbMax": -0.37
       }
     },
     "engine_heavy_diesel_damaged": {
@@ -2512,9 +2512,9 @@
       "loop": true,
       "durationS": 4.0,
       "channels": 1,
-      "peakDb": -4.22,
-      "rmsDb": -19.17,
-      "loudnessLufs": -18.47,
+      "peakDb": -2.31,
+      "rmsDb": -17.27,
+      "loudnessLufs": -18.46,
       "loudnessMode": "integrated",
       "suggested": {
         "volume": 0.7,
@@ -2528,8 +2528,8 @@
       "event": "Replaces the RPM layers while the engine module is damaged.",
       "group": "engine_heavy_diesel",
       "loopSeam": {
-        "jumpRatioMax": 0.009,
-        "hfBurstDbMax": -19.2
+        "jumpRatioMax": 0.008,
+        "hfBurstDbMax": -19.15
       },
       "meta": {
         "family": "heavy_diesel"
@@ -2542,9 +2542,9 @@
       "loop": true,
       "durationS": 4.0,
       "channels": 1,
-      "peakDb": -6.2,
-      "rmsDb": -17.3,
-      "loudnessLufs": -17.09,
+      "peakDb": -4.62,
+      "rmsDb": -15.82,
+      "loudnessLufs": -17.03,
       "loudnessMode": "integrated",
       "suggested": {
         "volume": 0.7,
@@ -2558,8 +2558,8 @@
       "event": "Own/other vehicle engine at high RPM (crossfaded by RPM; PlaybackSpeed tracks RPM).",
       "group": "engine_heavy_diesel",
       "loopSeam": {
-        "jumpRatioMax": 0.093,
-        "hfBurstDbMax": -2.33
+        "jumpRatioMax": 0.0,
+        "hfBurstDbMax": -2.35
       },
       "meta": {
         "family": "heavy_diesel",
@@ -2580,9 +2580,9 @@
       "loop": true,
       "durationS": 4.0,
       "channels": 1,
-      "peakDb": -8.5,
-      "rmsDb": -19.72,
-      "loudnessLufs": -21.45,
+      "peakDb": -7.8,
+      "rmsDb": -18.99,
+      "loudnessLufs": -21.44,
       "loudnessMode": "integrated",
       "suggested": {
         "volume": 0.7,
@@ -2596,8 +2596,8 @@
       "event": "Own/other vehicle engine at idle RPM (crossfaded by RPM; PlaybackSpeed tracks RPM).",
       "group": "engine_heavy_diesel",
       "loopSeam": {
-        "jumpRatioMax": 0.0,
-        "hfBurstDbMax": -7.14
+        "jumpRatioMax": 0.057,
+        "hfBurstDbMax": -7.29
       },
       "meta": {
         "family": "heavy_diesel",
@@ -2618,9 +2618,9 @@
       "loop": true,
       "durationS": 4.0,
       "channels": 1,
-      "peakDb": -7.48,
-      "rmsDb": -18.83,
-      "loudnessLufs": -19.95,
+      "peakDb": -6.62,
+      "rmsDb": -18.04,
+      "loudnessLufs": -19.94,
       "loudnessMode": "integrated",
       "suggested": {
         "volume": 0.7,
@@ -2634,8 +2634,8 @@
       "event": "Own/other vehicle engine at low RPM (crossfaded by RPM; PlaybackSpeed tracks RPM).",
       "group": "engine_heavy_diesel",
       "loopSeam": {
-        "jumpRatioMax": 0.018,
-        "hfBurstDbMax": -9.0
+        "jumpRatioMax": 0.047,
+        "hfBurstDbMax": -8.88
       },
       "meta": {
         "family": "heavy_diesel",
@@ -2656,9 +2656,9 @@
       "loop": true,
       "durationS": 4.0,
       "channels": 1,
-      "peakDb": -7.25,
-      "rmsDb": -18.34,
-      "loudnessLufs": -18.51,
+      "peakDb": -6.0,
+      "rmsDb": -17.11,
+      "loudnessLufs": -18.49,
       "loudnessMode": "integrated",
       "suggested": {
         "volume": 0.7,
@@ -2672,8 +2672,8 @@
       "event": "Own/other vehicle engine at mid RPM (crossfaded by RPM; PlaybackSpeed tracks RPM).",
       "group": "engine_heavy_diesel",
       "loopSeam": {
-        "jumpRatioMax": 0.007,
-        "hfBurstDbMax": -0.31
+        "jumpRatioMax": 0.017,
+        "hfBurstDbMax": -0.01
       },
       "meta": {
         "family": "heavy_diesel",
@@ -2694,9 +2694,9 @@
       "loop": true,
       "durationS": 4.0,
       "channels": 1,
-      "peakDb": -13.04,
-      "rmsDb": -26.37,
-      "loudnessLufs": -23.14,
+      "peakDb": -9.76,
+      "rmsDb": -23.15,
+      "loudnessLufs": -23.09,
       "loudnessMode": "integrated",
       "suggested": {
         "volume": 0.7,
@@ -2710,7 +2710,7 @@
       "event": "Layered on top when climbing / pushing at max power with low speed (load > 0.85).",
       "group": "engine_heavy_diesel",
       "loopSeam": {
-        "jumpRatioMax": 0.053,
+        "jumpRatioMax": 0.054,
         "hfBurstDbMax": -1.09
       },
       "meta": {
@@ -2725,9 +2725,9 @@
       "loop": false,
       "durationS": 4.5917,
       "channels": 1,
-      "peakDb": -5.93,
-      "rmsDb": -19.45,
-      "loudnessLufs": -16.95,
+      "peakDb": -5.15,
+      "rmsDb": -18.72,
+      "loudnessLufs": -16.94,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.7,
@@ -2759,9 +2759,9 @@
       "loop": false,
       "durationS": 3.2895,
       "channels": 1,
-      "peakDb": -6.53,
-      "rmsDb": -24.35,
-      "loudnessLufs": -17.96,
+      "peakDb": -5.44,
+      "rmsDb": -23.27,
+      "loudnessLufs": -17.95,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.7,
@@ -2792,8 +2792,8 @@
       "loop": true,
       "durationS": 4.0,
       "channels": 1,
-      "peakDb": -6.09,
-      "rmsDb": -18.68,
+      "peakDb": -4.88,
+      "rmsDb": -17.48,
       "loudnessLufs": -18.46,
       "loudnessMode": "integrated",
       "suggested": {
@@ -2808,8 +2808,8 @@
       "event": "Replaces the RPM layers while the engine module is damaged.",
       "group": "engine_large_v12",
       "loopSeam": {
-        "jumpRatioMax": 0.002,
-        "hfBurstDbMax": -2.27
+        "jumpRatioMax": 0.018,
+        "hfBurstDbMax": -2.31
       },
       "meta": {
         "family": "large_v12"
@@ -2822,9 +2822,9 @@
       "loop": true,
       "durationS": 4.0,
       "channels": 1,
-      "peakDb": -9.11,
-      "rmsDb": -18.29,
-      "loudnessLufs": -17.03,
+      "peakDb": -6.96,
+      "rmsDb": -16.18,
+      "loudnessLufs": -16.99,
       "loudnessMode": "integrated",
       "suggested": {
         "volume": 0.7,
@@ -2838,8 +2838,8 @@
       "event": "Own/other vehicle engine at high RPM (crossfaded by RPM; PlaybackSpeed tracks RPM).",
       "group": "engine_large_v12",
       "loopSeam": {
-        "jumpRatioMax": 0.035,
-        "hfBurstDbMax": -1.48
+        "jumpRatioMax": 0.018,
+        "hfBurstDbMax": -1.44
       },
       "meta": {
         "family": "large_v12",
@@ -2860,8 +2860,8 @@
       "loop": true,
       "durationS": 4.0,
       "channels": 1,
-      "peakDb": -10.72,
-      "rmsDb": -20.47,
+      "peakDb": -9.84,
+      "rmsDb": -19.64,
       "loudnessLufs": -21.45,
       "loudnessMode": "integrated",
       "suggested": {
@@ -2876,8 +2876,8 @@
       "event": "Own/other vehicle engine at idle RPM (crossfaded by RPM; PlaybackSpeed tracks RPM).",
       "group": "engine_large_v12",
       "loopSeam": {
-        "jumpRatioMax": 0.023,
-        "hfBurstDbMax": -0.04
+        "jumpRatioMax": 0.044,
+        "hfBurstDbMax": -0.12
       },
       "meta": {
         "family": "large_v12",
@@ -2898,9 +2898,9 @@
       "loop": true,
       "durationS": 4.0,
       "channels": 1,
-      "peakDb": -10.1,
-      "rmsDb": -19.52,
-      "loudnessLufs": -20.0,
+      "peakDb": -9.18,
+      "rmsDb": -18.6,
+      "loudnessLufs": -19.97,
       "loudnessMode": "integrated",
       "suggested": {
         "volume": 0.7,
@@ -2914,8 +2914,8 @@
       "event": "Own/other vehicle engine at low RPM (crossfaded by RPM; PlaybackSpeed tracks RPM).",
       "group": "engine_large_v12",
       "loopSeam": {
-        "jumpRatioMax": 0.092,
-        "hfBurstDbMax": -1.19
+        "jumpRatioMax": 0.103,
+        "hfBurstDbMax": -1.13
       },
       "meta": {
         "family": "large_v12",
@@ -2936,9 +2936,9 @@
       "loop": true,
       "durationS": 4.0,
       "channels": 1,
-      "peakDb": -9.61,
-      "rmsDb": -18.83,
-      "loudnessLufs": -18.5,
+      "peakDb": -8.07,
+      "rmsDb": -17.45,
+      "loudnessLufs": -18.47,
       "loudnessMode": "integrated",
       "suggested": {
         "volume": 0.7,
@@ -2952,8 +2952,8 @@
       "event": "Own/other vehicle engine at mid RPM (crossfaded by RPM; PlaybackSpeed tracks RPM).",
       "group": "engine_large_v12",
       "loopSeam": {
-        "jumpRatioMax": 0.001,
-        "hfBurstDbMax": -0.51
+        "jumpRatioMax": 0.073,
+        "hfBurstDbMax": -0.41
       },
       "meta": {
         "family": "large_v12",
@@ -2974,9 +2974,9 @@
       "loop": true,
       "durationS": 4.0,
       "channels": 1,
-      "peakDb": -16.59,
-      "rmsDb": -28.12,
-      "loudnessLufs": -23.23,
+      "peakDb": -12.3,
+      "rmsDb": -23.84,
+      "loudnessLufs": -23.18,
       "loudnessMode": "integrated",
       "suggested": {
         "volume": 0.7,
@@ -2990,8 +2990,8 @@
       "event": "Layered on top when climbing / pushing at max power with low speed (load > 0.85).",
       "group": "engine_large_v12",
       "loopSeam": {
-        "jumpRatioMax": 0.046,
-        "hfBurstDbMax": -0.49
+        "jumpRatioMax": 0.058,
+        "hfBurstDbMax": -0.52
       },
       "meta": {
         "family": "large_v12",
@@ -3005,8 +3005,8 @@
       "loop": false,
       "durationS": 4.5907,
       "channels": 1,
-      "peakDb": -6.84,
-      "rmsDb": -19.63,
+      "peakDb": -5.88,
+      "rmsDb": -18.77,
       "loudnessLufs": -16.96,
       "loudnessMode": "momentaryMax",
       "suggested": {
@@ -3039,9 +3039,9 @@
       "loop": false,
       "durationS": 3.2336,
       "channels": 1,
-      "peakDb": -6.91,
-      "rmsDb": -25.05,
-      "loudnessLufs": -17.96,
+      "peakDb": -5.83,
+      "rmsDb": -23.98,
+      "loudnessLufs": -17.95,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.7,
@@ -3072,9 +3072,9 @@
       "loop": true,
       "durationS": 4.0,
       "channels": 1,
-      "peakDb": -6.55,
-      "rmsDb": -19.29,
-      "loudnessLufs": -18.47,
+      "peakDb": -5.05,
+      "rmsDb": -17.78,
+      "loudnessLufs": -18.46,
       "loudnessMode": "integrated",
       "suggested": {
         "volume": 0.7,
@@ -3089,7 +3089,7 @@
       "group": "engine_light_highrpm",
       "loopSeam": {
         "jumpRatioMax": 0.017,
-        "hfBurstDbMax": -3.49
+        "hfBurstDbMax": -3.38
       },
       "meta": {
         "family": "light_highrpm"
@@ -3102,9 +3102,9 @@
       "loop": true,
       "durationS": 4.0,
       "channels": 1,
-      "peakDb": -10.03,
-      "rmsDb": -18.0,
-      "loudnessLufs": -17.0,
+      "peakDb": -8.49,
+      "rmsDb": -16.25,
+      "loudnessLufs": -16.97,
       "loudnessMode": "integrated",
       "suggested": {
         "volume": 0.7,
@@ -3118,8 +3118,8 @@
       "event": "Own/other vehicle engine at high RPM (crossfaded by RPM; PlaybackSpeed tracks RPM).",
       "group": "engine_light_highrpm",
       "loopSeam": {
-        "jumpRatioMax": 0.014,
-        "hfBurstDbMax": -0.38
+        "jumpRatioMax": 0.114,
+        "hfBurstDbMax": -0.44
       },
       "meta": {
         "family": "light_highrpm",
@@ -3140,9 +3140,9 @@
       "loop": true,
       "durationS": 4.0,
       "channels": 1,
-      "peakDb": -9.22,
-      "rmsDb": -21.71,
-      "loudnessLufs": -21.46,
+      "peakDb": -7.75,
+      "rmsDb": -20.31,
+      "loudnessLufs": -21.45,
       "loudnessMode": "integrated",
       "suggested": {
         "volume": 0.7,
@@ -3156,8 +3156,8 @@
       "event": "Own/other vehicle engine at idle RPM (crossfaded by RPM; PlaybackSpeed tracks RPM).",
       "group": "engine_light_highrpm",
       "loopSeam": {
-        "jumpRatioMax": 0.04,
-        "hfBurstDbMax": -1.47
+        "jumpRatioMax": 0.002,
+        "hfBurstDbMax": -1.46
       },
       "meta": {
         "family": "light_highrpm",
@@ -3178,8 +3178,8 @@
       "loop": true,
       "durationS": 4.0,
       "channels": 1,
-      "peakDb": -10.49,
-      "rmsDb": -20.19,
+      "peakDb": -9.15,
+      "rmsDb": -18.83,
       "loudnessLufs": -19.96,
       "loudnessMode": "integrated",
       "suggested": {
@@ -3194,8 +3194,8 @@
       "event": "Own/other vehicle engine at low RPM (crossfaded by RPM; PlaybackSpeed tracks RPM).",
       "group": "engine_light_highrpm",
       "loopSeam": {
-        "jumpRatioMax": 0.022,
-        "hfBurstDbMax": -1.17
+        "jumpRatioMax": 0.019,
+        "hfBurstDbMax": -1.18
       },
       "meta": {
         "family": "light_highrpm",
@@ -3216,9 +3216,9 @@
       "loop": true,
       "durationS": 4.0,
       "channels": 1,
-      "peakDb": -11.66,
-      "rmsDb": -19.36,
-      "loudnessLufs": -18.52,
+      "peakDb": -9.94,
+      "rmsDb": -17.65,
+      "loudnessLufs": -18.49,
       "loudnessMode": "integrated",
       "suggested": {
         "volume": 0.7,
@@ -3232,8 +3232,8 @@
       "event": "Own/other vehicle engine at mid RPM (crossfaded by RPM; PlaybackSpeed tracks RPM).",
       "group": "engine_light_highrpm",
       "loopSeam": {
-        "jumpRatioMax": 0.011,
-        "hfBurstDbMax": -1.33
+        "jumpRatioMax": 0.002,
+        "hfBurstDbMax": -1.28
       },
       "meta": {
         "family": "light_highrpm",
@@ -3254,9 +3254,9 @@
       "loop": true,
       "durationS": 4.0,
       "channels": 1,
-      "peakDb": -18.05,
-      "rmsDb": -29.3,
-      "loudnessLufs": -23.27,
+      "peakDb": -13.29,
+      "rmsDb": -24.4,
+      "loudnessLufs": -23.23,
       "loudnessMode": "integrated",
       "suggested": {
         "volume": 0.7,
@@ -3270,8 +3270,8 @@
       "event": "Layered on top when climbing / pushing at max power with low speed (load > 0.85).",
       "group": "engine_light_highrpm",
       "loopSeam": {
-        "jumpRatioMax": 0.064,
-        "hfBurstDbMax": -0.38
+        "jumpRatioMax": 0.082,
+        "hfBurstDbMax": -0.36
       },
       "meta": {
         "family": "light_highrpm",
@@ -3285,9 +3285,9 @@
       "loop": false,
       "durationS": 4.5744,
       "channels": 1,
-      "peakDb": -6.86,
-      "rmsDb": -21.27,
-      "loudnessLufs": -16.97,
+      "peakDb": -5.35,
+      "rmsDb": -19.8,
+      "loudnessLufs": -16.95,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.7,
@@ -3319,8 +3319,8 @@
       "loop": false,
       "durationS": 3.1945,
       "channels": 1,
-      "peakDb": -6.42,
-      "rmsDb": -26.09,
+      "peakDb": -5.19,
+      "rmsDb": -24.75,
       "loudnessLufs": -17.96,
       "loudnessMode": "momentaryMax",
       "suggested": {
@@ -3352,9 +3352,9 @@
       "loop": true,
       "durationS": 4.0,
       "channels": 1,
-      "peakDb": -2.25,
-      "rmsDb": -20.93,
-      "loudnessLufs": -18.48,
+      "peakDb": -1.49,
+      "rmsDb": -18.78,
+      "loudnessLufs": -18.5,
       "loudnessMode": "integrated",
       "suggested": {
         "volume": 0.7,
@@ -3368,7 +3368,7 @@
       "event": "Replaces the RPM layers while the engine module is damaged.",
       "group": "engine_medium_diesel",
       "loopSeam": {
-        "jumpRatioMax": 0.004,
+        "jumpRatioMax": 0.003,
         "hfBurstDbMax": -24.46
       },
       "meta": {
@@ -3382,9 +3382,9 @@
       "loop": true,
       "durationS": 4.0,
       "channels": 1,
-      "peakDb": -5.14,
-      "rmsDb": -19.05,
-      "loudnessLufs": -17.04,
+      "peakDb": -3.34,
+      "rmsDb": -17.15,
+      "loudnessLufs": -17.02,
       "loudnessMode": "integrated",
       "suggested": {
         "volume": 0.7,
@@ -3398,8 +3398,8 @@
       "event": "Own/other vehicle engine at high RPM (crossfaded by RPM; PlaybackSpeed tracks RPM).",
       "group": "engine_medium_diesel",
       "loopSeam": {
-        "jumpRatioMax": 0.009,
-        "hfBurstDbMax": -3.95
+        "jumpRatioMax": 0.017,
+        "hfBurstDbMax": -4.12
       },
       "meta": {
         "family": "medium_diesel",
@@ -3420,8 +3420,8 @@
       "loop": true,
       "durationS": 4.0,
       "channels": 1,
-      "peakDb": -6.67,
-      "rmsDb": -21.95,
+      "peakDb": -5.24,
+      "rmsDb": -20.51,
       "loudnessLufs": -21.46,
       "loudnessMode": "integrated",
       "suggested": {
@@ -3436,8 +3436,8 @@
       "event": "Own/other vehicle engine at idle RPM (crossfaded by RPM; PlaybackSpeed tracks RPM).",
       "group": "engine_medium_diesel",
       "loopSeam": {
-        "jumpRatioMax": 0.006,
-        "hfBurstDbMax": -1.79
+        "jumpRatioMax": 0.013,
+        "hfBurstDbMax": -1.72
       },
       "meta": {
         "family": "medium_diesel",
@@ -3458,9 +3458,9 @@
       "loop": true,
       "durationS": 4.0,
       "channels": 1,
-      "peakDb": -5.12,
-      "rmsDb": -20.9,
-      "loudnessLufs": -19.97,
+      "peakDb": -3.55,
+      "rmsDb": -19.32,
+      "loudnessLufs": -19.96,
       "loudnessMode": "integrated",
       "suggested": {
         "volume": 0.7,
@@ -3474,8 +3474,8 @@
       "event": "Own/other vehicle engine at low RPM (crossfaded by RPM; PlaybackSpeed tracks RPM).",
       "group": "engine_medium_diesel",
       "loopSeam": {
-        "jumpRatioMax": 0.01,
-        "hfBurstDbMax": 3.98
+        "jumpRatioMax": 0.036,
+        "hfBurstDbMax": 3.95
       },
       "meta": {
         "family": "medium_diesel",
@@ -3496,9 +3496,9 @@
       "loop": true,
       "durationS": 4.0,
       "channels": 1,
-      "peakDb": -4.85,
-      "rmsDb": -19.95,
-      "loudnessLufs": -18.48,
+      "peakDb": -2.98,
+      "rmsDb": -18.23,
+      "loudnessLufs": -18.47,
       "loudnessMode": "integrated",
       "suggested": {
         "volume": 0.7,
@@ -3513,7 +3513,7 @@
       "group": "engine_medium_diesel",
       "loopSeam": {
         "jumpRatioMax": 0.017,
-        "hfBurstDbMax": -0.29
+        "hfBurstDbMax": -0.19
       },
       "meta": {
         "family": "medium_diesel",
@@ -3534,8 +3534,8 @@
       "loop": true,
       "durationS": 4.0,
       "channels": 1,
-      "peakDb": -11.96,
-      "rmsDb": -28.01,
+      "peakDb": -8.24,
+      "rmsDb": -24.24,
       "loudnessLufs": -23.16,
       "loudnessMode": "integrated",
       "suggested": {
@@ -3550,8 +3550,8 @@
       "event": "Layered on top when climbing / pushing at max power with low speed (load > 0.85).",
       "group": "engine_medium_diesel",
       "loopSeam": {
-        "jumpRatioMax": 0.026,
-        "hfBurstDbMax": -1.28
+        "jumpRatioMax": 0.006,
+        "hfBurstDbMax": -1.36
       },
       "meta": {
         "family": "medium_diesel",
@@ -3565,9 +3565,9 @@
       "loop": false,
       "durationS": 4.5708,
       "channels": 1,
-      "peakDb": -3.93,
-      "rmsDb": -20.9,
-      "loudnessLufs": -16.97,
+      "peakDb": -2.37,
+      "rmsDb": -19.43,
+      "loudnessLufs": -16.95,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.7,
@@ -3599,9 +3599,9 @@
       "loop": false,
       "durationS": 3.208,
       "channels": 1,
-      "peakDb": -3.91,
-      "rmsDb": -25.92,
-      "loudnessLufs": -17.97,
+      "peakDb": -2.35,
+      "rmsDb": -24.42,
+      "loudnessLufs": -17.96,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.7,
@@ -3632,9 +3632,9 @@
       "loop": true,
       "durationS": 4.0,
       "channels": 1,
-      "peakDb": -5.15,
-      "rmsDb": -20.64,
-      "loudnessLufs": -18.49,
+      "peakDb": -2.57,
+      "rmsDb": -18.16,
+      "loudnessLufs": -18.48,
       "loudnessMode": "integrated",
       "suggested": {
         "volume": 0.7,
@@ -3648,8 +3648,8 @@
       "event": "Replaces the RPM layers while the engine module is damaged.",
       "group": "engine_small_engine",
       "loopSeam": {
-        "jumpRatioMax": 0.018,
-        "hfBurstDbMax": -2.0
+        "jumpRatioMax": 0.034,
+        "hfBurstDbMax": -1.98
       },
       "meta": {
         "family": "small_engine"
@@ -3662,9 +3662,9 @@
       "loop": true,
       "durationS": 4.0,
       "channels": 1,
-      "peakDb": -7.74,
-      "rmsDb": -17.85,
-      "loudnessLufs": -16.99,
+      "peakDb": -6.04,
+      "rmsDb": -16.13,
+      "loudnessLufs": -16.97,
       "loudnessMode": "integrated",
       "suggested": {
         "volume": 0.7,
@@ -3678,8 +3678,8 @@
       "event": "Own/other vehicle engine at high RPM (crossfaded by RPM; PlaybackSpeed tracks RPM).",
       "group": "engine_small_engine",
       "loopSeam": {
-        "jumpRatioMax": 0.042,
-        "hfBurstDbMax": -1.68
+        "jumpRatioMax": 0.044,
+        "hfBurstDbMax": -1.67
       },
       "meta": {
         "family": "small_engine",
@@ -3700,9 +3700,9 @@
       "loop": true,
       "durationS": 4.0,
       "channels": 1,
-      "peakDb": -6.94,
-      "rmsDb": -22.25,
-      "loudnessLufs": -21.48,
+      "peakDb": -5.25,
+      "rmsDb": -20.49,
+      "loudnessLufs": -21.47,
       "loudnessMode": "integrated",
       "suggested": {
         "volume": 0.7,
@@ -3716,8 +3716,8 @@
       "event": "Own/other vehicle engine at idle RPM (crossfaded by RPM; PlaybackSpeed tracks RPM).",
       "group": "engine_small_engine",
       "loopSeam": {
-        "jumpRatioMax": 0.007,
-        "hfBurstDbMax": -20.43
+        "jumpRatioMax": 0.002,
+        "hfBurstDbMax": -20.57
       },
       "meta": {
         "family": "small_engine",
@@ -3738,9 +3738,9 @@
       "loop": true,
       "durationS": 4.0,
       "channels": 1,
-      "peakDb": -8.09,
-      "rmsDb": -20.93,
-      "loudnessLufs": -19.97,
+      "peakDb": -6.21,
+      "rmsDb": -19.07,
+      "loudnessLufs": -19.96,
       "loudnessMode": "integrated",
       "suggested": {
         "volume": 0.7,
@@ -3754,8 +3754,8 @@
       "event": "Own/other vehicle engine at low RPM (crossfaded by RPM; PlaybackSpeed tracks RPM).",
       "group": "engine_small_engine",
       "loopSeam": {
-        "jumpRatioMax": 0.007,
-        "hfBurstDbMax": -0.73
+        "jumpRatioMax": 0.021,
+        "hfBurstDbMax": -0.86
       },
       "meta": {
         "family": "small_engine",
@@ -3776,9 +3776,9 @@
       "loop": true,
       "durationS": 4.0,
       "channels": 1,
-      "peakDb": -8.38,
-      "rmsDb": -19.58,
-      "loudnessLufs": -18.47,
+      "peakDb": -6.31,
+      "rmsDb": -17.6,
+      "loudnessLufs": -18.46,
       "loudnessMode": "integrated",
       "suggested": {
         "volume": 0.7,
@@ -3792,8 +3792,8 @@
       "event": "Own/other vehicle engine at mid RPM (crossfaded by RPM; PlaybackSpeed tracks RPM).",
       "group": "engine_small_engine",
       "loopSeam": {
-        "jumpRatioMax": 0.025,
-        "hfBurstDbMax": -2.58
+        "jumpRatioMax": 0.008,
+        "hfBurstDbMax": -2.54
       },
       "meta": {
         "family": "small_engine",
@@ -3814,9 +3814,9 @@
       "loop": true,
       "durationS": 4.0,
       "channels": 1,
-      "peakDb": -16.13,
-      "rmsDb": -28.57,
-      "loudnessLufs": -23.22,
+      "peakDb": -11.43,
+      "rmsDb": -23.88,
+      "loudnessLufs": -23.17,
       "loudnessMode": "integrated",
       "suggested": {
         "volume": 0.7,
@@ -3830,8 +3830,8 @@
       "event": "Layered on top when climbing / pushing at max power with low speed (load > 0.85).",
       "group": "engine_small_engine",
       "loopSeam": {
-        "jumpRatioMax": 0.011,
-        "hfBurstDbMax": 0.21
+        "jumpRatioMax": 0.018,
+        "hfBurstDbMax": 0.16
       },
       "meta": {
         "family": "small_engine",
@@ -3845,8 +3845,8 @@
       "loop": false,
       "durationS": 4.5721,
       "channels": 1,
-      "peakDb": -4.42,
-      "rmsDb": -20.51,
+      "peakDb": -2.79,
+      "rmsDb": -18.91,
       "loudnessLufs": -16.96,
       "loudnessMode": "momentaryMax",
       "suggested": {
@@ -3879,8 +3879,8 @@
       "loop": false,
       "durationS": 3.233,
       "channels": 1,
-      "peakDb": -2.95,
-      "rmsDb": -26.31,
+      "peakDb": -1.46,
+      "rmsDb": -24.67,
       "loudnessLufs": -17.96,
       "loudnessMode": "momentaryMax",
       "suggested": {
@@ -3912,9 +3912,9 @@
       "loop": true,
       "durationS": 4.0,
       "channels": 1,
-      "peakDb": -8.54,
-      "rmsDb": -22.54,
-      "loudnessLufs": -18.62,
+      "peakDb": -5.06,
+      "rmsDb": -19.29,
+      "loudnessLufs": -18.56,
       "loudnessMode": "integrated",
       "suggested": {
         "volume": 0.7,
@@ -3928,8 +3928,8 @@
       "event": "Replaces the RPM layers while the engine module is damaged.",
       "group": "engine_turbine",
       "loopSeam": {
-        "jumpRatioMax": 0.013,
-        "hfBurstDbMax": -2.99
+        "jumpRatioMax": 0.015,
+        "hfBurstDbMax": -3.01
       },
       "meta": {
         "family": "turbine"
@@ -3942,9 +3942,9 @@
       "loop": true,
       "durationS": 4.0,
       "channels": 1,
-      "peakDb": -10.16,
-      "rmsDb": -21.16,
-      "loudnessLufs": -17.14,
+      "peakDb": -6.47,
+      "rmsDb": -17.64,
+      "loudnessLufs": -17.07,
       "loudnessMode": "integrated",
       "suggested": {
         "volume": 0.7,
@@ -3958,8 +3958,8 @@
       "event": "Own/other vehicle engine at high RPM (crossfaded by RPM; PlaybackSpeed tracks RPM).",
       "group": "engine_turbine",
       "loopSeam": {
-        "jumpRatioMax": 0.045,
-        "hfBurstDbMax": -3.58
+        "jumpRatioMax": 0.025,
+        "hfBurstDbMax": -3.56
       },
       "meta": {
         "family": "turbine",
@@ -3978,8 +3978,8 @@
       "loop": true,
       "durationS": 4.0,
       "channels": 1,
-      "peakDb": -12.24,
-      "rmsDb": -24.11,
+      "peakDb": -9.83,
+      "rmsDb": -21.69,
       "loudnessLufs": -21.48,
       "loudnessMode": "integrated",
       "suggested": {
@@ -3994,8 +3994,8 @@
       "event": "Own/other vehicle engine at idle RPM (crossfaded by RPM; PlaybackSpeed tracks RPM).",
       "group": "engine_turbine",
       "loopSeam": {
-        "jumpRatioMax": 0.017,
-        "hfBurstDbMax": 0.46
+        "jumpRatioMax": 0.052,
+        "hfBurstDbMax": 0.45
       },
       "meta": {
         "family": "turbine",
@@ -4014,9 +4014,9 @@
       "loop": true,
       "durationS": 4.0,
       "channels": 1,
-      "peakDb": -11.35,
-      "rmsDb": -23.31,
-      "loudnessLufs": -20.02,
+      "peakDb": -8.75,
+      "rmsDb": -20.55,
+      "loudnessLufs": -20.0,
       "loudnessMode": "integrated",
       "suggested": {
         "volume": 0.7,
@@ -4030,8 +4030,8 @@
       "event": "Own/other vehicle engine at low RPM (crossfaded by RPM; PlaybackSpeed tracks RPM).",
       "group": "engine_turbine",
       "loopSeam": {
-        "jumpRatioMax": 0.022,
-        "hfBurstDbMax": -0.5
+        "jumpRatioMax": 0.011,
+        "hfBurstDbMax": -0.37
       },
       "meta": {
         "family": "turbine",
@@ -4050,9 +4050,9 @@
       "loop": true,
       "durationS": 4.0,
       "channels": 1,
-      "peakDb": -11.39,
-      "rmsDb": -22.35,
-      "loudnessLufs": -18.58,
+      "peakDb": -8.42,
+      "rmsDb": -19.17,
+      "loudnessLufs": -18.54,
       "loudnessMode": "integrated",
       "suggested": {
         "volume": 0.7,
@@ -4066,8 +4066,8 @@
       "event": "Own/other vehicle engine at mid RPM (crossfaded by RPM; PlaybackSpeed tracks RPM).",
       "group": "engine_turbine",
       "loopSeam": {
-        "jumpRatioMax": 0.109,
-        "hfBurstDbMax": -2.18
+        "jumpRatioMax": 0.106,
+        "hfBurstDbMax": -2.17
       },
       "meta": {
         "family": "turbine",
@@ -4086,9 +4086,9 @@
       "loop": true,
       "durationS": 4.0,
       "channels": 1,
-      "peakDb": -16.18,
-      "rmsDb": -27.43,
-      "loudnessLufs": -23.05,
+      "peakDb": -14.02,
+      "rmsDb": -25.35,
+      "loudnessLufs": -22.99,
       "loudnessMode": "integrated",
       "suggested": {
         "volume": 0.7,
@@ -4117,9 +4117,9 @@
       "loop": false,
       "durationS": 6.4943,
       "channels": 1,
-      "peakDb": -8.09,
-      "rmsDb": -22.02,
-      "loudnessLufs": -17.03,
+      "peakDb": -5.67,
+      "rmsDb": -19.69,
+      "loudnessLufs": -17.02,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.7,
@@ -4151,9 +4151,9 @@
       "loop": false,
       "durationS": 6.4401,
       "channels": 1,
-      "peakDb": -6.72,
-      "rmsDb": -28.1,
-      "loudnessLufs": -18.07,
+      "peakDb": -5.26,
+      "rmsDb": -26.53,
+      "loudnessLufs": -18.09,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.7,
@@ -4184,9 +4184,9 @@
       "loop": false,
       "durationS": 3.0836,
       "channels": 1,
-      "peakDb": -2.0,
-      "rmsDb": -21.21,
-      "loudnessLufs": -12.98,
+      "peakDb": -1.43,
+      "rmsDb": -19.02,
+      "loudnessLufs": -13.17,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.7,
@@ -4211,11 +4211,11 @@
       "category": "destruction",
       "bus": "Impacts",
       "loop": false,
-      "durationS": 2.3854,
+      "durationS": 2.3459,
       "channels": 1,
-      "peakDb": -4.73,
-      "rmsDb": -23.29,
-      "loudnessLufs": -20.96,
+      "peakDb": -3.52,
+      "rmsDb": -22.06,
+      "loudnessLufs": -20.95,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.7,
@@ -4233,29 +4233,29 @@
       "variantStats": [
         {
           "file": "destruction/env_bridge_creak_a.ogg",
-          "durationS": 2.3854,
-          "peakDb": -6.74,
-          "rmsDb": -23.89,
+          "durationS": 2.3459,
+          "peakDb": -5.5,
+          "rmsDb": -22.65,
           "loudnessLufs": -20.96
         },
         {
           "file": "destruction/env_bridge_creak_b.ogg",
-          "durationS": 2.3818,
-          "peakDb": -4.73,
-          "rmsDb": -22.68,
-          "loudnessLufs": -20.96
+          "durationS": 2.3492,
+          "peakDb": -3.52,
+          "rmsDb": -21.48,
+          "loudnessLufs": -20.95
         }
       ],
       "bankRegions": [
         {
           "bank": "banks/destruction_m1.ogg",
           "startS": 3.383563,
-          "endS": 5.768937
+          "endS": 5.7295
         },
         {
           "bank": "banks/destruction_m1.ogg",
-          "startS": 6.018937,
-          "endS": 8.40075
+          "startS": 5.9795,
+          "endS": 8.328729
         }
       ]
     },
@@ -4264,11 +4264,11 @@
       "category": "destruction",
       "bus": "Impacts",
       "loop": false,
-      "durationS": 1.0004,
+      "durationS": 0.9906,
       "channels": 1,
-      "peakDb": -13.16,
-      "rmsDb": -31.48,
-      "loudnessLufs": -23.41,
+      "peakDb": -10.61,
+      "rmsDb": -29.19,
+      "loudnessLufs": -23.44,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.7,
@@ -4287,41 +4287,41 @@
       "variantStats": [
         {
           "file": "destruction/env_bush_rustle_a.ogg",
-          "durationS": 1.0004,
-          "peakDb": -13.6,
-          "rmsDb": -31.4,
-          "loudnessLufs": -23.43
+          "durationS": 0.9906,
+          "peakDb": -12.07,
+          "rmsDb": -29.25,
+          "loudnessLufs": -23.4
         },
         {
           "file": "destruction/env_bush_rustle_b.ogg",
-          "durationS": 0.83,
-          "peakDb": -13.75,
-          "rmsDb": -31.65,
-          "loudnessLufs": -23.38
+          "durationS": 0.8215,
+          "peakDb": -12.36,
+          "rmsDb": -29.33,
+          "loudnessLufs": -23.44
         },
         {
           "file": "destruction/env_bush_rustle_c.ogg",
-          "durationS": 1.0302,
-          "peakDb": -13.16,
-          "rmsDb": -31.4,
-          "loudnessLufs": -23.42
+          "durationS": 1.0228,
+          "peakDb": -10.61,
+          "rmsDb": -29.0,
+          "loudnessLufs": -23.49
         }
       ],
       "bankRegions": [
         {
           "bank": "banks/destruction_m1.ogg",
-          "startS": 8.65075,
-          "endS": 9.651146
+          "startS": 8.578729,
+          "endS": 9.569354
         },
         {
           "bank": "banks/destruction_m1.ogg",
-          "startS": 9.901146,
-          "endS": 10.731167
+          "startS": 9.819354,
+          "endS": 10.640896
         },
         {
           "bank": "banks/destruction_m1.ogg",
-          "startS": 10.981167,
-          "endS": 12.011396
+          "startS": 10.890896,
+          "endS": 11.913708
         }
       ]
     },
@@ -4332,9 +4332,9 @@
       "loop": false,
       "durationS": 1.5603,
       "channels": 1,
-      "peakDb": -1.47,
-      "rmsDb": -25.69,
-      "loudnessLufs": -17.21,
+      "peakDb": -1.38,
+      "rmsDb": -21.27,
+      "loudnessLufs": -17.28,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.7,
@@ -4354,40 +4354,40 @@
         {
           "file": "destruction/env_fence_break_a.ogg",
           "durationS": 1.5603,
-          "peakDb": -2.64,
-          "rmsDb": -25.58,
-          "loudnessLufs": -17.12
+          "peakDb": -1.38,
+          "rmsDb": -20.92,
+          "loudnessLufs": -17.59
         },
         {
           "file": "destruction/env_fence_break_b.ogg",
           "durationS": 1.7771,
-          "peakDb": -1.63,
-          "rmsDb": -24.92,
-          "loudnessLufs": -17.07
+          "peakDb": -1.45,
+          "rmsDb": -21.35,
+          "loudnessLufs": -16.98
         },
         {
           "file": "destruction/env_fence_break_c.ogg",
           "durationS": 1.4555,
-          "peakDb": -1.47,
-          "rmsDb": -26.56,
-          "loudnessLufs": -17.43
+          "peakDb": -1.41,
+          "rmsDb": -21.55,
+          "loudnessLufs": -17.27
         }
       ],
       "bankRegions": [
         {
           "bank": "banks/destruction_m1.ogg",
-          "startS": 12.261396,
-          "endS": 13.821687
+          "startS": 12.163708,
+          "endS": 13.724
         },
         {
           "bank": "banks/destruction_m1.ogg",
-          "startS": 14.071687,
-          "endS": 15.848792
+          "startS": 13.974,
+          "endS": 15.751104
         },
         {
           "bank": "banks/destruction_m1.ogg",
-          "startS": 16.098792,
-          "endS": 17.554271
+          "startS": 16.001104,
+          "endS": 17.456583
         }
       ]
     },
@@ -4398,9 +4398,9 @@
       "loop": false,
       "durationS": 1.6584,
       "channels": 1,
-      "peakDb": -1.36,
-      "rmsDb": -18.78,
-      "loudnessLufs": -14.0,
+      "peakDb": -1.42,
+      "rmsDb": -18.16,
+      "loudnessLufs": -14.09,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.7,
@@ -4419,28 +4419,28 @@
         {
           "file": "destruction/env_metal_container_impact_a.ogg",
           "durationS": 1.6584,
-          "peakDb": -1.36,
-          "rmsDb": -18.85,
-          "loudnessLufs": -14.03
+          "peakDb": -1.49,
+          "rmsDb": -18.35,
+          "loudnessLufs": -14.14
         },
         {
           "file": "destruction/env_metal_container_impact_b.ogg",
           "durationS": 1.7816,
-          "peakDb": -1.44,
-          "rmsDb": -18.71,
-          "loudnessLufs": -13.98
+          "peakDb": -1.42,
+          "rmsDb": -17.97,
+          "loudnessLufs": -14.04
         }
       ],
       "bankRegions": [
         {
           "bank": "banks/destruction_m1.ogg",
-          "startS": 17.804271,
-          "endS": 19.462688
+          "startS": 17.706583,
+          "endS": 19.365
         },
         {
           "bank": "banks/destruction_m1.ogg",
-          "startS": 19.712688,
-          "endS": 21.494271
+          "startS": 19.615,
+          "endS": 21.396583
         }
       ]
     },
@@ -4451,9 +4451,9 @@
       "loop": false,
       "durationS": 4.0466,
       "channels": 1,
-      "peakDb": -1.54,
-      "rmsDb": -22.84,
-      "loudnessLufs": -15.41,
+      "peakDb": -1.22,
+      "rmsDb": -21.37,
+      "loudnessLufs": -15.5,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.7,
@@ -4472,28 +4472,28 @@
         {
           "file": "destruction/env_tree_fall_a.ogg",
           "durationS": 4.0466,
-          "peakDb": -1.56,
-          "rmsDb": -22.93,
-          "loudnessLufs": -15.29
+          "peakDb": -1.22,
+          "rmsDb": -21.8,
+          "loudnessLufs": -15.65
         },
         {
           "file": "destruction/env_tree_fall_b.ogg",
           "durationS": 4.141,
-          "peakDb": -1.54,
-          "rmsDb": -22.75,
-          "loudnessLufs": -15.54
+          "peakDb": -1.33,
+          "rmsDb": -20.93,
+          "loudnessLufs": -15.36
         }
       ],
       "bankRegions": [
         {
           "bank": "banks/destruction_m1.ogg",
-          "startS": 21.744271,
-          "endS": 25.790917
+          "startS": 21.646583,
+          "endS": 25.693229
         },
         {
           "bank": "banks/destruction_m1.ogg",
-          "startS": 26.040917,
-          "endS": 30.181875
+          "startS": 25.943229,
+          "endS": 30.084187
         }
       ]
     },
@@ -4504,9 +4504,9 @@
       "loop": false,
       "durationS": 3.7065,
       "channels": 1,
-      "peakDb": -1.84,
-      "rmsDb": -20.81,
-      "loudnessLufs": -13.64,
+      "peakDb": -2.01,
+      "rmsDb": -19.06,
+      "loudnessLufs": -13.83,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.7,
@@ -4521,8 +4521,8 @@
       "bankRegions": [
         {
           "bank": "banks/destruction_m1.ogg",
-          "startS": 30.431875,
-          "endS": 34.138396
+          "startS": 30.334187,
+          "endS": 34.040708
         }
       ]
     },
@@ -4533,9 +4533,9 @@
       "loop": false,
       "durationS": 3.8655,
       "channels": 1,
-      "peakDb": -1.22,
-      "rmsDb": -19.08,
-      "loudnessLufs": -11.09,
+      "peakDb": -1.06,
+      "rmsDb": -16.79,
+      "loudnessLufs": -11.04,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 1.0,
@@ -4559,23 +4559,23 @@
         {
           "file": "guns/gun_artillery_howitzer_close_a.ogg",
           "durationS": 3.8655,
-          "peakDb": -1.58,
-          "rmsDb": -19.31,
-          "loudnessLufs": -11.39
+          "peakDb": -1.38,
+          "rmsDb": -16.9,
+          "loudnessLufs": -11.17
         },
         {
           "file": "guns/gun_artillery_howitzer_close_b.ogg",
           "durationS": 3.9012,
-          "peakDb": -1.22,
-          "rmsDb": -18.33,
-          "loudnessLufs": -10.83
+          "peakDb": -1.12,
+          "rmsDb": -16.46,
+          "loudnessLufs": -10.85
         },
         {
           "file": "guns/gun_artillery_howitzer_close_c.ogg",
           "durationS": 4.0072,
-          "peakDb": -1.27,
-          "rmsDb": -19.61,
-          "loudnessLufs": -11.04
+          "peakDb": -1.06,
+          "rmsDb": -17.01,
+          "loudnessLufs": -11.09
         }
       ],
       "bankRegions": [
@@ -4601,10 +4601,10 @@
       "category": "guns",
       "bus": "Weapons",
       "loop": false,
-      "durationS": 4.6037,
+      "durationS": 4.6029,
       "channels": 1,
-      "peakDb": -2.91,
-      "rmsDb": -22.59,
+      "peakDb": -2.75,
+      "rmsDb": -22.51,
       "loudnessLufs": -20.45,
       "loudnessMode": "momentaryMax",
       "suggested": {
@@ -4628,23 +4628,23 @@
       "variantStats": [
         {
           "file": "guns/gun_artillery_howitzer_far_a.ogg",
-          "durationS": 4.6037,
-          "peakDb": -2.91,
-          "rmsDb": -21.86,
-          "loudnessLufs": -20.46
+          "durationS": 4.6029,
+          "peakDb": -2.75,
+          "rmsDb": -21.77,
+          "loudnessLufs": -20.44
         },
         {
           "file": "guns/gun_artillery_howitzer_far_b.ogg",
-          "durationS": 4.5954,
-          "peakDb": -5.83,
-          "rmsDb": -23.27,
+          "durationS": 4.5942,
+          "peakDb": -5.71,
+          "rmsDb": -23.19,
           "loudnessLufs": -20.47
         },
         {
           "file": "guns/gun_artillery_howitzer_far_c.ogg",
-          "durationS": 4.5338,
-          "peakDb": -3.92,
-          "rmsDb": -22.65,
+          "durationS": 4.5328,
+          "peakDb": -3.89,
+          "rmsDb": -22.58,
           "loudnessLufs": -20.43
         }
       ],
@@ -4652,17 +4652,17 @@
         {
           "bank": "banks/guns_m1.ogg",
           "startS": 12.573813,
-          "endS": 17.1775
+          "endS": 17.176667
         },
         {
           "bank": "banks/guns_m1.ogg",
-          "startS": 17.4275,
-          "endS": 22.022875
+          "startS": 17.426667,
+          "endS": 22.020854
         },
         {
           "bank": "banks/guns_m1.ogg",
-          "startS": 22.272875,
-          "endS": 26.806667
+          "startS": 22.270854,
+          "endS": 26.803667
         }
       ]
     },
@@ -4674,7 +4674,7 @@
       "durationS": 4.2899,
       "channels": 1,
       "peakDb": -1.41,
-      "rmsDb": -21.35,
+      "rmsDb": -21.22,
       "loudnessLufs": -15.61,
       "loudnessMode": "momentaryMax",
       "suggested": {
@@ -4699,40 +4699,40 @@
         {
           "file": "guns/gun_artillery_howitzer_mid_a.ogg",
           "durationS": 4.2899,
-          "peakDb": -1.95,
-          "rmsDb": -21.29,
-          "loudnessLufs": -15.47
+          "peakDb": -1.71,
+          "rmsDb": -21.14,
+          "loudnessLufs": -15.46
         },
         {
           "file": "guns/gun_artillery_howitzer_mid_b.ogg",
           "durationS": 4.3036,
-          "peakDb": -2.19,
-          "rmsDb": -21.36,
-          "loudnessLufs": -15.49
+          "peakDb": -2.16,
+          "rmsDb": -21.22,
+          "loudnessLufs": -15.47
         },
         {
           "file": "guns/gun_artillery_howitzer_mid_c.ogg",
           "durationS": 4.306,
           "peakDb": -1.41,
-          "rmsDb": -21.41,
-          "loudnessLufs": -15.87
+          "rmsDb": -21.31,
+          "loudnessLufs": -15.9
         }
       ],
       "bankRegions": [
         {
           "bank": "banks/guns_m1.ogg",
-          "startS": 27.056667,
-          "endS": 31.346583
+          "startS": 27.053667,
+          "endS": 31.343583
         },
         {
           "bank": "banks/guns_m1.ogg",
-          "startS": 31.596583,
-          "endS": 35.900229
+          "startS": 31.593583,
+          "endS": 35.897229
         },
         {
           "bank": "banks/guns_m1.ogg",
-          "startS": 36.150229,
-          "endS": 40.456229
+          "startS": 36.147229,
+          "endS": 40.453229
         }
       ]
     },
@@ -4743,9 +4743,9 @@
       "loop": false,
       "durationS": 1.5332,
       "channels": 1,
-      "peakDb": -1.31,
-      "rmsDb": -18.31,
-      "loudnessLufs": -12.35,
+      "peakDb": -1.13,
+      "rmsDb": -15.44,
+      "loudnessLufs": -12.29,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 1.0,
@@ -4769,40 +4769,40 @@
         {
           "file": "guns/gun_autocannon_burst_close_a.ogg",
           "durationS": 1.5332,
-          "peakDb": -1.31,
-          "rmsDb": -18.67,
-          "loudnessLufs": -12.3
+          "peakDb": -1.33,
+          "rmsDb": -15.86,
+          "loudnessLufs": -12.35
         },
         {
           "file": "guns/gun_autocannon_burst_close_b.ogg",
-          "durationS": 1.5164,
-          "peakDb": -1.45,
-          "rmsDb": -18.9,
-          "loudnessLufs": -12.48
+          "durationS": 1.514,
+          "peakDb": -1.13,
+          "rmsDb": -15.56,
+          "loudnessLufs": -12.27
         },
         {
           "file": "guns/gun_autocannon_burst_close_c.ogg",
           "durationS": 1.709,
-          "peakDb": -1.41,
-          "rmsDb": -17.37,
+          "peakDb": -1.13,
+          "rmsDb": -14.91,
           "loudnessLufs": -12.26
         }
       ],
       "bankRegions": [
         {
           "bank": "banks/guns_m1.ogg",
-          "startS": 40.706229,
-          "endS": 42.239417
+          "startS": 40.703229,
+          "endS": 42.236417
         },
         {
           "bank": "banks/guns_m1.ogg",
-          "startS": 42.489417,
-          "endS": 44.005792
+          "startS": 42.486417,
+          "endS": 44.000458
         },
         {
           "bank": "banks/guns_m1.ogg",
-          "startS": 44.255792,
-          "endS": 45.96475
+          "startS": 44.250458,
+          "endS": 45.959417
         }
       ]
     },
@@ -4811,10 +4811,10 @@
       "category": "guns",
       "bus": "Weapons",
       "loop": false,
-      "durationS": 4.3219,
+      "durationS": 4.3217,
       "channels": 1,
-      "peakDb": -5.17,
-      "rmsDb": -24.29,
+      "peakDb": -5.1,
+      "rmsDb": -24.22,
       "loudnessLufs": -21.94,
       "loudnessMode": "momentaryMax",
       "suggested": {
@@ -4838,41 +4838,41 @@
       "variantStats": [
         {
           "file": "guns/gun_autocannon_burst_far_a.ogg",
-          "durationS": 4.3219,
-          "peakDb": -8.13,
-          "rmsDb": -25.41,
+          "durationS": 4.3217,
+          "peakDb": -8.09,
+          "rmsDb": -25.34,
           "loudnessLufs": -21.94
         },
         {
           "file": "guns/gun_autocannon_burst_far_b.ogg",
-          "durationS": 4.6087,
-          "peakDb": -6.46,
-          "rmsDb": -24.29,
-          "loudnessLufs": -21.95
+          "durationS": 4.6074,
+          "peakDb": -6.38,
+          "rmsDb": -24.22,
+          "loudnessLufs": -21.94
         },
         {
           "file": "guns/gun_autocannon_burst_far_c.ogg",
-          "durationS": 4.7442,
-          "peakDb": -5.17,
-          "rmsDb": -23.16,
-          "loudnessLufs": -21.94
+          "durationS": 4.7431,
+          "peakDb": -5.1,
+          "rmsDb": -23.1,
+          "loudnessLufs": -21.93
         }
       ],
       "bankRegions": [
         {
           "bank": "banks/guns_m1.ogg",
-          "startS": 46.21475,
-          "endS": 50.536625
+          "startS": 46.209417,
+          "endS": 50.531146
         },
         {
           "bank": "banks/guns_m1.ogg",
-          "startS": 50.786625,
-          "endS": 55.395333
+          "startS": 50.781146,
+          "endS": 55.388521
         },
         {
           "bank": "banks/guns_m1.ogg",
-          "startS": 55.645333,
-          "endS": 60.3895
+          "startS": 55.638521,
+          "endS": 60.381667
         }
       ]
     },
@@ -4883,9 +4883,9 @@
       "loop": false,
       "durationS": 4.158,
       "channels": 1,
-      "peakDb": -1.73,
-      "rmsDb": -23.35,
-      "loudnessLufs": -16.98,
+      "peakDb": -1.57,
+      "rmsDb": -23.09,
+      "loudnessLufs": -16.94,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 1.0,
@@ -4909,40 +4909,40 @@
         {
           "file": "guns/gun_autocannon_burst_mid_a.ogg",
           "durationS": 4.158,
-          "peakDb": -3.99,
-          "rmsDb": -24.32,
-          "loudnessLufs": -16.98
+          "peakDb": -3.77,
+          "rmsDb": -24.05,
+          "loudnessLufs": -16.96
         },
         {
           "file": "guns/gun_autocannon_burst_mid_b.ogg",
           "durationS": 4.3109,
-          "peakDb": -1.81,
-          "rmsDb": -23.19,
+          "peakDb": -1.57,
+          "rmsDb": -22.91,
           "loudnessLufs": -16.96
         },
         {
           "file": "guns/gun_autocannon_burst_mid_c.ogg",
-          "durationS": 4.2665,
-          "peakDb": -1.73,
-          "rmsDb": -22.55,
-          "loudnessLufs": -17.01
+          "durationS": 4.2594,
+          "peakDb": -1.59,
+          "rmsDb": -22.31,
+          "loudnessLufs": -16.89
         }
       ],
       "bankRegions": [
         {
           "bank": "banks/guns_m1.ogg",
-          "startS": 60.6395,
-          "endS": 64.797458
+          "startS": 60.631667,
+          "endS": 64.789625
         },
         {
           "bank": "banks/guns_m1.ogg",
-          "startS": 65.047458,
-          "endS": 69.358396
+          "startS": 65.039625,
+          "endS": 69.350562
         },
         {
           "bank": "banks/guns_m1.ogg",
-          "startS": 69.608396,
-          "endS": 73.874938
+          "startS": 69.600562,
+          "endS": 73.859938
         }
       ]
     },
@@ -4953,8 +4953,8 @@
       "loop": true,
       "durationS": 2.0,
       "channels": 1,
-      "peakDb": -20.52,
-      "rmsDb": -34.02,
+      "peakDb": -14.59,
+      "rmsDb": -28.19,
       "loudnessLufs": -27.98,
       "loudnessMode": "integrated",
       "suggested": {
@@ -4968,8 +4968,8 @@
       "description": "Gun elevation servo whine with gear chatter.",
       "event": "Gun elevating/depressing.",
       "loopSeam": {
-        "jumpRatioMax": 0.051,
-        "hfBurstDbMax": -4.42
+        "jumpRatioMax": 0.122,
+        "hfBurstDbMax": -4.53
       }
     },
     "gun_huge_130_183mm_close": {
@@ -4979,9 +4979,9 @@
       "loop": false,
       "durationS": 3.7236,
       "channels": 1,
-      "peakDb": -1.18,
-      "rmsDb": -19.53,
-      "loudnessLufs": -11.05,
+      "peakDb": -1.17,
+      "rmsDb": -17.57,
+      "loudnessLufs": -11.35,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 1.0,
@@ -5005,40 +5005,40 @@
         {
           "file": "guns/gun_huge_130_183mm_close_a.ogg",
           "durationS": 3.7236,
-          "peakDb": -1.19,
-          "rmsDb": -19.32,
-          "loudnessLufs": -11.01
+          "peakDb": -1.28,
+          "rmsDb": -17.36,
+          "loudnessLufs": -11.07
         },
         {
           "file": "guns/gun_huge_130_183mm_close_b.ogg",
           "durationS": 3.7996,
-          "peakDb": -1.29,
-          "rmsDb": -19.63,
-          "loudnessLufs": -11.14
+          "peakDb": -1.17,
+          "rmsDb": -17.88,
+          "loudnessLufs": -11.7
         },
         {
           "file": "guns/gun_huge_130_183mm_close_c.ogg",
           "durationS": 3.5731,
-          "peakDb": -1.18,
-          "rmsDb": -19.63,
-          "loudnessLufs": -11.0
+          "peakDb": -1.5,
+          "rmsDb": -17.47,
+          "loudnessLufs": -11.28
         }
       ],
       "bankRegions": [
         {
           "bank": "banks/guns_m1.ogg",
-          "startS": 74.124938,
-          "endS": 77.8485
+          "startS": 74.109938,
+          "endS": 77.8335
         },
         {
           "bank": "banks/guns_m1.ogg",
-          "startS": 78.0985,
-          "endS": 81.898083
+          "startS": 78.0835,
+          "endS": 81.883083
         },
         {
           "bank": "banks/guns_m1.ogg",
-          "startS": 82.148083,
-          "endS": 85.721146
+          "startS": 82.133083,
+          "endS": 85.706146
         }
       ]
     },
@@ -5047,11 +5047,11 @@
       "category": "guns",
       "bus": "Weapons",
       "loop": false,
-      "durationS": 4.2515,
+      "durationS": 4.2511,
       "channels": 1,
       "peakDb": -2.36,
-      "rmsDb": -22.35,
-      "loudnessLufs": -20.44,
+      "rmsDb": -22.28,
+      "loudnessLufs": -20.45,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 1.0,
@@ -5074,41 +5074,41 @@
       "variantStats": [
         {
           "file": "guns/gun_huge_130_183mm_far_a.ogg",
-          "durationS": 4.2515,
-          "peakDb": -2.86,
-          "rmsDb": -22.0,
-          "loudnessLufs": -20.44
+          "durationS": 4.2511,
+          "peakDb": -2.83,
+          "rmsDb": -21.94,
+          "loudnessLufs": -20.46
         },
         {
           "file": "guns/gun_huge_130_183mm_far_b.ogg",
-          "durationS": 4.4834,
-          "peakDb": -4.43,
-          "rmsDb": -22.74,
-          "loudnessLufs": -20.45
+          "durationS": 4.4819,
+          "peakDb": -4.23,
+          "rmsDb": -22.67,
+          "loudnessLufs": -20.43
         },
         {
           "file": "guns/gun_huge_130_183mm_far_c.ogg",
-          "durationS": 4.3687,
+          "durationS": 4.3669,
           "peakDb": -2.36,
-          "rmsDb": -22.3,
-          "loudnessLufs": -20.42
+          "rmsDb": -22.24,
+          "loudnessLufs": -20.46
         }
       ],
       "bankRegions": [
         {
           "bank": "banks/guns_m1.ogg",
-          "startS": 85.971146,
-          "endS": 90.222688
+          "startS": 85.956146,
+          "endS": 90.207208
         },
         {
           "bank": "banks/guns_m1.ogg",
-          "startS": 90.472688,
-          "endS": 94.956104
+          "startS": 90.457208,
+          "endS": 94.939125
         },
         {
           "bank": "banks/guns_m1.ogg",
-          "startS": 95.206104,
-          "endS": 99.574792
+          "startS": 95.189125,
+          "endS": 99.556
         }
       ]
     },
@@ -5120,8 +5120,8 @@
       "durationS": 3.8832,
       "channels": 1,
       "peakDb": -1.43,
-      "rmsDb": -21.73,
-      "loudnessLufs": -15.53,
+      "rmsDb": -21.61,
+      "loudnessLufs": -15.56,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 1.0,
@@ -5146,39 +5146,39 @@
           "file": "guns/gun_huge_130_183mm_mid_a.ogg",
           "durationS": 3.8832,
           "peakDb": -1.43,
-          "rmsDb": -21.63,
-          "loudnessLufs": -15.63
+          "rmsDb": -21.54,
+          "loudnessLufs": -15.68
         },
         {
           "file": "guns/gun_huge_130_183mm_mid_b.ogg",
           "durationS": 4.4292,
-          "peakDb": -1.67,
-          "rmsDb": -22.07,
-          "loudnessLufs": -15.44
+          "peakDb": -1.58,
+          "rmsDb": -21.95,
+          "loudnessLufs": -15.46
         },
         {
           "file": "guns/gun_huge_130_183mm_mid_c.ogg",
           "durationS": 4.2009,
-          "peakDb": -1.43,
-          "rmsDb": -21.48,
-          "loudnessLufs": -15.51
+          "peakDb": -1.45,
+          "rmsDb": -21.34,
+          "loudnessLufs": -15.53
         }
       ],
       "bankRegions": [
         {
           "bank": "banks/guns_m1.ogg",
-          "startS": 99.824792,
-          "endS": 103.707958
+          "startS": 99.806,
+          "endS": 103.689167
         },
         {
           "bank": "banks/guns_m1.ogg",
-          "startS": 103.957958,
-          "endS": 108.387208
+          "startS": 103.939167,
+          "endS": 108.368417
         },
         {
           "bank": "banks/guns_m1.ogg",
-          "startS": 108.637208,
-          "endS": 112.838063
+          "startS": 108.618417,
+          "endS": 112.819271
         }
       ]
     },
@@ -5189,9 +5189,9 @@
       "loop": false,
       "durationS": 1.584,
       "channels": 1,
-      "peakDb": -1.24,
-      "rmsDb": -17.28,
-      "loudnessLufs": -11.62,
+      "peakDb": -1.13,
+      "rmsDb": -15.86,
+      "loudnessLufs": -12.11,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 1.0,
@@ -5215,40 +5215,40 @@
         {
           "file": "guns/gun_large_88_122mm_close_a.ogg",
           "durationS": 1.584,
-          "peakDb": -1.3,
-          "rmsDb": -17.0,
-          "loudnessLufs": -11.55
+          "peakDb": -1.13,
+          "rmsDb": -16.32,
+          "loudnessLufs": -12.59
         },
         {
           "file": "guns/gun_large_88_122mm_close_b.ogg",
           "durationS": 1.6039,
-          "peakDb": -1.24,
-          "rmsDb": -17.52,
-          "loudnessLufs": -11.48
+          "peakDb": -1.21,
+          "rmsDb": -15.74,
+          "loudnessLufs": -11.79
         },
         {
           "file": "guns/gun_large_88_122mm_close_c.ogg",
           "durationS": 1.5346,
-          "peakDb": -1.47,
-          "rmsDb": -17.32,
-          "loudnessLufs": -11.84
+          "peakDb": -1.21,
+          "rmsDb": -15.52,
+          "loudnessLufs": -11.95
         }
       ],
       "bankRegions": [
         {
           "bank": "banks/guns_m1.ogg",
-          "startS": 113.088063,
-          "endS": 114.672083
+          "startS": 113.069271,
+          "endS": 114.653292
         },
         {
           "bank": "banks/guns_m1.ogg",
-          "startS": 114.922083,
-          "endS": 116.525979
+          "startS": 114.903292,
+          "endS": 116.507188
         },
         {
           "bank": "banks/guns_m1.ogg",
-          "startS": 116.775979,
-          "endS": 118.310625
+          "startS": 116.757188,
+          "endS": 118.291833
         }
       ]
     },
@@ -5257,11 +5257,11 @@
       "category": "guns",
       "bus": "Weapons",
       "loop": false,
-      "durationS": 4.2866,
+      "durationS": 4.2864,
       "channels": 1,
-      "peakDb": -2.11,
-      "rmsDb": -23.33,
-      "loudnessLufs": -20.96,
+      "peakDb": -2.02,
+      "rmsDb": -23.22,
+      "loudnessLufs": -20.94,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 1.0,
@@ -5284,41 +5284,41 @@
       "variantStats": [
         {
           "file": "guns/gun_large_88_122mm_far_a.ogg",
-          "durationS": 4.2866,
-          "peakDb": -5.44,
-          "rmsDb": -23.97,
-          "loudnessLufs": -20.93
+          "durationS": 4.2864,
+          "peakDb": -5.41,
+          "rmsDb": -23.88,
+          "loudnessLufs": -20.94
         },
         {
           "file": "guns/gun_large_88_122mm_far_b.ogg",
-          "durationS": 4.2941,
-          "peakDb": -2.11,
-          "rmsDb": -22.54,
-          "loudnessLufs": -20.97
+          "durationS": 4.293,
+          "peakDb": -2.02,
+          "rmsDb": -22.44,
+          "loudnessLufs": -20.98
         },
         {
           "file": "guns/gun_large_88_122mm_far_c.ogg",
-          "durationS": 4.1179,
-          "peakDb": -4.41,
-          "rmsDb": -23.48,
-          "loudnessLufs": -20.97
+          "durationS": 4.1167,
+          "peakDb": -4.26,
+          "rmsDb": -23.35,
+          "loudnessLufs": -20.91
         }
       ],
       "bankRegions": [
         {
           "bank": "banks/guns_m2.ogg",
           "startS": 0.05,
-          "endS": 4.336563
+          "endS": 4.336354
         },
         {
           "bank": "banks/guns_m2.ogg",
-          "startS": 4.586563,
-          "endS": 8.880667
+          "startS": 4.586354,
+          "endS": 8.879312
         },
         {
           "bank": "banks/guns_m2.ogg",
-          "startS": 9.130667,
-          "endS": 13.248542
+          "startS": 9.129312,
+          "endS": 13.246063
         }
       ]
     },
@@ -5329,8 +5329,8 @@
       "loop": false,
       "durationS": 4.2674,
       "channels": 1,
-      "peakDb": -1.39,
-      "rmsDb": -22.37,
+      "peakDb": -1.44,
+      "rmsDb": -22.21,
       "loudnessLufs": -16.02,
       "loudnessMode": "momentaryMax",
       "suggested": {
@@ -5355,40 +5355,40 @@
         {
           "file": "guns/gun_large_88_122mm_mid_a.ogg",
           "durationS": 4.2674,
-          "peakDb": -1.39,
-          "rmsDb": -21.98,
+          "peakDb": -1.46,
+          "rmsDb": -21.8,
           "loudnessLufs": -16.06
         },
         {
           "file": "guns/gun_large_88_122mm_mid_b.ogg",
           "durationS": 3.9995,
-          "peakDb": -1.93,
-          "rmsDb": -22.49,
-          "loudnessLufs": -15.98
+          "peakDb": -1.77,
+          "rmsDb": -22.31,
+          "loudnessLufs": -15.95
         },
         {
           "file": "guns/gun_large_88_122mm_mid_c.ogg",
           "durationS": 3.8884,
-          "peakDb": -1.45,
-          "rmsDb": -22.65,
-          "loudnessLufs": -16.02
+          "peakDb": -1.44,
+          "rmsDb": -22.53,
+          "loudnessLufs": -16.05
         }
       ],
       "bankRegions": [
         {
           "bank": "banks/guns_m2.ogg",
-          "startS": 13.498542,
-          "endS": 17.765979
+          "startS": 13.496063,
+          "endS": 17.7635
         },
         {
           "bank": "banks/guns_m2.ogg",
-          "startS": 18.015979,
-          "endS": 22.015479
+          "startS": 18.0135,
+          "endS": 22.013
         },
         {
           "bank": "banks/guns_m2.ogg",
-          "startS": 22.265479,
-          "endS": 26.153875
+          "startS": 22.263,
+          "endS": 26.151396
         }
       ]
     },
@@ -5399,9 +5399,9 @@
       "loop": false,
       "durationS": 1.2657,
       "channels": 1,
-      "peakDb": -1.1,
-      "rmsDb": -16.73,
-      "loudnessLufs": -11.89,
+      "peakDb": -1.17,
+      "rmsDb": -15.1,
+      "loudnessLufs": -12.23,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 1.0,
@@ -5425,40 +5425,40 @@
         {
           "file": "guns/gun_medium_50_85mm_close_a.ogg",
           "durationS": 1.2657,
-          "peakDb": -1.26,
-          "rmsDb": -17.13,
-          "loudnessLufs": -11.9
+          "peakDb": -1.17,
+          "rmsDb": -15.71,
+          "loudnessLufs": -12.62
         },
         {
           "file": "guns/gun_medium_50_85mm_close_b.ogg",
           "durationS": 1.296,
-          "peakDb": -1.1,
-          "rmsDb": -16.65,
-          "loudnessLufs": -11.9
+          "peakDb": -1.28,
+          "rmsDb": -14.9,
+          "loudnessLufs": -12.07
         },
         {
           "file": "guns/gun_medium_50_85mm_close_c.ogg",
           "durationS": 1.1718,
-          "peakDb": -1.25,
-          "rmsDb": -16.41,
-          "loudnessLufs": -11.86
+          "peakDb": -1.23,
+          "rmsDb": -14.7,
+          "loudnessLufs": -11.99
         }
       ],
       "bankRegions": [
         {
           "bank": "banks/guns_m2.ogg",
-          "startS": 26.403875,
-          "endS": 27.669542
+          "startS": 26.401396,
+          "endS": 27.667063
         },
         {
           "bank": "banks/guns_m2.ogg",
-          "startS": 27.919542,
-          "endS": 29.215542
+          "startS": 27.917063,
+          "endS": 29.213062
         },
         {
           "bank": "banks/guns_m2.ogg",
-          "startS": 29.465542,
-          "endS": 30.637333
+          "startS": 29.463062,
+          "endS": 30.634854
         }
       ]
     },
@@ -5467,11 +5467,11 @@
       "category": "guns",
       "bus": "Weapons",
       "loop": false,
-      "durationS": 4.2714,
+      "durationS": 4.2709,
       "channels": 1,
-      "peakDb": -2.78,
-      "rmsDb": -23.23,
-      "loudnessLufs": -21.46,
+      "peakDb": -2.79,
+      "rmsDb": -23.15,
+      "loudnessLufs": -21.45,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 1.0,
@@ -5494,41 +5494,41 @@
       "variantStats": [
         {
           "file": "guns/gun_medium_50_85mm_far_a.ogg",
-          "durationS": 4.2714,
-          "peakDb": -2.78,
-          "rmsDb": -22.66,
+          "durationS": 4.2709,
+          "peakDb": -2.79,
+          "rmsDb": -22.6,
           "loudnessLufs": -21.45
         },
         {
           "file": "guns/gun_medium_50_85mm_far_b.ogg",
-          "durationS": 4.3092,
-          "peakDb": -5.02,
-          "rmsDb": -23.63,
-          "loudnessLufs": -21.47
+          "durationS": 4.3082,
+          "peakDb": -4.9,
+          "rmsDb": -23.55,
+          "loudnessLufs": -21.44
         },
         {
           "file": "guns/gun_medium_50_85mm_far_c.ogg",
-          "durationS": 4.1227,
-          "peakDb": -3.89,
-          "rmsDb": -23.39,
-          "loudnessLufs": -21.47
+          "durationS": 4.1224,
+          "peakDb": -3.75,
+          "rmsDb": -23.29,
+          "loudnessLufs": -21.45
         }
       ],
       "bankRegions": [
         {
           "bank": "banks/guns_m2.ogg",
-          "startS": 30.887333,
-          "endS": 35.158708
+          "startS": 30.884854,
+          "endS": 35.155708
         },
         {
           "bank": "banks/guns_m2.ogg",
-          "startS": 35.408708,
-          "endS": 39.717937
+          "startS": 35.405708,
+          "endS": 39.713938
         },
         {
           "bank": "banks/guns_m2.ogg",
-          "startS": 39.967937,
-          "endS": 44.090646
+          "startS": 39.963938,
+          "endS": 44.086292
         }
       ]
     },
@@ -5539,8 +5539,8 @@
       "loop": false,
       "durationS": 4.0717,
       "channels": 1,
-      "peakDb": -1.77,
-      "rmsDb": -22.81,
+      "peakDb": -1.58,
+      "rmsDb": -22.65,
       "loudnessLufs": -16.45,
       "loudnessMode": "momentaryMax",
       "suggested": {
@@ -5565,40 +5565,40 @@
         {
           "file": "guns/gun_medium_50_85mm_mid_a.ogg",
           "durationS": 4.0717,
-          "peakDb": -3.02,
-          "rmsDb": -22.64,
+          "peakDb": -2.87,
+          "rmsDb": -22.51,
           "loudnessLufs": -16.45
         },
         {
           "file": "guns/gun_medium_50_85mm_mid_b.ogg",
           "durationS": 3.9506,
-          "peakDb": -1.9,
-          "rmsDb": -22.88,
+          "peakDb": -1.79,
+          "rmsDb": -22.71,
           "loudnessLufs": -16.46
         },
         {
           "file": "guns/gun_medium_50_85mm_mid_c.ogg",
           "durationS": 3.962,
-          "peakDb": -1.77,
-          "rmsDb": -22.91,
-          "loudnessLufs": -16.43
+          "peakDb": -1.58,
+          "rmsDb": -22.74,
+          "loudnessLufs": -16.45
         }
       ],
       "bankRegions": [
         {
           "bank": "banks/guns_m2.ogg",
-          "startS": 44.340646,
-          "endS": 48.412396
+          "startS": 44.336292,
+          "endS": 48.408042
         },
         {
           "bank": "banks/guns_m2.ogg",
-          "startS": 48.662396,
-          "endS": 52.613042
+          "startS": 48.658042,
+          "endS": 52.608688
         },
         {
           "bank": "banks/guns_m2.ogg",
-          "startS": 52.863042,
-          "endS": 56.825021
+          "startS": 52.858688,
+          "endS": 56.820667
         }
       ]
     },
@@ -5609,9 +5609,9 @@
       "loop": false,
       "durationS": 1.1883,
       "channels": 1,
-      "peakDb": -1.25,
-      "rmsDb": -18.16,
-      "loudnessLufs": -12.98,
+      "peakDb": -1.2,
+      "rmsDb": -16.0,
+      "loudnessLufs": -13.01,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 1.0,
@@ -5635,40 +5635,40 @@
         {
           "file": "guns/gun_small_20_45mm_close_a.ogg",
           "durationS": 1.1883,
-          "peakDb": -1.25,
-          "rmsDb": -18.14,
-          "loudnessLufs": -12.98
+          "peakDb": -1.2,
+          "rmsDb": -16.02,
+          "loudnessLufs": -12.87
         },
         {
           "file": "guns/gun_small_20_45mm_close_b.ogg",
           "durationS": 1.1906,
-          "peakDb": -1.35,
-          "rmsDb": -18.35,
-          "loudnessLufs": -13.02
+          "peakDb": -1.22,
+          "rmsDb": -15.96,
+          "loudnessLufs": -12.98
         },
         {
           "file": "guns/gun_small_20_45mm_close_c.ogg",
           "durationS": 1.1446,
-          "peakDb": -1.37,
-          "rmsDb": -17.99,
-          "loudnessLufs": -12.93
+          "peakDb": -1.25,
+          "rmsDb": -16.03,
+          "loudnessLufs": -13.17
         }
       ],
       "bankRegions": [
         {
           "bank": "banks/guns_m2.ogg",
-          "startS": 57.075021,
-          "endS": 58.263333
+          "startS": 57.070667,
+          "endS": 58.258979
         },
         {
           "bank": "banks/guns_m2.ogg",
-          "startS": 58.513333,
-          "endS": 59.703896
+          "startS": 58.508979,
+          "endS": 59.699542
         },
         {
           "bank": "banks/guns_m2.ogg",
-          "startS": 59.953896,
-          "endS": 61.098458
+          "startS": 59.949542,
+          "endS": 61.094104
         }
       ]
     },
@@ -5677,11 +5677,11 @@
       "category": "guns",
       "bus": "Weapons",
       "loop": false,
-      "durationS": 4.513,
+      "durationS": 4.5122,
       "channels": 1,
-      "peakDb": -3.97,
-      "rmsDb": -24.41,
-      "loudnessLufs": -22.45,
+      "peakDb": -3.78,
+      "rmsDb": -24.31,
+      "loudnessLufs": -22.46,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 1.0,
@@ -5704,41 +5704,41 @@
       "variantStats": [
         {
           "file": "guns/gun_small_20_45mm_far_a.ogg",
-          "durationS": 4.513,
-          "peakDb": -6.39,
-          "rmsDb": -24.81,
-          "loudnessLufs": -22.43
+          "durationS": 4.5122,
+          "peakDb": -6.23,
+          "rmsDb": -24.69,
+          "loudnessLufs": -22.49
         },
         {
           "file": "guns/gun_small_20_45mm_far_b.ogg",
-          "durationS": 4.1783,
-          "peakDb": -3.97,
-          "rmsDb": -24.23,
-          "loudnessLufs": -22.47
+          "durationS": 4.1777,
+          "peakDb": -3.78,
+          "rmsDb": -24.11,
+          "loudnessLufs": -22.42
         },
         {
           "file": "guns/gun_small_20_45mm_far_c.ogg",
-          "durationS": 4.3659,
-          "peakDb": -4.58,
-          "rmsDb": -24.19,
-          "loudnessLufs": -22.44
+          "durationS": 4.3657,
+          "peakDb": -4.52,
+          "rmsDb": -24.13,
+          "loudnessLufs": -22.48
         }
       ],
       "bankRegions": [
         {
           "bank": "banks/guns_m2.ogg",
-          "startS": 61.348458,
-          "endS": 65.8615
+          "startS": 61.344104,
+          "endS": 65.856333
         },
         {
           "bank": "banks/guns_m2.ogg",
-          "startS": 66.1115,
-          "endS": 70.289771
+          "startS": 66.106333,
+          "endS": 70.284063
         },
         {
           "bank": "banks/guns_m2.ogg",
-          "startS": 70.539771,
-          "endS": 74.905667
+          "startS": 70.534063,
+          "endS": 74.899771
         }
       ]
     },
@@ -5749,9 +5749,9 @@
       "loop": false,
       "durationS": 3.9629,
       "channels": 1,
-      "peakDb": -1.41,
-      "rmsDb": -23.96,
-      "loudnessLufs": -17.49,
+      "peakDb": -1.39,
+      "rmsDb": -23.75,
+      "loudnessLufs": -17.48,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 1.0,
@@ -5775,40 +5775,40 @@
         {
           "file": "guns/gun_small_20_45mm_mid_a.ogg",
           "durationS": 3.9629,
-          "peakDb": -1.41,
-          "rmsDb": -23.95,
-          "loudnessLufs": -17.52
+          "peakDb": -1.39,
+          "rmsDb": -23.74,
+          "loudnessLufs": -17.5
         },
         {
           "file": "guns/gun_small_20_45mm_mid_b.ogg",
           "durationS": 3.8127,
-          "peakDb": -2.18,
-          "rmsDb": -24.12,
-          "loudnessLufs": -17.47
+          "peakDb": -1.87,
+          "rmsDb": -23.91,
+          "loudnessLufs": -17.48
         },
         {
           "file": "guns/gun_small_20_45mm_mid_c.ogg",
           "durationS": 3.7459,
-          "peakDb": -3.66,
-          "rmsDb": -23.8,
-          "loudnessLufs": -17.47
+          "peakDb": -3.52,
+          "rmsDb": -23.59,
+          "loudnessLufs": -17.46
         }
       ],
       "bankRegions": [
         {
           "bank": "banks/guns_m2.ogg",
-          "startS": 75.155667,
-          "endS": 79.118542
+          "startS": 75.149771,
+          "endS": 79.112646
         },
         {
           "bank": "banks/guns_m2.ogg",
-          "startS": 79.368542,
-          "endS": 83.181292
+          "startS": 79.362646,
+          "endS": 83.175396
         },
         {
           "bank": "banks/guns_m2.ogg",
-          "startS": 83.431292,
-          "endS": 87.177188
+          "startS": 83.425396,
+          "endS": 87.171292
         }
       ]
     },
@@ -5817,10 +5817,10 @@
       "category": "hangar",
       "bus": "Ambience",
       "loop": false,
-      "durationS": 7.222,
+      "durationS": 7.18,
       "channels": 1,
-      "peakDb": -18.18,
-      "rmsDb": -30.14,
+      "peakDb": -17.43,
+      "rmsDb": -29.38,
       "loudnessLufs": -27.95,
       "loudnessMode": "momentaryMax",
       "suggested": {
@@ -5837,7 +5837,7 @@
         {
           "bank": "banks/hangar_m1.ogg",
           "startS": 0.05,
-          "endS": 7.271979
+          "endS": 7.230042
         }
       ]
     },
@@ -5848,8 +5848,8 @@
       "loop": false,
       "durationS": 3.5309,
       "channels": 1,
-      "peakDb": -14.32,
-      "rmsDb": -40.57,
+      "peakDb": -11.18,
+      "rmsDb": -36.24,
       "loudnessLufs": -28.19,
       "loudnessMode": "momentaryMax",
       "suggested": {
@@ -5870,40 +5870,40 @@
         {
           "file": "hangar/hangar_distant_tools_a.ogg",
           "durationS": 3.5309,
-          "peakDb": -21.91,
-          "rmsDb": -41.43,
-          "loudnessLufs": -28.18
+          "peakDb": -17.1,
+          "rmsDb": -36.53,
+          "loudnessLufs": -28.2
         },
         {
           "file": "hangar/hangar_distant_tools_b.ogg",
           "durationS": 3.7724,
-          "peakDb": -17.24,
-          "rmsDb": -40.33,
+          "peakDb": -12.14,
+          "rmsDb": -35.28,
           "loudnessLufs": -28.0
         },
         {
           "file": "hangar/hangar_distant_tools_c.ogg",
           "durationS": 3.2297,
-          "peakDb": -14.32,
-          "rmsDb": -39.96,
-          "loudnessLufs": -28.38
+          "peakDb": -11.18,
+          "rmsDb": -36.91,
+          "loudnessLufs": -28.37
         }
       ],
       "bankRegions": [
         {
           "bank": "banks/hangar_m1.ogg",
-          "startS": 7.521979,
-          "endS": 11.052833
+          "startS": 7.480042,
+          "endS": 11.010896
         },
         {
           "bank": "banks/hangar_m1.ogg",
-          "startS": 11.302833,
-          "endS": 15.075271
+          "startS": 11.260896,
+          "endS": 15.033333
         },
         {
           "bank": "banks/hangar_m1.ogg",
-          "startS": 15.325271,
-          "endS": 18.554938
+          "startS": 15.283333,
+          "endS": 18.513
         }
       ]
     },
@@ -5914,8 +5914,8 @@
       "loop": false,
       "durationS": 4.1029,
       "channels": 2,
-      "peakDb": -13.79,
-      "rmsDb": -33.97,
+      "peakDb": -10.22,
+      "rmsDb": -30.31,
       "loudnessLufs": -21.95,
       "loudnessMode": "momentaryMax",
       "suggested": {
@@ -5935,15 +5935,15 @@
         {
           "file": "hangar/hangar_pa_chime_a.ogg",
           "durationS": 4.1029,
-          "peakDb": -13.79,
-          "rmsDb": -33.32,
+          "peakDb": -10.22,
+          "rmsDb": -29.75,
           "loudnessLufs": -21.96
         },
         {
           "file": "hangar/hangar_pa_chime_b.ogg",
           "durationS": 3.8536,
-          "peakDb": -15.19,
-          "rmsDb": -34.62,
+          "peakDb": -11.47,
+          "rmsDb": -30.87,
           "loudnessLufs": -21.93
         }
       ],
@@ -5967,9 +5967,9 @@
       "loop": true,
       "durationS": 40.0,
       "channels": 2,
-      "peakDb": -18.0,
-      "rmsDb": -34.03,
-      "loudnessLufs": -30.18,
+      "peakDb": -15.0,
+      "rmsDb": -31.68,
+      "loudnessLufs": -30.13,
       "loudnessMode": "integrated",
       "suggested": {
         "volume": 0.5,
@@ -5982,8 +5982,8 @@
       "description": "Large hangar room tone: HVAC air, mains hum, faint lamp buzz, distant activity in a big metal room.",
       "event": "Garage/hangar scene: always-on 2D bed.",
       "loopSeam": {
-        "jumpRatioMax": 0.607,
-        "hfBurstDbMax": -2.42
+        "jumpRatioMax": 0.132,
+        "hfBurstDbMax": -2.49
       }
     },
     "impact_concrete": {
@@ -5993,9 +5993,9 @@
       "loop": false,
       "durationS": 1.9659,
       "channels": 1,
-      "peakDb": -1.38,
-      "rmsDb": -21.29,
-      "loudnessLufs": -13.45,
+      "peakDb": -1.25,
+      "rmsDb": -18.96,
+      "loudnessLufs": -13.46,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.85,
@@ -6016,23 +6016,23 @@
         {
           "file": "impacts/impact_concrete_a.ogg",
           "durationS": 1.9659,
-          "peakDb": -1.39,
-          "rmsDb": -21.07,
-          "loudnessLufs": -13.57
+          "peakDb": -1.25,
+          "rmsDb": -18.58,
+          "loudnessLufs": -13.41
         },
         {
           "file": "impacts/impact_concrete_b.ogg",
           "durationS": 2.0861,
-          "peakDb": -1.45,
-          "rmsDb": -21.35,
-          "loudnessLufs": -13.33
+          "peakDb": -1.28,
+          "rmsDb": -18.96,
+          "loudnessLufs": -13.46
         },
         {
           "file": "impacts/impact_concrete_c.ogg",
           "durationS": 2.2773,
-          "peakDb": -1.38,
-          "rmsDb": -21.45,
-          "loudnessLufs": -13.45
+          "peakDb": -1.32,
+          "rmsDb": -19.34,
+          "loudnessLufs": -13.5
         }
       ],
       "bankRegions": [
@@ -6060,9 +6060,9 @@
       "loop": false,
       "durationS": 2.3154,
       "channels": 1,
-      "peakDb": -1.28,
-      "rmsDb": -21.36,
-      "loudnessLufs": -13.31,
+      "peakDb": -1.08,
+      "rmsDb": -19.18,
+      "loudnessLufs": -13.39,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.85,
@@ -6083,23 +6083,23 @@
         {
           "file": "impacts/impact_dirt_a.ogg",
           "durationS": 2.3154,
-          "peakDb": -1.37,
-          "rmsDb": -20.86,
-          "loudnessLufs": -13.4
+          "peakDb": -1.24,
+          "rmsDb": -19.02,
+          "loudnessLufs": -13.45
         },
         {
           "file": "impacts/impact_dirt_b.ogg",
           "durationS": 2.4529,
-          "peakDb": -1.28,
-          "rmsDb": -22.58,
-          "loudnessLufs": -13.23
+          "peakDb": -1.23,
+          "rmsDb": -19.64,
+          "loudnessLufs": -13.36
         },
         {
           "file": "impacts/impact_dirt_c.ogg",
           "durationS": 2.3669,
-          "peakDb": -1.4,
-          "rmsDb": -20.64,
-          "loudnessLufs": -13.3
+          "peakDb": -1.08,
+          "rmsDb": -18.87,
+          "loudnessLufs": -13.36
         }
       ],
       "bankRegions": [
@@ -6127,9 +6127,9 @@
       "loop": false,
       "durationS": 2.4497,
       "channels": 1,
-      "peakDb": -1.34,
-      "rmsDb": -20.85,
-      "loudnessLufs": -13.28,
+      "peakDb": -1.33,
+      "rmsDb": -19.16,
+      "loudnessLufs": -13.33,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.85,
@@ -6150,23 +6150,23 @@
         {
           "file": "impacts/impact_metal_building_a.ogg",
           "durationS": 2.4497,
-          "peakDb": -1.35,
-          "rmsDb": -20.93,
-          "loudnessLufs": -13.39
+          "peakDb": -1.33,
+          "rmsDb": -19.3,
+          "loudnessLufs": -13.41
         },
         {
           "file": "impacts/impact_metal_building_b.ogg",
           "durationS": 2.0817,
-          "peakDb": -1.44,
-          "rmsDb": -20.49,
-          "loudnessLufs": -13.17
+          "peakDb": -1.36,
+          "rmsDb": -18.77,
+          "loudnessLufs": -13.23
         },
         {
           "file": "impacts/impact_metal_building_c.ogg",
           "durationS": 2.4025,
-          "peakDb": -1.34,
-          "rmsDb": -21.12,
-          "loudnessLufs": -13.27
+          "peakDb": -1.39,
+          "rmsDb": -19.42,
+          "loudnessLufs": -13.36
         }
       ],
       "bankRegions": [
@@ -6194,9 +6194,9 @@
       "loop": false,
       "durationS": 2.0045,
       "channels": 1,
-      "peakDb": -1.37,
-      "rmsDb": -19.8,
-      "loudnessLufs": -13.29,
+      "peakDb": -1.32,
+      "rmsDb": -18.25,
+      "loudnessLufs": -13.3,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.85,
@@ -6217,23 +6217,23 @@
         {
           "file": "impacts/impact_rock_a.ogg",
           "durationS": 2.0045,
-          "peakDb": -1.39,
-          "rmsDb": -19.99,
+          "peakDb": -1.32,
+          "rmsDb": -18.44,
           "loudnessLufs": -13.27
         },
         {
           "file": "impacts/impact_rock_b.ogg",
           "durationS": 1.8685,
-          "peakDb": -1.37,
-          "rmsDb": -19.52,
-          "loudnessLufs": -13.23
+          "peakDb": -1.33,
+          "rmsDb": -18.06,
+          "loudnessLufs": -13.19
         },
         {
           "file": "impacts/impact_rock_c.ogg",
           "durationS": 1.9057,
-          "peakDb": -1.42,
-          "rmsDb": -19.89,
-          "loudnessLufs": -13.38
+          "peakDb": -1.38,
+          "rmsDb": -18.25,
+          "loudnessLufs": -13.44
         }
       ],
       "bankRegions": [
@@ -6261,8 +6261,8 @@
       "loop": false,
       "durationS": 2.3949,
       "channels": 1,
-      "peakDb": -1.21,
-      "rmsDb": -21.13,
+      "peakDb": -1.23,
+      "rmsDb": -19.69,
       "loudnessLufs": -13.4,
       "loudnessMode": "momentaryMax",
       "suggested": {
@@ -6284,23 +6284,23 @@
         {
           "file": "impacts/impact_sand_a.ogg",
           "durationS": 2.3949,
-          "peakDb": -1.48,
-          "rmsDb": -21.7,
-          "loudnessLufs": -13.32
+          "peakDb": -1.28,
+          "rmsDb": -20.05,
+          "loudnessLufs": -13.43
         },
         {
           "file": "impacts/impact_sand_b.ogg",
           "durationS": 2.347,
-          "peakDb": -1.21,
-          "rmsDb": -20.99,
-          "loudnessLufs": -13.44
+          "peakDb": -1.23,
+          "rmsDb": -19.69,
+          "loudnessLufs": -13.46
         },
         {
           "file": "impacts/impact_sand_c.ogg",
           "durationS": 2.2466,
-          "peakDb": -1.39,
-          "rmsDb": -20.71,
-          "loudnessLufs": -13.43
+          "peakDb": -1.38,
+          "rmsDb": -19.33,
+          "loudnessLufs": -13.32
         }
       ],
       "bankRegions": [
@@ -6328,8 +6328,8 @@
       "loop": false,
       "durationS": 1.6665,
       "channels": 1,
-      "peakDb": -1.42,
-      "rmsDb": -22.73,
+      "peakDb": -1.35,
+      "rmsDb": -19.97,
       "loudnessLufs": -15.19,
       "loudnessMode": "momentaryMax",
       "suggested": {
@@ -6351,23 +6351,23 @@
         {
           "file": "impacts/impact_snow_a.ogg",
           "durationS": 1.6665,
-          "peakDb": -1.42,
-          "rmsDb": -22.24,
-          "loudnessLufs": -15.22
+          "peakDb": -1.54,
+          "rmsDb": -19.47,
+          "loudnessLufs": -15.17
         },
         {
           "file": "impacts/impact_snow_b.ogg",
           "durationS": 1.8982,
-          "peakDb": -1.5,
-          "rmsDb": -22.61,
-          "loudnessLufs": -15.19
+          "peakDb": -1.39,
+          "rmsDb": -20.13,
+          "loudnessLufs": -15.23
         },
         {
           "file": "impacts/impact_snow_c.ogg",
           "durationS": 1.8001,
-          "peakDb": -1.57,
-          "rmsDb": -23.33,
-          "loudnessLufs": -15.15
+          "peakDb": -1.35,
+          "rmsDb": -20.3,
+          "loudnessLufs": -15.18
         }
       ],
       "bankRegions": [
@@ -6395,9 +6395,9 @@
       "loop": false,
       "durationS": 2.6178,
       "channels": 1,
-      "peakDb": -1.09,
-      "rmsDb": -23.13,
-      "loudnessLufs": -13.45,
+      "peakDb": -1.07,
+      "rmsDb": -20.34,
+      "loudnessLufs": -13.62,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.85,
@@ -6418,23 +6418,23 @@
         {
           "file": "impacts/impact_water_a.ogg",
           "durationS": 2.6178,
-          "peakDb": -1.61,
-          "rmsDb": -23.51,
-          "loudnessLufs": -13.5
+          "peakDb": -1.09,
+          "rmsDb": -20.48,
+          "loudnessLufs": -13.51
         },
         {
           "file": "impacts/impact_water_b.ogg",
           "durationS": 2.5882,
-          "peakDb": -1.09,
-          "rmsDb": -23.24,
-          "loudnessLufs": -13.37
+          "peakDb": -1.07,
+          "rmsDb": -20.4,
+          "loudnessLufs": -13.5
         },
         {
           "file": "impacts/impact_water_c.ogg",
           "durationS": 2.591,
           "peakDb": -1.44,
-          "rmsDb": -22.63,
-          "loudnessLufs": -13.48
+          "rmsDb": -20.15,
+          "loudnessLufs": -13.86
         }
       ],
       "bankRegions": [
@@ -6462,9 +6462,9 @@
       "loop": false,
       "durationS": 1.7718,
       "channels": 1,
-      "peakDb": -1.28,
-      "rmsDb": -19.08,
-      "loudnessLufs": -13.26,
+      "peakDb": -1.25,
+      "rmsDb": -17.69,
+      "loudnessLufs": -13.32,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.85,
@@ -6485,23 +6485,23 @@
         {
           "file": "impacts/impact_wood_a.ogg",
           "durationS": 1.7718,
-          "peakDb": -1.28,
-          "rmsDb": -19.53,
-          "loudnessLufs": -13.33
+          "peakDb": -1.32,
+          "rmsDb": -18.05,
+          "loudnessLufs": -13.41
         },
         {
           "file": "impacts/impact_wood_b.ogg",
           "durationS": 1.6166,
-          "peakDb": -1.38,
-          "rmsDb": -18.38,
-          "loudnessLufs": -13.24
+          "peakDb": -1.28,
+          "rmsDb": -17.07,
+          "loudnessLufs": -13.17
         },
         {
           "file": "impacts/impact_wood_c.ogg",
           "durationS": 1.802,
-          "peakDb": -1.29,
-          "rmsDb": -19.32,
-          "loudnessLufs": -13.21
+          "peakDb": -1.25,
+          "rmsDb": -17.96,
+          "loudnessLufs": -13.39
         }
       ],
       "bankRegions": [
@@ -6529,9 +6529,9 @@
       "loop": false,
       "durationS": 0.9028,
       "channels": 2,
-      "peakDb": -21.45,
-      "rmsDb": -31.06,
-      "loudnessLufs": -17.95,
+      "peakDb": -14.95,
+      "rmsDb": -24.52,
+      "loudnessLufs": -17.94,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.7,
@@ -6558,8 +6558,8 @@
       "loop": false,
       "durationS": 1.1486,
       "channels": 2,
-      "peakDb": -21.1,
-      "rmsDb": -29.71,
+      "peakDb": -14.9,
+      "rmsDb": -23.48,
       "loudnessLufs": -17.93,
       "loudnessMode": "momentaryMax",
       "suggested": {
@@ -6587,8 +6587,8 @@
       "loop": false,
       "durationS": 1.1408,
       "channels": 2,
-      "peakDb": -17.25,
-      "rmsDb": -26.83,
+      "peakDb": -13.75,
+      "rmsDb": -23.31,
       "loudnessLufs": -17.92,
       "loudnessMode": "momentaryMax",
       "suggested": {
@@ -6616,8 +6616,8 @@
       "loop": false,
       "durationS": 0.9795,
       "channels": 2,
-      "peakDb": -20.62,
-      "rmsDb": -29.98,
+      "peakDb": -14.74,
+      "rmsDb": -24.18,
       "loudnessLufs": -17.93,
       "loudnessMode": "momentaryMax",
       "suggested": {
@@ -6645,9 +6645,9 @@
       "loop": false,
       "durationS": 1.1483,
       "channels": 2,
-      "peakDb": -21.36,
-      "rmsDb": -30.47,
-      "loudnessLufs": -17.95,
+      "peakDb": -14.82,
+      "rmsDb": -23.97,
+      "loudnessLufs": -17.96,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.7,
@@ -6674,8 +6674,8 @@
       "loop": false,
       "durationS": 1.0281,
       "channels": 2,
-      "peakDb": -21.16,
-      "rmsDb": -30.18,
+      "peakDb": -15.08,
+      "rmsDb": -24.13,
       "loudnessLufs": -17.93,
       "loudnessMode": "momentaryMax",
       "suggested": {
@@ -6703,9 +6703,9 @@
       "loop": false,
       "durationS": 0.8722,
       "channels": 2,
-      "peakDb": -21.04,
-      "rmsDb": -31.54,
-      "loudnessLufs": -17.94,
+      "peakDb": -14.35,
+      "rmsDb": -24.84,
+      "loudnessLufs": -17.95,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.7,
@@ -6732,8 +6732,8 @@
       "loop": false,
       "durationS": 0.54,
       "channels": 2,
-      "peakDb": -22.05,
-      "rmsDb": -34.7,
+      "peakDb": -16.41,
+      "rmsDb": -28.76,
       "loudnessLufs": -22.4,
       "loudnessMode": "momentaryMax",
       "suggested": {
@@ -6754,23 +6754,23 @@
         {
           "file": "radio/radio_static_a.ogg",
           "durationS": 0.54,
-          "peakDb": -22.05,
-          "rmsDb": -34.31,
-          "loudnessLufs": -22.4
+          "peakDb": -16.41,
+          "rmsDb": -28.34,
+          "loudnessLufs": -22.39
         },
         {
           "file": "radio/radio_static_b.ogg",
           "durationS": 0.6691,
-          "peakDb": -22.78,
-          "rmsDb": -35.04,
-          "loudnessLufs": -22.44
+          "peakDb": -16.98,
+          "rmsDb": -29.09,
+          "loudnessLufs": -22.4
         },
         {
           "file": "radio/radio_static_c.ogg",
           "durationS": 0.8145,
-          "peakDb": -22.47,
-          "rmsDb": -34.74,
-          "loudnessLufs": -22.36
+          "peakDb": -16.71,
+          "rmsDb": -28.85,
+          "loudnessLufs": -22.4
         }
       ],
       "bankRegions": [
@@ -6796,11 +6796,11 @@
       "category": "reload",
       "bus": "Weapons",
       "loop": false,
-      "durationS": 1.6221,
+      "durationS": 1.621,
       "channels": 1,
-      "peakDb": -10.82,
-      "rmsDb": -26.53,
-      "loudnessLufs": -18.96,
+      "peakDb": -6.6,
+      "rmsDb": -22.32,
+      "loudnessLufs": -18.95,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.6,
@@ -6818,29 +6818,29 @@
       "variantStats": [
         {
           "file": "reload/reload_autoloader_cycle_a.ogg",
-          "durationS": 1.6221,
-          "peakDb": -10.82,
-          "rmsDb": -26.06,
-          "loudnessLufs": -18.97
+          "durationS": 1.621,
+          "peakDb": -6.6,
+          "rmsDb": -21.77,
+          "loudnessLufs": -18.95
         },
         {
           "file": "reload/reload_autoloader_cycle_b.ogg",
-          "durationS": 1.5999,
-          "peakDb": -12.31,
-          "rmsDb": -27.0,
-          "loudnessLufs": -18.95
+          "durationS": 1.5984,
+          "peakDb": -8.09,
+          "rmsDb": -22.87,
+          "loudnessLufs": -18.94
         }
       ],
       "bankRegions": [
         {
           "bank": "banks/reload_m1.ogg",
           "startS": 0.05,
-          "endS": 1.672083
+          "endS": 1.670958
         },
         {
           "bank": "banks/reload_m1.ogg",
-          "startS": 1.922083,
-          "endS": 3.521937
+          "startS": 1.920958,
+          "endS": 3.519396
         }
       ]
     },
@@ -6851,9 +6851,9 @@
       "loop": false,
       "durationS": 0.4456,
       "channels": 1,
-      "peakDb": -1.37,
-      "rmsDb": -20.13,
-      "loudnessLufs": -18.35,
+      "peakDb": -1.33,
+      "rmsDb": -18.19,
+      "loudnessLufs": -18.43,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.6,
@@ -6873,40 +6873,40 @@
         {
           "file": "reload/reload_breech_close_a.ogg",
           "durationS": 0.4456,
-          "peakDb": -1.42,
-          "rmsDb": -19.52,
-          "loudnessLufs": -18.47
+          "peakDb": -1.41,
+          "rmsDb": -17.93,
+          "loudnessLufs": -18.38
         },
         {
           "file": "reload/reload_breech_close_b.ogg",
           "durationS": 0.456,
-          "peakDb": -1.37,
-          "rmsDb": -20.18,
-          "loudnessLufs": -18.28
+          "peakDb": -1.41,
+          "rmsDb": -18.09,
+          "loudnessLufs": -18.37
         },
         {
           "file": "reload/reload_breech_close_c.ogg",
           "durationS": 0.4436,
-          "peakDb": -1.46,
-          "rmsDb": -20.68,
-          "loudnessLufs": -18.3
+          "peakDb": -1.33,
+          "rmsDb": -18.56,
+          "loudnessLufs": -18.53
         }
       ],
       "bankRegions": [
         {
           "bank": "banks/reload_m1.ogg",
-          "startS": 3.771937,
-          "endS": 4.217583
+          "startS": 3.769396,
+          "endS": 4.215042
         },
         {
           "bank": "banks/reload_m1.ogg",
-          "startS": 4.467583,
-          "endS": 4.923542
+          "startS": 4.465042,
+          "endS": 4.921
         },
         {
           "bank": "banks/reload_m1.ogg",
-          "startS": 5.173542,
-          "endS": 5.617188
+          "startS": 5.171,
+          "endS": 5.614646
         }
       ]
     },
@@ -6917,9 +6917,9 @@
       "loop": false,
       "durationS": 0.2886,
       "channels": 1,
-      "peakDb": -1.96,
-      "rmsDb": -26.84,
-      "loudnessLufs": -20.71,
+      "peakDb": -2.13,
+      "rmsDb": -22.46,
+      "loudnessLufs": -21.13,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.6,
@@ -6934,8 +6934,8 @@
       "bankRegions": [
         {
           "bank": "banks/reload_m1.ogg",
-          "startS": 5.867188,
-          "endS": 6.155812
+          "startS": 5.864646,
+          "endS": 6.153271
         }
       ]
     },
@@ -6946,9 +6946,9 @@
       "loop": false,
       "durationS": 3.4292,
       "channels": 1,
-      "peakDb": -8.16,
-      "rmsDb": -28.49,
-      "loudnessLufs": -18.96,
+      "peakDb": -4.92,
+      "rmsDb": -25.31,
+      "loudnessLufs": -18.95,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.6,
@@ -6963,8 +6963,8 @@
       "bankRegions": [
         {
           "bank": "banks/reload_m1.ogg",
-          "startS": 6.405812,
-          "endS": 9.835021
+          "startS": 6.403271,
+          "endS": 9.832479
         }
       ]
     },
@@ -6975,9 +6975,9 @@
       "loop": false,
       "durationS": 0.5395,
       "channels": 1,
-      "peakDb": -7.22,
-      "rmsDb": -26.67,
-      "loudnessLufs": -20.98,
+      "peakDb": -2.19,
+      "rmsDb": -22.12,
+      "loudnessLufs": -20.97,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.6,
@@ -6997,40 +6997,40 @@
         {
           "file": "reload/reload_shell_clank_a.ogg",
           "durationS": 0.5395,
-          "peakDb": -7.37,
-          "rmsDb": -25.9,
-          "loudnessLufs": -20.99
+          "peakDb": -3.43,
+          "rmsDb": -21.94,
+          "loudnessLufs": -20.95
         },
         {
           "file": "reload/reload_shell_clank_b.ogg",
           "durationS": 0.4748,
-          "peakDb": -7.22,
-          "rmsDb": -26.92,
-          "loudnessLufs": -20.96
+          "peakDb": -2.19,
+          "rmsDb": -21.92,
+          "loudnessLufs": -20.98
         },
         {
           "file": "reload/reload_shell_clank_c.ogg",
           "durationS": 0.4316,
-          "peakDb": -7.98,
-          "rmsDb": -27.2,
-          "loudnessLufs": -20.98
+          "peakDb": -3.17,
+          "rmsDb": -22.49,
+          "loudnessLufs": -20.97
         }
       ],
       "bankRegions": [
         {
           "bank": "banks/reload_m1.ogg",
-          "startS": 10.085021,
-          "endS": 10.6245
+          "startS": 10.082479,
+          "endS": 10.621958
         },
         {
           "bank": "banks/reload_m1.ogg",
-          "startS": 10.8745,
-          "endS": 11.349312
+          "startS": 10.871958,
+          "endS": 11.346771
         },
         {
           "bank": "banks/reload_m1.ogg",
-          "startS": 11.599312,
-          "endS": 12.030875
+          "startS": 11.596771,
+          "endS": 12.028333
         }
       ]
     },
@@ -7039,10 +7039,10 @@
       "category": "shells",
       "bus": "Weapons",
       "loop": false,
-      "durationS": 4.3656,
+      "durationS": 4.362,
       "channels": 1,
-      "peakDb": -2.19,
-      "rmsDb": -22.81,
+      "peakDb": -2.12,
+      "rmsDb": -22.74,
       "loudnessLufs": -21.94,
       "loudnessMode": "momentaryMax",
       "suggested": {
@@ -7062,41 +7062,41 @@
       "variantStats": [
         {
           "file": "shells/shell_distant_thump_a.ogg",
-          "durationS": 4.3656,
-          "peakDb": -2.74,
-          "rmsDb": -23.35,
+          "durationS": 4.362,
+          "peakDb": -2.61,
+          "rmsDb": -23.29,
           "loudnessLufs": -21.94
         },
         {
           "file": "shells/shell_distant_thump_b.ogg",
-          "durationS": 4.3467,
-          "peakDb": -2.19,
-          "rmsDb": -22.31,
+          "durationS": 4.3432,
+          "peakDb": -2.12,
+          "rmsDb": -22.24,
           "loudnessLufs": -21.95
         },
         {
           "file": "shells/shell_distant_thump_c.ogg",
-          "durationS": 3.6002,
-          "peakDb": -2.22,
-          "rmsDb": -22.78,
-          "loudnessLufs": -21.94
+          "durationS": 3.5939,
+          "peakDb": -2.17,
+          "rmsDb": -22.7,
+          "loudnessLufs": -21.93
         }
       ],
       "bankRegions": [
         {
           "bank": "banks/shells_m1.ogg",
           "startS": 0.05,
-          "endS": 4.415646
+          "endS": 4.411958
         },
         {
           "bank": "banks/shells_m1.ogg",
-          "startS": 4.665646,
-          "endS": 9.012375
+          "startS": 4.661958,
+          "endS": 9.005187
         },
         {
           "bank": "banks/shells_m1.ogg",
-          "startS": 9.262375,
-          "endS": 12.862542
+          "startS": 9.255187,
+          "endS": 12.849083
         }
       ]
     },
@@ -7107,9 +7107,9 @@
       "loop": false,
       "durationS": 1.2061,
       "channels": 1,
-      "peakDb": -1.83,
-      "rmsDb": -25.37,
-      "loudnessLufs": -14.38,
+      "peakDb": -1.38,
+      "rmsDb": -22.18,
+      "loudnessLufs": -14.48,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.9,
@@ -7133,40 +7133,40 @@
         {
           "file": "shells/shell_flyby_ap_a.ogg",
           "durationS": 1.2061,
-          "peakDb": -4.09,
-          "rmsDb": -25.43,
-          "loudnessLufs": -14.36
+          "peakDb": -1.67,
+          "rmsDb": -22.07,
+          "loudnessLufs": -14.4
         },
         {
           "file": "shells/shell_flyby_ap_b.ogg",
           "durationS": 1.2044,
-          "peakDb": -2.91,
-          "rmsDb": -25.42,
-          "loudnessLufs": -14.38
+          "peakDb": -2.0,
+          "rmsDb": -22.34,
+          "loudnessLufs": -14.58
         },
         {
           "file": "shells/shell_flyby_ap_c.ogg",
           "durationS": 1.1624,
-          "peakDb": -1.83,
-          "rmsDb": -25.26,
-          "loudnessLufs": -14.39
+          "peakDb": -1.38,
+          "rmsDb": -22.12,
+          "loudnessLufs": -14.45
         }
       ],
       "bankRegions": [
         {
           "bank": "banks/shells_m1.ogg",
-          "startS": 13.112542,
-          "endS": 14.318625
+          "startS": 13.099083,
+          "endS": 14.305167
         },
         {
           "bank": "banks/shells_m1.ogg",
-          "startS": 14.568625,
-          "endS": 15.772979
+          "startS": 14.555167,
+          "endS": 15.759521
         },
         {
           "bank": "banks/shells_m1.ogg",
-          "startS": 16.022979,
-          "endS": 17.185396
+          "startS": 16.009521,
+          "endS": 17.171937
         }
       ]
     },
@@ -7177,9 +7177,9 @@
       "loop": false,
       "durationS": 1.5342,
       "channels": 1,
-      "peakDb": -7.94,
-      "rmsDb": -26.62,
-      "loudnessLufs": -14.27,
+      "peakDb": -1.51,
+      "rmsDb": -20.54,
+      "loudnessLufs": -14.14,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.9,
@@ -7203,40 +7203,40 @@
         {
           "file": "shells/shell_flyby_he_a.ogg",
           "durationS": 1.5342,
-          "peakDb": -8.37,
-          "rmsDb": -26.87,
-          "loudnessLufs": -14.36
+          "peakDb": -2.0,
+          "rmsDb": -20.83,
+          "loudnessLufs": -14.15
         },
         {
           "file": "shells/shell_flyby_he_b.ogg",
           "durationS": 1.5245,
-          "peakDb": -7.94,
-          "rmsDb": -26.68,
-          "loudnessLufs": -14.25
+          "peakDb": -1.96,
+          "rmsDb": -20.58,
+          "loudnessLufs": -14.13
         },
         {
           "file": "shells/shell_flyby_he_c.ogg",
           "durationS": 1.5379,
-          "peakDb": -8.3,
-          "rmsDb": -26.32,
-          "loudnessLufs": -14.2
+          "peakDb": -1.51,
+          "rmsDb": -20.22,
+          "loudnessLufs": -14.14
         }
       ],
       "bankRegions": [
         {
           "bank": "banks/shells_m1.ogg",
-          "startS": 17.435396,
-          "endS": 18.969625
+          "startS": 17.421937,
+          "endS": 18.956167
         },
         {
           "bank": "banks/shells_m1.ogg",
-          "startS": 19.219625,
-          "endS": 20.744083
+          "startS": 19.206167,
+          "endS": 20.730625
         },
         {
           "bank": "banks/shells_m1.ogg",
-          "startS": 20.994083,
-          "endS": 22.531979
+          "startS": 20.980625,
+          "endS": 22.518521
         }
       ]
     },
@@ -7245,11 +7245,11 @@
       "category": "shells",
       "bus": "Weapons",
       "loop": false,
-      "durationS": 2.4416,
+      "durationS": 2.4372,
       "channels": 1,
-      "peakDb": -11.95,
-      "rmsDb": -24.52,
-      "loudnessLufs": -14.93,
+      "peakDb": -7.6,
+      "rmsDb": -19.8,
+      "loudnessLufs": -14.95,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.9,
@@ -7270,29 +7270,29 @@
       "variantStats": [
         {
           "file": "shells/shell_whistle_artillery_a.ogg",
-          "durationS": 2.4416,
-          "peakDb": -13.34,
-          "rmsDb": -24.98,
-          "loudnessLufs": -14.94
+          "durationS": 2.4372,
+          "peakDb": -8.28,
+          "rmsDb": -19.86,
+          "loudnessLufs": -14.96
         },
         {
           "file": "shells/shell_whistle_artillery_b.ogg",
-          "durationS": 2.5623,
-          "peakDb": -11.95,
-          "rmsDb": -24.07,
+          "durationS": 2.5575,
+          "peakDb": -7.6,
+          "rmsDb": -19.74,
           "loudnessLufs": -14.93
         }
       ],
       "bankRegions": [
         {
           "bank": "banks/shells_m1.ogg",
-          "startS": 22.781979,
-          "endS": 25.223604
+          "startS": 22.768521,
+          "endS": 25.20575
         },
         {
           "bank": "banks/shells_m1.ogg",
-          "startS": 25.473604,
-          "endS": 28.035937
+          "startS": 25.45575,
+          "endS": 28.01325
         }
       ]
     },
@@ -7303,9 +7303,9 @@
       "loop": false,
       "durationS": 1.8979,
       "channels": 1,
-      "peakDb": -1.48,
-      "rmsDb": -23.47,
-      "loudnessLufs": -15.29,
+      "peakDb": -1.34,
+      "rmsDb": -20.03,
+      "loudnessLufs": -15.68,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.6,
@@ -7324,16 +7324,16 @@
         {
           "file": "tracks/track_broken_clatter_a.ogg",
           "durationS": 1.8979,
-          "peakDb": -1.48,
-          "rmsDb": -22.7,
-          "loudnessLufs": -15.3
+          "peakDb": -1.61,
+          "rmsDb": -19.66,
+          "loudnessLufs": -15.62
         },
         {
           "file": "tracks/track_broken_clatter_b.ogg",
           "durationS": 1.8984,
-          "peakDb": -1.51,
-          "rmsDb": -24.24,
-          "loudnessLufs": -15.28
+          "peakDb": -1.34,
+          "rmsDb": -20.4,
+          "loudnessLufs": -15.75
         }
       ],
       "bankRegions": [
@@ -7356,9 +7356,9 @@
       "loop": true,
       "durationS": 4.0,
       "channels": 1,
-      "peakDb": -7.43,
-      "rmsDb": -23.58,
-      "loudnessLufs": -19.3,
+      "peakDb": -4.56,
+      "rmsDb": -20.7,
+      "loudnessLufs": -19.27,
       "loudnessMode": "integrated",
       "suggested": {
         "volume": 0.6,
@@ -7372,7 +7372,7 @@
       "event": "Vehicle moving on 'concrete' material (PlaybackSpeed = speed/25 km/h, 0.5-1.6x; volume follows speed).",
       "group": "tracks",
       "loopSeam": {
-        "jumpRatioMax": 0.045,
+        "jumpRatioMax": 0.035,
         "hfBurstDbMax": -6.8
       },
       "meta": {
@@ -7388,9 +7388,9 @@
       "loop": true,
       "durationS": 4.0,
       "channels": 1,
-      "peakDb": -10.38,
-      "rmsDb": -25.14,
-      "loudnessLufs": -20.25,
+      "peakDb": -5.91,
+      "rmsDb": -20.59,
+      "loudnessLufs": -20.22,
       "loudnessMode": "integrated",
       "suggested": {
         "volume": 0.6,
@@ -7420,9 +7420,9 @@
       "loop": true,
       "durationS": 4.0,
       "channels": 1,
-      "peakDb": -10.2,
-      "rmsDb": -25.23,
-      "loudnessLufs": -20.36,
+      "peakDb": -7.51,
+      "rmsDb": -22.42,
+      "loudnessLufs": -20.37,
       "loudnessMode": "integrated",
       "suggested": {
         "volume": 0.6,
@@ -7436,8 +7436,8 @@
       "event": "Vehicle moving on 'grass' material (PlaybackSpeed = speed/25 km/h, 0.5-1.6x; volume follows speed).",
       "group": "tracks",
       "loopSeam": {
-        "jumpRatioMax": 0.027,
-        "hfBurstDbMax": -3.4
+        "jumpRatioMax": 0.005,
+        "hfBurstDbMax": -3.23
       },
       "meta": {
         "surface": "grass",
@@ -7452,8 +7452,8 @@
       "loop": true,
       "durationS": 4.0,
       "channels": 1,
-      "peakDb": -9.66,
-      "rmsDb": -25.4,
+      "peakDb": -5.59,
+      "rmsDb": -21.2,
       "loudnessLufs": -19.32,
       "loudnessMode": "integrated",
       "suggested": {
@@ -7468,8 +7468,8 @@
       "event": "Vehicle moving on 'gravel' material (PlaybackSpeed = speed/25 km/h, 0.5-1.6x; volume follows speed).",
       "group": "tracks",
       "loopSeam": {
-        "jumpRatioMax": 0.001,
-        "hfBurstDbMax": -7.78
+        "jumpRatioMax": 0.007,
+        "hfBurstDbMax": -7.85
       },
       "meta": {
         "surface": "gravel",
@@ -7484,8 +7484,8 @@
       "loop": true,
       "durationS": 4.0,
       "channels": 1,
-      "peakDb": -7.53,
-      "rmsDb": -23.29,
+      "peakDb": -4.55,
+      "rmsDb": -20.16,
       "loudnessLufs": -19.27,
       "loudnessMode": "integrated",
       "suggested": {
@@ -7500,8 +7500,8 @@
       "event": "Vehicle moving on 'metal' material (PlaybackSpeed = speed/25 km/h, 0.5-1.6x; volume follows speed).",
       "group": "tracks",
       "loopSeam": {
-        "jumpRatioMax": 0.014,
-        "hfBurstDbMax": -2.8
+        "jumpRatioMax": 0.001,
+        "hfBurstDbMax": -2.77
       },
       "meta": {
         "surface": "metal",
@@ -7516,8 +7516,8 @@
       "loop": true,
       "durationS": 4.0,
       "channels": 1,
-      "peakDb": -6.37,
-      "rmsDb": -20.66,
+      "peakDb": -5.34,
+      "rmsDb": -19.02,
       "loudnessLufs": -19.99,
       "loudnessMode": "integrated",
       "suggested": {
@@ -7532,8 +7532,8 @@
       "event": "Vehicle moving on 'mud' material (PlaybackSpeed = speed/25 km/h, 0.5-1.6x; volume follows speed).",
       "group": "tracks",
       "loopSeam": {
-        "jumpRatioMax": 0.143,
-        "hfBurstDbMax": -4.88
+        "jumpRatioMax": 0.067,
+        "hfBurstDbMax": -4.24
       },
       "meta": {
         "surface": "mud",
@@ -7548,8 +7548,8 @@
       "loop": true,
       "durationS": 4.0,
       "channels": 1,
-      "peakDb": -12.42,
-      "rmsDb": -24.98,
+      "peakDb": -10.41,
+      "rmsDb": -22.79,
       "loudnessLufs": -20.39,
       "loudnessMode": "integrated",
       "suggested": {
@@ -7564,8 +7564,8 @@
       "event": "Vehicle moving on 'sand' material (PlaybackSpeed = speed/25 km/h, 0.5-1.6x; volume follows speed).",
       "group": "tracks",
       "loopSeam": {
-        "jumpRatioMax": 0.008,
-        "hfBurstDbMax": -6.82
+        "jumpRatioMax": 0.007,
+        "hfBurstDbMax": -6.75
       },
       "meta": {
         "surface": "sand",
@@ -7580,9 +7580,9 @@
       "loop": true,
       "durationS": 4.0,
       "channels": 1,
-      "peakDb": -13.39,
-      "rmsDb": -27.32,
-      "loudnessLufs": -20.43,
+      "peakDb": -8.65,
+      "rmsDb": -22.71,
+      "loudnessLufs": -20.42,
       "loudnessMode": "integrated",
       "suggested": {
         "volume": 0.6,
@@ -7596,8 +7596,8 @@
       "event": "Vehicle moving on 'snow' material (PlaybackSpeed = speed/25 km/h, 0.5-1.6x; volume follows speed).",
       "group": "tracks",
       "loopSeam": {
-        "jumpRatioMax": 0.056,
-        "hfBurstDbMax": -1.87
+        "jumpRatioMax": 0.059,
+        "hfBurstDbMax": -1.78
       },
       "meta": {
         "surface": "snow",
@@ -7612,8 +7612,8 @@
       "loop": false,
       "durationS": 1.596,
       "channels": 1,
-      "peakDb": -18.92,
-      "rmsDb": -31.43,
+      "peakDb": -13.28,
+      "rmsDb": -25.95,
       "loudnessLufs": -21.95,
       "loudnessMode": "momentaryMax",
       "suggested": {
@@ -7634,23 +7634,23 @@
         {
           "file": "tracks/track_squeal_a.ogg",
           "durationS": 1.596,
-          "peakDb": -20.76,
-          "rmsDb": -31.19,
-          "loudnessLufs": -21.95
+          "peakDb": -15.33,
+          "rmsDb": -25.77,
+          "loudnessLufs": -21.96
         },
         {
           "file": "tracks/track_squeal_b.ogg",
           "durationS": 1.1254,
-          "peakDb": -18.92,
-          "rmsDb": -31.36,
+          "peakDb": -13.28,
+          "rmsDb": -25.71,
           "loudnessLufs": -21.95
         },
         {
           "file": "tracks/track_squeal_c.ogg",
           "durationS": 1.1317,
-          "peakDb": -20.22,
-          "rmsDb": -31.73,
-          "loudnessLufs": -21.96
+          "peakDb": -14.9,
+          "rmsDb": -26.37,
+          "loudnessLufs": -21.95
         }
       ],
       "bankRegions": [
@@ -7678,9 +7678,9 @@
       "loop": true,
       "durationS": 4.0,
       "channels": 1,
-      "peakDb": -9.23,
-      "rmsDb": -23.34,
-      "loudnessLufs": -20.11,
+      "peakDb": -5.16,
+      "rmsDb": -19.32,
+      "loudnessLufs": -20.04,
       "loudnessMode": "integrated",
       "suggested": {
         "volume": 0.6,
@@ -7694,8 +7694,8 @@
       "event": "Vehicle moving on 'water' material (PlaybackSpeed = speed/25 km/h, 0.5-1.6x; volume follows speed).",
       "group": "tracks",
       "loopSeam": {
-        "jumpRatioMax": 0.027,
-        "hfBurstDbMax": -1.96
+        "jumpRatioMax": 0.225,
+        "hfBurstDbMax": -18.99
       },
       "meta": {
         "surface": "water",
@@ -7710,9 +7710,9 @@
       "loop": true,
       "durationS": 4.0,
       "channels": 1,
-      "peakDb": -5.99,
-      "rmsDb": -22.3,
-      "loudnessLufs": -20.0,
+      "peakDb": -3.08,
+      "rmsDb": -19.35,
+      "loudnessLufs": -19.99,
       "loudnessMode": "integrated",
       "suggested": {
         "volume": 0.6,
@@ -7726,8 +7726,8 @@
       "event": "Vehicle moving on 'wood' material (PlaybackSpeed = speed/25 km/h, 0.5-1.6x; volume follows speed).",
       "group": "tracks",
       "loopSeam": {
-        "jumpRatioMax": 0.036,
-        "hfBurstDbMax": -10.56
+        "jumpRatioMax": 0.008,
+        "hfBurstDbMax": -10.5
       },
       "meta": {
         "surface": "wood",
@@ -7742,9 +7742,9 @@
       "loop": false,
       "durationS": 0.4371,
       "channels": 1,
-      "peakDb": -2.92,
-      "rmsDb": -22.6,
-      "loudnessLufs": -21.98,
+      "peakDb": -1.9,
+      "rmsDb": -21.41,
+      "loudnessLufs": -21.96,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.7,
@@ -7763,16 +7763,16 @@
         {
           "file": "engines/transmission_gear_shift_a.ogg",
           "durationS": 0.4371,
-          "peakDb": -2.92,
-          "rmsDb": -22.29,
-          "loudnessLufs": -21.98
+          "peakDb": -1.9,
+          "rmsDb": -21.27,
+          "loudnessLufs": -21.96
         },
         {
           "file": "engines/transmission_gear_shift_b.ogg",
           "durationS": 0.4417,
-          "peakDb": -4.37,
-          "rmsDb": -22.91,
-          "loudnessLufs": -21.99
+          "peakDb": -3.07,
+          "rmsDb": -21.56,
+          "loudnessLufs": -21.96
         }
       ],
       "bankRegions": [
@@ -7795,8 +7795,8 @@
       "loop": true,
       "durationS": 3.0,
       "channels": 1,
-      "peakDb": -22.56,
-      "rmsDb": -31.41,
+      "peakDb": -17.1,
+      "rmsDb": -25.85,
       "loudnessLufs": -25.97,
       "loudnessMode": "integrated",
       "suggested": {
@@ -7810,8 +7810,8 @@
       "description": "Straight-cut reverse gear whine loop.",
       "event": "Layered while driving in reverse (PlaybackSpeed tracks speed).",
       "loopSeam": {
-        "jumpRatioMax": 0.044,
-        "hfBurstDbMax": -0.02
+        "jumpRatioMax": 0.03,
+        "hfBurstDbMax": 0.24
       }
     },
     "turret_traverse_large": {
@@ -7821,9 +7821,9 @@
       "loop": true,
       "durationS": 3.0,
       "channels": 1,
-      "peakDb": -11.25,
-      "rmsDb": -22.74,
-      "loudnessLufs": -24.02,
+      "peakDb": -10.06,
+      "rmsDb": -21.51,
+      "loudnessLufs": -24.01,
       "loudnessMode": "integrated",
       "suggested": {
         "volume": 0.5,
@@ -7836,8 +7836,8 @@
       "description": "Hydraulic turret traverse drive with ring-gear rumble (heavy turrets).",
       "event": "Turret rotating (heavy).",
       "loopSeam": {
-        "jumpRatioMax": 0.062,
-        "hfBurstDbMax": 0.24
+        "jumpRatioMax": 0.006,
+        "hfBurstDbMax": 0.16
       }
     },
     "turret_traverse_small": {
@@ -7847,9 +7847,9 @@
       "loop": true,
       "durationS": 3.0,
       "channels": 1,
-      "peakDb": -17.65,
-      "rmsDb": -27.27,
-      "loudnessLufs": -24.97,
+      "peakDb": -14.26,
+      "rmsDb": -24.02,
+      "loudnessLufs": -24.98,
       "loudnessMode": "integrated",
       "suggested": {
         "volume": 0.5,
@@ -7862,8 +7862,8 @@
       "description": "Electric turret traverse motor (light/medium turrets).",
       "event": "Turret rotating (PlaybackSpeed 0.8-1.2 with traverse rate).",
       "loopSeam": {
-        "jumpRatioMax": 0.062,
-        "hfBurstDbMax": -5.69
+        "jumpRatioMax": 0.058,
+        "hfBurstDbMax": -5.71
       }
     },
     "turret_traverse_start": {
@@ -7873,9 +7873,9 @@
       "loop": false,
       "durationS": 0.4919,
       "channels": 1,
-      "peakDb": -11.64,
-      "rmsDb": -26.87,
-      "loudnessLufs": -23.95,
+      "peakDb": -8.87,
+      "rmsDb": -24.13,
+      "loudnessLufs": -23.94,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.5,
@@ -7894,15 +7894,15 @@
         {
           "file": "turret/turret_traverse_start_a.ogg",
           "durationS": 0.4919,
-          "peakDb": -11.64,
-          "rmsDb": -26.93,
-          "loudnessLufs": -23.96
+          "peakDb": -8.87,
+          "rmsDb": -24.13,
+          "loudnessLufs": -23.94
         },
         {
           "file": "turret/turret_traverse_start_b.ogg",
           "durationS": 0.4915,
-          "peakDb": -11.94,
-          "rmsDb": -26.81,
+          "peakDb": -9.32,
+          "rmsDb": -24.13,
           "loudnessLufs": -23.94
         }
       ],
@@ -7926,9 +7926,9 @@
       "loop": false,
       "durationS": 0.4122,
       "channels": 1,
-      "peakDb": -8.09,
-      "rmsDb": -25.0,
-      "loudnessLufs": -22.96,
+      "peakDb": -5.52,
+      "rmsDb": -22.48,
+      "loudnessLufs": -22.94,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.5,
@@ -7947,16 +7947,16 @@
         {
           "file": "turret/turret_traverse_stop_a.ogg",
           "durationS": 0.4122,
-          "peakDb": -9.4,
-          "rmsDb": -24.89,
-          "loudnessLufs": -22.96
+          "peakDb": -6.98,
+          "rmsDb": -22.38,
+          "loudnessLufs": -22.94
         },
         {
           "file": "turret/turret_traverse_stop_b.ogg",
           "durationS": 0.4313,
-          "peakDb": -8.09,
-          "rmsDb": -25.1,
-          "loudnessLufs": -22.96
+          "peakDb": -5.52,
+          "rmsDb": -22.58,
+          "loudnessLufs": -22.93
         }
       ],
       "bankRegions": [
@@ -7979,9 +7979,9 @@
       "loop": false,
       "durationS": 1.8772,
       "channels": 2,
-      "peakDb": -14.76,
-      "rmsDb": -33.54,
-      "loudnessLufs": -17.01,
+      "peakDb": -9.53,
+      "rmsDb": -28.32,
+      "loudnessLufs": -16.98,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.6,
@@ -8008,9 +8008,9 @@
       "loop": false,
       "durationS": 0.4336,
       "channels": 2,
-      "peakDb": -13.44,
-      "rmsDb": -30.62,
-      "loudnessLufs": -22.96,
+      "peakDb": -8.8,
+      "rmsDb": -25.94,
+      "loudnessLufs": -22.97,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.6,
@@ -8037,9 +8037,9 @@
       "loop": false,
       "durationS": 2.5569,
       "channels": 2,
-      "peakDb": -4.13,
-      "rmsDb": -26.27,
-      "loudnessLufs": -14.98,
+      "peakDb": -1.45,
+      "rmsDb": -23.04,
+      "loudnessLufs": -15.01,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.6,
@@ -8066,9 +8066,9 @@
       "loop": false,
       "durationS": 0.2408,
       "channels": 2,
-      "peakDb": -1.51,
-      "rmsDb": -27.56,
-      "loudnessLufs": -24.01,
+      "peakDb": -1.42,
+      "rmsDb": -25.82,
+      "loudnessLufs": -24.66,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.6,
@@ -8095,9 +8095,9 @@
       "loop": false,
       "durationS": 0.353,
       "channels": 2,
-      "peakDb": -17.4,
-      "rmsDb": -35.24,
-      "loudnessLufs": -25.39,
+      "peakDb": -12.24,
+      "rmsDb": -30.42,
+      "loudnessLufs": -25.61,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.6,
@@ -8124,8 +8124,8 @@
       "loop": false,
       "durationS": 0.4201,
       "channels": 2,
-      "peakDb": -12.39,
-      "rmsDb": -28.88,
+      "peakDb": -7.42,
+      "rmsDb": -23.9,
       "loudnessLufs": -19.95,
       "loudnessMode": "momentaryMax",
       "suggested": {
@@ -8153,9 +8153,9 @@
       "loop": false,
       "durationS": 0.5159,
       "channels": 2,
-      "peakDb": -5.4,
-      "rmsDb": -24.31,
-      "loudnessLufs": -14.98,
+      "peakDb": -1.37,
+      "rmsDb": -19.41,
+      "loudnessLufs": -15.12,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.6,
@@ -8182,8 +8182,8 @@
       "loop": false,
       "durationS": 0.2449,
       "channels": 2,
-      "peakDb": -10.31,
-      "rmsDb": -28.68,
+      "peakDb": -3.54,
+      "rmsDb": -21.84,
       "loudnessLufs": -20.03,
       "loudnessMode": "momentaryMax",
       "suggested": {
@@ -8211,9 +8211,9 @@
       "loop": false,
       "durationS": 0.5554,
       "channels": 2,
-      "peakDb": -16.07,
-      "rmsDb": -26.47,
-      "loudnessLufs": -20.97,
+      "peakDb": -14.3,
+      "rmsDb": -24.55,
+      "loudnessLufs": -20.94,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.6,
@@ -8240,9 +8240,9 @@
       "loop": false,
       "durationS": 0.1846,
       "channels": 2,
-      "peakDb": -16.0,
-      "rmsDb": -39.52,
-      "loudnessLufs": -31.97,
+      "peakDb": -11.0,
+      "rmsDb": -34.5,
+      "loudnessLufs": -32.07,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.6,
@@ -8267,11 +8267,11 @@
       "category": "ui",
       "bus": "UI",
       "loop": false,
-      "durationS": 1.8044,
+      "durationS": 1.7536,
       "channels": 2,
-      "peakDb": -14.91,
-      "rmsDb": -31.74,
-      "loudnessLufs": -16.98,
+      "peakDb": -9.92,
+      "rmsDb": -26.64,
+      "loudnessLufs": -16.97,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.6,
@@ -8287,7 +8287,7 @@
         {
           "bank": "banks/ui_s1.ogg",
           "startS": 9.932375,
-          "endS": 11.736792
+          "endS": 11.686
         }
       ]
     },
@@ -8298,8 +8298,8 @@
       "loop": false,
       "durationS": 2.4792,
       "channels": 2,
-      "peakDb": -9.15,
-      "rmsDb": -30.59,
+      "peakDb": -3.97,
+      "rmsDb": -25.53,
       "loudnessLufs": -15.48,
       "loudnessMode": "momentaryMax",
       "suggested": {
@@ -8315,8 +8315,8 @@
       "bankRegions": [
         {
           "bank": "banks/ui_s1.ogg",
-          "startS": 11.986792,
-          "endS": 14.466042
+          "startS": 11.936,
+          "endS": 14.41525
         }
       ]
     },
@@ -8327,9 +8327,9 @@
       "loop": false,
       "durationS": 0.6359,
       "channels": 2,
-      "peakDb": -16.52,
-      "rmsDb": -31.62,
-      "loudnessLufs": -19.97,
+      "peakDb": -10.96,
+      "rmsDb": -26.01,
+      "loudnessLufs": -19.95,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.6,
@@ -8344,8 +8344,8 @@
       "bankRegions": [
         {
           "bank": "banks/ui_s1.ogg",
-          "startS": 14.716042,
-          "endS": 15.351938
+          "startS": 14.66525,
+          "endS": 15.301146
         }
       ]
     },
@@ -8354,11 +8354,11 @@
       "category": "ui",
       "bus": "UI",
       "loop": false,
-      "durationS": 0.3897,
+      "durationS": 0.3806,
       "channels": 2,
-      "peakDb": -13.24,
-      "rmsDb": -35.77,
-      "loudnessLufs": -25.43,
+      "peakDb": -7.77,
+      "rmsDb": -30.04,
+      "loudnessLufs": -25.34,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.6,
@@ -8373,8 +8373,8 @@
       "bankRegions": [
         {
           "bank": "banks/ui_s1.ogg",
-          "startS": 15.601938,
-          "endS": 15.991646
+          "startS": 15.551146,
+          "endS": 15.931729
         }
       ]
     },
@@ -8385,9 +8385,9 @@
       "loop": false,
       "durationS": 0.7101,
       "channels": 2,
-      "peakDb": -13.46,
-      "rmsDb": -29.82,
-      "loudnessLufs": -17.99,
+      "peakDb": -9.43,
+      "rmsDb": -25.74,
+      "loudnessLufs": -17.97,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.6,
@@ -8402,8 +8402,8 @@
       "bankRegions": [
         {
           "bank": "banks/ui_s1.ogg",
-          "startS": 16.241646,
-          "endS": 16.951771
+          "startS": 16.181729,
+          "endS": 16.891854
         }
       ]
     },
@@ -8414,9 +8414,9 @@
       "loop": false,
       "durationS": 1.8075,
       "channels": 2,
-      "peakDb": -15.4,
-      "rmsDb": -30.95,
-      "loudnessLufs": -16.96,
+      "peakDb": -10.34,
+      "rmsDb": -25.76,
+      "loudnessLufs": -16.95,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.6,
@@ -8431,8 +8431,8 @@
       "bankRegions": [
         {
           "bank": "banks/ui_s1.ogg",
-          "startS": 17.201771,
-          "endS": 19.009292
+          "startS": 17.141854,
+          "endS": 18.949375
         }
       ]
     },
@@ -8443,9 +8443,9 @@
       "loop": false,
       "durationS": 0.1074,
       "channels": 2,
-      "peakDb": -10.54,
-      "rmsDb": -36.41,
-      "loudnessLufs": -32.9,
+      "peakDb": -7.79,
+      "rmsDb": -33.55,
+      "loudnessLufs": -33.04,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.6,
@@ -8460,8 +8460,8 @@
       "bankRegions": [
         {
           "bank": "banks/ui_s1.ogg",
-          "startS": 19.259292,
-          "endS": 19.366729
+          "startS": 19.199375,
+          "endS": 19.306812
         }
       ]
     },
@@ -8470,11 +8470,11 @@
       "category": "ui",
       "bus": "UI",
       "loop": false,
-      "durationS": 0.2604,
+      "durationS": 0.2574,
       "channels": 2,
-      "peakDb": -10.1,
-      "rmsDb": -33.75,
-      "loudnessLufs": -25.48,
+      "peakDb": -4.67,
+      "rmsDb": -29.03,
+      "loudnessLufs": -25.24,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.6,
@@ -8489,8 +8489,8 @@
       "bankRegions": [
         {
           "bank": "banks/ui_s1.ogg",
-          "startS": 19.616729,
-          "endS": 19.877146
+          "startS": 19.556812,
+          "endS": 19.81425
         }
       ]
     },
@@ -8501,9 +8501,9 @@
       "loop": false,
       "durationS": 0.2405,
       "channels": 2,
-      "peakDb": -10.51,
-      "rmsDb": -32.93,
-      "loudnessLufs": -25.12,
+      "peakDb": -4.73,
+      "rmsDb": -26.8,
+      "loudnessLufs": -24.88,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.6,
@@ -8518,8 +8518,8 @@
       "bankRegions": [
         {
           "bank": "banks/ui_s1.ogg",
-          "startS": 20.127146,
-          "endS": 20.367646
+          "startS": 20.06425,
+          "endS": 20.30475
         }
       ]
     },
@@ -8530,9 +8530,9 @@
       "loop": false,
       "durationS": 0.2559,
       "channels": 2,
-      "peakDb": -9.8,
-      "rmsDb": -31.77,
-      "loudnessLufs": -25.04,
+      "peakDb": -4.42,
+      "rmsDb": -26.38,
+      "loudnessLufs": -25.02,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.6,
@@ -8547,8 +8547,8 @@
       "bankRegions": [
         {
           "bank": "banks/ui_s1.ogg",
-          "startS": 20.617646,
-          "endS": 20.873583
+          "startS": 20.55475,
+          "endS": 20.810688
         }
       ]
     },
@@ -8559,9 +8559,9 @@
       "loop": false,
       "durationS": 2.7232,
       "channels": 2,
-      "peakDb": -8.91,
-      "rmsDb": -30.47,
-      "loudnessLufs": -15.97,
+      "peakDb": -4.18,
+      "rmsDb": -25.74,
+      "loudnessLufs": -15.96,
       "loudnessMode": "momentaryMax",
       "suggested": {
         "volume": 0.6,
@@ -8576,8 +8576,8 @@
       "bankRegions": [
         {
           "bank": "banks/ui_s1.ogg",
-          "startS": 21.123583,
-          "endS": 23.846792
+          "startS": 21.060688,
+          "endS": 23.783896
         }
       ]
     },
@@ -8588,9 +8588,9 @@
       "loop": true,
       "durationS": 30.0,
       "channels": 2,
-      "peakDb": -14.89,
-      "rmsDb": -34.24,
-      "loudnessLufs": -25.4,
+      "peakDb": -10.98,
+      "rmsDb": -30.45,
+      "loudnessLufs": -25.38,
       "loudnessMode": "integrated",
       "suggested": {
         "volume": 0.5,
@@ -8603,8 +8603,8 @@
       "description": "Rain: hiss bed, dense droplets, puddle plinks, low wash.",
       "event": "Weather layer: rain (2D).",
       "loopSeam": {
-        "jumpRatioMax": 0.149,
-        "hfBurstDbMax": -0.87
+        "jumpRatioMax": 0.158,
+        "hfBurstDbMax": -0.89
       }
     },
     "wx_sandstorm_loop": {
@@ -8614,9 +8614,9 @@
       "loop": true,
       "durationS": 30.0,
       "channels": 2,
-      "peakDb": -12.59,
-      "rmsDb": -29.94,
-      "loudnessLufs": -23.31,
+      "peakDb": -9.43,
+      "rmsDb": -27.11,
+      "loudnessLufs": -23.27,
       "loudnessMode": "integrated",
       "suggested": {
         "volume": 0.5,
@@ -8629,8 +8629,8 @@
       "description": "Sandstorm: roaring gusts, heavy sand hiss and grit, buffeting.",
       "event": "Weather layer: sandstorm (2D).",
       "loopSeam": {
-        "jumpRatioMax": 0.046,
-        "hfBurstDbMax": -7.9
+        "jumpRatioMax": 0.051,
+        "hfBurstDbMax": -7.78
       }
     },
     "wx_snowstorm_loop": {
@@ -8640,9 +8640,9 @@
       "loop": true,
       "durationS": 30.0,
       "channels": 2,
-      "peakDb": -14.28,
-      "rmsDb": -32.13,
-      "loudnessLufs": -23.33,
+      "peakDb": -9.11,
+      "rmsDb": -27.18,
+      "loudnessLufs": -23.3,
       "loudnessMode": "integrated",
       "suggested": {
         "volume": 0.5,
@@ -8655,8 +8655,8 @@
       "description": "Snowstorm: howling whistling gusts, snow hiss, buffeting.",
       "event": "Weather layer: snowstorm (2D).",
       "loopSeam": {
-        "jumpRatioMax": 0.085,
-        "hfBurstDbMax": -6.81
+        "jumpRatioMax": 0.054,
+        "hfBurstDbMax": -6.84
       }
     },
     "wx_thunder": {
@@ -8666,8 +8666,8 @@
       "loop": false,
       "durationS": 7.2322,
       "channels": 2,
-      "peakDb": -6.86,
-      "rmsDb": -26.8,
+      "peakDb": -6.13,
+      "rmsDb": -26.18,
       "loudnessLufs": -18.02,
       "loudnessMode": "momentaryMax",
       "suggested": {
@@ -8688,23 +8688,23 @@
         {
           "file": "weather/wx_thunder_a.ogg",
           "durationS": 7.2322,
-          "peakDb": -6.86,
-          "rmsDb": -26.69,
+          "peakDb": -6.13,
+          "rmsDb": -25.89,
           "loudnessLufs": -18.02
         },
         {
           "file": "weather/wx_thunder_b.ogg",
-          "durationS": 8.4865,
-          "peakDb": -8.43,
-          "rmsDb": -26.85,
-          "loudnessLufs": -18.0
+          "durationS": 8.2629,
+          "peakDb": -7.76,
+          "rmsDb": -26.27,
+          "loudnessLufs": -18.03
         },
         {
           "file": "weather/wx_thunder_c.ogg",
-          "durationS": 9.5,
-          "peakDb": -7.72,
-          "rmsDb": -26.86,
-          "loudnessLufs": -18.04
+          "durationS": 9.0538,
+          "peakDb": -7.35,
+          "rmsDb": -26.39,
+          "loudnessLufs": -18.0
         }
       ],
       "bankRegions": [
@@ -8716,12 +8716,12 @@
         {
           "bank": "banks/weather_s1.ogg",
           "startS": 7.532208,
-          "endS": 16.018667
+          "endS": 15.795083
         },
         {
           "bank": "banks/weather_s1.ogg",
-          "startS": 16.268667,
-          "endS": 25.768667
+          "startS": 16.045083,
+          "endS": 25.098917
         }
       ]
     }
@@ -8730,35 +8730,35 @@
     "ambience_m1": {
       "file": "banks/ambience_m1.ogg",
       "channels": 1,
-      "durationS": 118.616,
+      "durationS": 117.138,
       "buses": [
         "Ambience"
       ],
       "sounds": 27,
-      "peakDb": -6.93,
+      "peakDb": -5.06,
       "trimDb": 0.0
     },
     "ambience_m2": {
       "file": "banks/ambience_m2.ogg",
       "channels": 1,
-      "durationS": 18.16,
+      "durationS": 18.092,
       "buses": [
         "Ambience"
       ],
       "sounds": 5,
-      "peakDb": -12.9,
+      "peakDb": -7.46,
       "trimDb": 0.0
     },
     "armor_m1": {
       "file": "banks/armor_m1.ogg",
       "channels": 1,
-      "durationS": 27.775,
+      "durationS": 27.515,
       "buses": [
         "Impacts"
       ],
       "sounds": 21,
-      "peakDb": -1.49,
-      "trimDb": -0.28
+      "peakDb": -1.37,
+      "trimDb": -0.37
     },
     "cues_s1": {
       "file": "banks/cues_s1.ogg",
@@ -8768,29 +8768,29 @@
         "UI"
       ],
       "sounds": 10,
-      "peakDb": -5.4,
+      "peakDb": -1.43,
       "trimDb": 0.0
     },
     "damage_m1": {
       "file": "banks/damage_m1.ogg",
       "channels": 1,
-      "durationS": 49.48,
+      "durationS": 49.468,
       "buses": [
         "Impacts"
       ],
       "sounds": 15,
-      "peakDb": -1.2,
-      "trimDb": 0.0
+      "peakDb": -1.21,
+      "trimDb": -0.41
     },
     "destruction_m1": {
       "file": "banks/destruction_m1.ogg",
       "channels": 1,
-      "durationS": 34.388,
+      "durationS": 34.291,
       "buses": [
         "Impacts"
       ],
       "sounds": 14,
-      "peakDb": -1.42,
+      "peakDb": -1.28,
       "trimDb": 0.0
     },
     "engines_m1": {
@@ -8801,40 +8801,40 @@
         "Vehicles"
       ],
       "sounds": 14,
-      "peakDb": -2.98,
+      "peakDb": -1.46,
       "trimDb": 0.0
     },
     "guns_m1": {
       "file": "banks/guns_m1.ogg",
       "channels": 1,
-      "durationS": 118.561,
+      "durationS": 118.542,
       "buses": [
         "Weapons"
       ],
       "sounds": 30,
-      "peakDb": -1.09,
-      "trimDb": 0.0
+      "peakDb": -1.33,
+      "trimDb": -0.31
     },
     "guns_m2": {
       "file": "banks/guns_m2.ogg",
       "channels": 1,
-      "durationS": 87.427,
+      "durationS": 87.421,
       "buses": [
         "Weapons"
       ],
       "sounds": 24,
-      "peakDb": -1.3,
-      "trimDb": -0.38
+      "peakDb": -1.07,
+      "trimDb": 0.0
     },
     "hangar_m1": {
       "file": "banks/hangar_m1.ogg",
       "channels": 1,
-      "durationS": 18.805,
+      "durationS": 18.763,
       "buses": [
         "Ambience"
       ],
       "sounds": 4,
-      "peakDb": -14.39,
+      "peakDb": -11.93,
       "trimDb": 0.0
     },
     "hangar_s1": {
@@ -8845,7 +8845,7 @@
         "Ambience"
       ],
       "sounds": 2,
-      "peakDb": -13.87,
+      "peakDb": -10.22,
       "trimDb": 0.0
     },
     "impacts_m1": {
@@ -8856,8 +8856,8 @@
         "Impacts"
       ],
       "sounds": 24,
-      "peakDb": -1.17,
-      "trimDb": 0.0
+      "peakDb": -1.38,
+      "trimDb": -0.6
     },
     "radio_s1": {
       "file": "banks/radio_s1.ogg",
@@ -8867,29 +8867,29 @@
         "Voice"
       ],
       "sounds": 11,
-      "peakDb": -17.28,
+      "peakDb": -13.7,
       "trimDb": 0.0
     },
     "reload_m1": {
       "file": "banks/reload_m1.ogg",
       "channels": 1,
-      "durationS": 12.281,
+      "durationS": 12.278,
       "buses": [
         "Weapons"
       ],
       "sounds": 10,
-      "peakDb": -1.34,
+      "peakDb": -1.21,
       "trimDb": 0.0
     },
     "shells_m1": {
       "file": "banks/shells_m1.ogg",
       "channels": 1,
-      "durationS": 28.286,
+      "durationS": 28.263,
       "buses": [
         "Weapons"
       ],
       "sounds": 11,
-      "peakDb": -1.8,
+      "peakDb": -1.12,
       "trimDb": 0.0
     },
     "tracks_m1": {
@@ -8900,8 +8900,8 @@
         "Vehicles"
       ],
       "sounds": 5,
-      "peakDb": -1.45,
-      "trimDb": 0.0
+      "peakDb": -1.57,
+      "trimDb": -0.21
     },
     "turret_m1": {
       "file": "banks/turret_m1.ogg",
@@ -8911,29 +8911,29 @@
         "Vehicles"
       ],
       "sounds": 4,
-      "peakDb": -8.04,
+      "peakDb": -5.57,
       "trimDb": 0.0
     },
     "ui_s1": {
       "file": "banks/ui_s1.ogg",
       "channels": 2,
-      "durationS": 24.097,
+      "durationS": 24.034,
       "buses": [
         "UI"
       ],
       "sounds": 21,
-      "peakDb": -1.59,
+      "peakDb": -1.26,
       "trimDb": 0.0
     },
     "weather_s1": {
       "file": "banks/weather_s1.ogg",
       "channels": 2,
-      "durationS": 26.019,
+      "durationS": 25.349,
       "buses": [
         "Ambience"
       ],
       "sounds": 3,
-      "peakDb": -7.21,
+      "peakDb": -6.26,
       "trimDb": 0.0
     }
   }

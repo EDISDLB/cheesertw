@@ -36,7 +36,7 @@
 
 ---
 
-## 2. Technical standards (validated by `tools/audio/validate_audio.py`)
+## 2. Technical standards (validated by `tools/audio/validate_audio.py` and `tools/audio/qa_audio.py`)
 
 | Property | Standard |
 |---|---|
@@ -46,13 +46,22 @@
 | DC | \|mean\| < 0.001 per channel. One-shots get an end-safe Hann DC correction |
 | Loops | Built periodic by construction, then rotated to a quiet rising zero-crossing. Seam jump ≤ 1.0× the 99th-percentile sample step, measured on the **decoded** OGG |
 | Lengths | One-shots ≤ 9.5 s (UI and cues ≤ 3.5 s, radio ≤ 2.5 s). Engine, track, turret, fire and cue loops 2–8 s. Ambience and weather beds 30–40 s |
-| Loudness | One-shots are normalised on **max momentary loudness** (400 ms, BS.1770 K-weighting). Loops are normalised on **integrated loudness**. Targets are per sound (§3.4) |
+| One-shot heads | A one-shot speaks the moment it is triggered: lead-in below −60 dBFS is trimmed to 2 ms at mastering (`trim_lead`), except files whose timing is anchored to their start (`meta.closestApproachS`). QA limit: 30 ms of leading silence |
+| Loudness | One-shots are normalised on **max momentary loudness** (400 ms, BS.1770 K-weighting). Loops are normalised on **integrated loudness**. Targets are per sound (§3.4). The K-weighting in `synth/mix.py` reproduces the BS.1770 48 kHz reference coefficients exactly, and `qa_audio.py` re-measures every file with its own independent implementation |
 | Peak control | Clipper-before-limiter (soft knee 2 dB over the ceiling, maximum 6 dB), then a 1.5 ms look-ahead limiter. Total transient reduction is capped at 12 dB |
 | Determinism | Seed = SHA-256(key, variant) → PCG64. The Ogg stream serial is derived from the key, so files are byte-reproducible |
 
-Current validation (206 keys, 321 files, 19 banks): **0 errors**. Highest sample peak −1.07 dBFS.
-Highest true peak −0.52 dBTP. Worst loop seam jump ratio 0.67. Banks match their standalone files
-(envelope correlation ≥ 0.997, band difference ≤ 0.9 dB). Re-renders are byte-identical.
+Current validation (206 keys, 321 files, 19 banks): `validate_audio.py` **0 errors, 0 warnings**;
+`qa_audio.py` (SFX and music) **0 errors**. Highest sample peak −1.05 dBFS. Highest true peak −0.59 dBTP.
+Worst loop seam jump ratio 0.23 (validator) / 0.41× the local sample motion (QA). Longest one-shot
+lead-in 7.6 ms. No truncation clicks. Banks match their standalone files (envelope correlation ≥ 0.997).
+Re-renders are byte-identical (12/12 keys checked).
+
+> **Loudness meter fix (QA, 2026-10).** The K-weighting pre-filter had an operator-precedence slip
+> (`10 ** (G/20) ** 0.4997` evaluates as `10 ** ((G/20) ** 0.4997)`), which over-weighted 0.5–3 kHz by
+> up to +6.9 dB. Every file had been normalised with it, so midrange sounds (UI, cues, radio, the
+> ricochet ping) sat up to ~4 dB under their targets relative to bass-heavy ones. It is fixed and
+> every SFX and music file was re-rendered; the numbers in §3.4 and §11 are true BS.1770 values.
 
 ---
 
@@ -121,12 +130,12 @@ These are the levels written into the files. The faders in §3.1 then set the fi
 
 | Group | Target | Measured min / median / max (all variants) |
 |---|---|---|
-| Armor results and hits taken (one-shot, M-max) | −10 to −13.5 | −13.7 / −11.9 / −10.9 |
+| Armor results and hits taken (one-shot, M-max) | hits taken −11 to −13.5; penetration −12, critical −13, ricochet / blocked −13.5 | −14.7 / −13.6 / −11.3 |
 | Gun close | −10.5 (huge, howitzer) to −12.5 (small) | −13.0 / −11.8 / −10.8 |
 | Gun mid / far | close −5 dB / close −10 dB | −17.5 / −16.2 / −15.4 and −22.5 / −21.2 / −20.4 |
 | Explosions close / far | −9 to −11 / −16 to −17 | −11.4 / −10.5 / −9.4 and −17.4 / −16.9 / −15.9 |
 | Ground impacts | −13 (snow −15) | −15.2 / −13.4 / −13.2 |
-| Battle cues | −13 (sixth sense) to −24 (target lost) | −24.1 / −18.0 / −13.0 |
+| Battle cues | −13 (sixth sense) to −24 (target lost) | −24.0 / −17.5 / −13.0 |
 | UI | −33 (hover, slider) to −15 (fanfares) | −32.9 / −20.0 / −15.0 |
 | Radio / Voice | −17 to −22 | −22.4 / −17.9 / −16.9 |
 | Engine loops (integrated) | idle −21.5, low −20, mid −18.5, high −17, damaged −18.5, overload −23, reverse −26 | −26.0 / −19.9 / −17.0 |
@@ -136,6 +145,14 @@ These are the levels written into the files. The faders in §3.1 then set the fi
 | Weather loops / hangar room tone | −23 to −25 / −30 | −25.4 / −23.3 / −23.3 and −30.2 |
 
 The validator enforces bus windows and warns when a sound drifts more than 3 dB from its own target.
+
+The armor-result targets keep the authored spacing (penetration 1.5 dB above ricochet / blocked,
+critical 0.5 dB above them) at the highest level the 12 dB transient-reduction cap allows: these
+sounds are all crack and snap, and with a correct meter the old −10 / −11 / −11.5 targets were
+unreachable (critical was stuck 4.5 dB short while ricochet, the one tonal sound, hit its target).
+Hits taken stay the loudest results (threat to me first, pillar 3). `qa_audio.py` also flags
+per-bus loudness outliers; the remaining flags are intentional quiet foley (`env_bush_rustle`,
+`env_bridge_creak`, `turret_traverse_start`), which sit with their own families.
 
 ---
 
@@ -338,16 +355,22 @@ Each event has its own signature:
 
 | Result | Signature (must stay unique) | Spectrum | Envelope | Measured centroid |
 |---|---|---|---|---|
-| `armor_penetration` | heavy boom + **dense granular steel crunch** + **tearing** sweep (2.8 → 0.7 kHz) | broadband, strong lows | 0.3 s dense, 1.15 s total | ~290 Hz (energy-weighted) |
-| `armor_ricochet` | **bright ping** (2.4–3 kHz bar modes, long ring) + **falling tumbling whine** (3.3 → 1.1 kHz) | tonal, high, almost no lows | ping then 0.8 s glide | ~2350 Hz |
-| `armor_blocked` | **dull, short, low-mid clang** (175–1200 Hz plate modes, low-passed) + thud | low-mid tonal, no highs | 0.3 s ring, 1.1 s total | ~195 Hz |
-| `armor_critical` | razor snap + **electric zap** sweep (4 kHz → 250 Hz) + **arcing buzz** (square 115–150 Hz, gated) + sparks | buzz harmonics + HF crackle | 0.5 s buzz | ~775 Hz |
+| `armor_penetration` | heavy boom + **dense granular steel crunch** + **tearing** sweep (2.8 → 0.7 kHz) | broadband, strong lows | 0.3 s dense, 1.15 s total | ~420 Hz (energy-weighted) |
+| `armor_ricochet` | **bright ping** (2.4–3 kHz bar modes, long ring) + **falling tumbling whine** (3.3 → 1.1 kHz) | tonal, high, almost no lows | ping then 0.8 s glide | ~2360 Hz |
+| `armor_blocked` | **dull, short, low-mid clang** (175–1200 Hz plate modes, low-passed) + thud | low-mid tonal, no highs | 0.3 s ring, 1.1 s total | ~200 Hz |
+| `armor_critical` | razor snap + **electric zap** sweep (4 kHz → 400 Hz) + **arcing buzz** (square 115–150 Hz, gated, harmonics 0.5–7 kHz) + sparks. No low end (high-passed at 200 Hz): it always layers on the penetration, which owns the boom | buzz harmonics + HF crackle | 0.55 s buzz | ~1290 Hz |
 | `armor_hit_taken_pen` | interior: muffled sub thud, hull "bong", muffled crunch, faint ring | below 2.6 kHz | 1.05 s | ~170 Hz |
 | `armor_hit_taken_blocked` | interior: thud and ringing hull bong only | below 1.9 kHz | 1.05 s | ~135 Hz |
 | `armor_hit_taken_ricochet` | interior: glancing thud, brighter hull ring, muffled whine | below 3 kHz | 1.0 s | n/a |
 
-The validator checks pairwise log-mel spectral distance between these results (minimum 6.6 dB today,
-threshold 4 dB). See `build/audio_review/armor_results.png`.
+The validator checks pairwise log-mel spectral distance between these results (minimum 5.9 dB today,
+threshold 4 dB). `qa_audio.py` checks penetration / ricochet / blocked / critical on every variant: each
+class pair must differ in at least two of spectral centroid (≥ 0.5 octave, also on a 300 Hz–8 kHz
+"phone speaker" band), log-mel shape (≥ 6 dB, and ≥ 4 dB on the phone band) and attack/decay envelope
+(≥ 6 dB); the nearest other class must be further away than the class's own a/b/c spread (today:
+nearest other class ≥ 8.7 dB, own spread ≤ 6.0 dB); and every variant must classify to its own class
+(leave-one-out nearest neighbour). See `build/audio_review/armor_results.png` and
+`qa_armor_distinctness.png`.
 
 ### 6.9 Environment destruction
 
@@ -396,7 +419,9 @@ Use them together with minimap pings and captions.
 ### 6.13 Ambience, weather and hangar
 
 Beds are 40 s stereo loops, periodic by construction (FFT
-noise, periodic random control curves, circular filtering and convolution, wrapped events). Spots
+noise, periodic random control curves, circular filtering and convolution, wrapped events). Their
+side (L−R) signal is high-passed at 120 Hz (`mono_bass`), so the rumble survives mono and phone
+playback (independent per-channel noise had come out anti-correlated below 150 Hz on the harbor bed). Spots
 are mono one-shots for random 3D emitters 60–300 m away. Animals are abstract synthetic calls (FM
 bird chirps, formant-filtered "caws", gull glides, pulsed cricket carriers), never imitations of
 real recordings. Thunder is a crackling leader (close only) plus many rolling low-passed bursts in
@@ -467,6 +492,7 @@ python3 tools/audio/generate_sfx.py            # render + master + encode all ke
 python3 tools/audio/generate_sfx.py --only 'armor_*,gun_large_*'   # partial re-render (catalogue is merged)
 python3 tools/audio/generate_sfx.py --list     # list keys
 python3 tools/audio/validate_audio.py          # all checks -> build/audio_review/validation.json (exit 1 on error)
+python3 tools/audio/qa_audio.py                # independent QA gate, SFX + music (CI: --no-sheets; --strict fails on warnings)
 python3 tools/audio/review_audio.py            # spectrogram sheets -> build/audio_review/*.png
 python3 tools/audio/doc_sound_list.py          # refresh section 10 of this document from the catalogue
 ```
@@ -494,9 +520,22 @@ with Vorbis) and Pillow for the review sheets.
   one-time warning for any missing id.
 * **Adding a sound:** add a render function and a `sound(...)` registration in the right
   `tools/audio/designs/*.py` module (key, category, description, gameplay event, variants, loop
-  length, level, priority, attenuation range). Then regenerate, validate, review the spectrogram if
-  the sound is gameplay-critical, and run `doc_sound_list.py`. Do not import recordings. Every layer
-  must come from `synth/` or `designs/kit.py`.
+  length, level, priority, attenuation range). Then regenerate, validate, run `qa_audio.py`, review the
+  spectrogram if the sound is gameplay-critical, and run `doc_sound_list.py`. Do not import recordings.
+  Every layer must come from `synth/` or `designs/kit.py`.
+* **QA gate (`tools/audio/qa_audio.py`, CI):** independent of the generator's DSP code. It checks both
+  catalogues against the files (exist, OGG Vorbis 44.1/48 kHz, declared channels and duration, music
+  loops to the sample, `<key>[_<variant>].ogg` naming, snake_case keys unique across SFX and music, no
+  orphans, catalogue figures not stale); channel policy and mono-downmix safety; sample peak ≤ −1 dBFS,
+  DC, NaN, silence, clipping, one-shot lead-in ≤ 30 ms, truncated tails and the brief's length windows
+  (music loops 60–150 s); loop seams (sample step and slope vs the local motion, HF burst vs the
+  neighbourhood, level step vs the loop's own largest, or vs its bar lines for music) and truncation
+  clicks anywhere; battle stems (identical length and grid, summed peak and loudness); per-bus
+  loudness spread and outliers and variant-to-variant level; armor-result distinctness; coverage of
+  every key, family, surface, band, command, biome spot and music state named in this document; and
+  banks and the upload quota. It writes `build/audio_review/qa_report.json` and the contact sheets
+  `qa_<category>.png`, `qa_loop_seams_*.png` and `qa_armor_distinctness.png` (skip them with
+  `--no-sheets`). Exit 1 on any error.
 
 ---
 
@@ -624,7 +663,7 @@ _Generated from `assets/audio/catalog.json` by `tools/audio/doc_sound_list.py` -
 
 | Key | Var | Bus | Type | Len s | Ch | Prio | Gameplay event |
 |---|---|---|---|---|---|---|---|
-| `shell_distant_thump` | 3 | Weapons | one-shot / far | 4.37 | 1 | 35 | Shot fired beyond the far band (>1.2 km) or from unspotted artillery. |
+| `shell_distant_thump` | 3 | Weapons | one-shot / far | 4.36 | 1 | 35 | Shot fired beyond the far band (>1.2 km) or from unspotted artillery. |
 | `shell_flyby_ap` | 3 | Weapons | one-shot | 1.21 | 1 | 82 | Enemy kinetic round passes within ~15 m of the listener. |
 | `shell_flyby_he` | 3 | Weapons | one-shot | 1.53 | 1 | 80 | Enemy HE/HEAT round passes within ~15 m of the listener. |
 | `shell_whistle_artillery` | 2 | Weapons | one-shot | 2.44 | 1 | 85 | Artillery shell inbound near listener; ends right before impact (schedule impact at file end). |
@@ -647,7 +686,7 @@ _Generated from `assets/audio/catalog.json` by `tools/audio/doc_sound_list.py` -
 | Key | Var | Bus | Type | Len s | Ch | Prio | Gameplay event |
 |---|---|---|---|---|---|---|---|
 | `armor_blocked` | 3 | Impacts | one-shot | 1.13 | 1 | 95 | Shell hits but does not penetrate (blocked / absorbed by spaced armor). |
-| `armor_critical` | 3 | Impacts | one-shot | 0.99 | 1 | 96 | Penetration that damages a module or crew (plays with/after the penetration cue). |
+| `armor_critical` | 3 | Impacts | one-shot | 0.92 | 1 | 96 | Penetration that damages a module or crew (plays with/after the penetration cue). |
 | `armor_hit_taken_blocked` | 3 | Impacts | one-shot | 1.03 | 1 | 94 | Own vehicle hit without penetration (2D). |
 | `armor_hit_taken_pen` | 3 | Impacts | one-shot | 1.04 | 1 | 97 | Own vehicle penetrated (2D, interior perspective; duck Vehicles/Ambience). |
 | `armor_hit_taken_ricochet` | 3 | Impacts | one-shot | 0.83 | 1 | 92 | Own vehicle hit, shell ricocheted (2D). |
@@ -663,14 +702,14 @@ _Generated from `assets/audio/catalog.json` by `tools/audio/doc_sound_list.py` -
 | `dmg_ammo_rack_detonation_far` | 1 | Impacts | one-shot / far | 5.45 | 1 | 70 | Vehicle destroyed by ammo rack detonation. |
 | `dmg_engine_damaged` | 2 | Impacts | one-shot | 2.39 | 1 | 82 | Engine module damaged (then switch to the family's _damaged loop). |
 | `dmg_fire_extinguished` | 1 | Impacts | one-shot | 2.52 | 1 | 80 | Fire put out (automatic or consumable). |
-| `dmg_fire_ignition` | 1 | Impacts | one-shot | 2.74 | 1 | 88 | Vehicle catches fire (then start dmg_fire_loop). |
+| `dmg_fire_ignition` | 1 | Impacts | one-shot | 2.73 | 1 | 88 | Vehicle catches fire (then start dmg_fire_loop). |
 | `dmg_fire_loop` | 1 | Impacts | loop 5s | 5.00 | 1 | 70 | While a vehicle is burning. |
 | `dmg_module_damaged` | 2 | Impacts | one-shot | 0.38 | 1 | 80 | Any module (gun, turret ring, optics, radio, fuel tank) damaged. |
 | `dmg_track_broken` | 2 | Impacts | one-shot | 1.38 | 1 | 85 | Track module destroyed. |
 | `dmg_vehicle_destroyed_large_close` | 1 | Impacts | one-shot / close | 5.77 | 1 | 90 | Vehicle destroyed (large = light/medium hulls, large = heavy/TD hulls). |
-| `dmg_vehicle_destroyed_large_far` | 1 | Impacts | one-shot / far | 5.25 | 1 | 65 | Vehicle destroyed (large = light/medium hulls, large = heavy/TD hulls). |
+| `dmg_vehicle_destroyed_large_far` | 1 | Impacts | one-shot / far | 5.24 | 1 | 65 | Vehicle destroyed (large = light/medium hulls, large = heavy/TD hulls). |
 | `dmg_vehicle_destroyed_medium_close` | 1 | Impacts | one-shot / close | 4.02 | 1 | 90 | Vehicle destroyed (medium = light/medium hulls, large = heavy/TD hulls). |
-| `dmg_vehicle_destroyed_medium_far` | 1 | Impacts | one-shot / far | 4.34 | 1 | 65 | Vehicle destroyed (medium = light/medium hulls, large = heavy/TD hulls). |
+| `dmg_vehicle_destroyed_medium_far` | 1 | Impacts | one-shot / far | 4.33 | 1 | 65 | Vehicle destroyed (medium = light/medium hulls, large = heavy/TD hulls). |
 | `dmg_wreck_burning_loop` | 1 | Impacts | loop 6s | 6.00 | 1 | 30 | Wreck of a destroyed vehicle (fade out after 30-60 s). |
 
 #### Environment destruction (7)
@@ -678,8 +717,8 @@ _Generated from `assets/audio/catalog.json` by `tools/audio/doc_sound_list.py` -
 | Key | Var | Bus | Type | Len s | Ch | Prio | Gameplay event |
 |---|---|---|---|---|---|---|---|
 | `env_brick_wall_collapse` | 1 | Impacts | one-shot | 3.08 | 1 | 60 | Destructible masonry wall destroyed. |
-| `env_bridge_creak` | 2 | Impacts | one-shot | 2.39 | 1 | 35 | Heavy vehicle on a wooden bridge (random every few seconds). |
-| `env_bush_rustle` | 3 | Impacts | one-shot | 1.00 | 1 | 25 | Vehicle pushes through bushes/foliage. |
+| `env_bridge_creak` | 2 | Impacts | one-shot | 2.35 | 1 | 35 | Heavy vehicle on a wooden bridge (random every few seconds). |
+| `env_bush_rustle` | 3 | Impacts | one-shot | 0.99 | 1 | 25 | Vehicle pushes through bushes/foliage. |
 | `env_fence_break` | 3 | Impacts | one-shot | 1.56 | 1 | 50 | Vehicle drives through a fence. |
 | `env_metal_container_impact` | 2 | Impacts | one-shot | 1.66 | 1 | 50 | Vehicle rams / shell hits a metal container or tank. |
 | `env_tree_fall` | 2 | Impacts | one-shot | 4.05 | 1 | 50 | Vehicle fells a tree. |
@@ -699,10 +738,10 @@ _Generated from `assets/audio/catalog.json` by `tools/audio/doc_sound_list.py` -
 | `ui_countdown_tick` | 1 | UI | one-shot | 0.24 | 2 | 85 | Pre-battle countdown second. |
 | `ui_error` | 1 | UI | one-shot | 0.56 | 2 | 75 | Invalid action / insufficient funds / locked. |
 | `ui_hover` | 1 | UI | one-shot | 0.18 | 2 | 40 | Pointer/selection moves onto an interactive element. |
-| `ui_level_up` | 1 | UI | one-shot | 1.80 | 2 | 80 | Crew/vehicle/account level up. |
+| `ui_level_up` | 1 | UI | one-shot | 1.75 | 2 | 80 | Crew/vehicle/account level up. |
 | `ui_mission_complete` | 1 | UI | one-shot | 2.48 | 2 | 85 | Mission / campaign task complete. |
 | `ui_notification` | 1 | UI | one-shot | 0.64 | 2 | 65 | Toast notification arrives. |
-| `ui_open_panel` | 1 | UI | one-shot | 0.39 | 2 | 55 | Panel/modal opens. |
+| `ui_open_panel` | 1 | UI | one-shot | 0.38 | 2 | 55 | Panel/modal opens. |
 | `ui_purchase` | 1 | UI | one-shot | 0.71 | 2 | 80 | Purchase completed (credits/gold). |
 | `ui_research_complete` | 1 | UI | one-shot | 1.81 | 2 | 82 | Module/vehicle researched. |
 | `ui_slider_tick` | 1 | UI | one-shot | 0.11 | 2 | 30 | Slider step changed (rate-limit to 30/s). |
@@ -747,22 +786,22 @@ _Generated from `assets/audio/catalog.json` by `tools/audio/doc_sound_list.py` -
 | Key | Var | Bus | Type | Len s | Ch | Prio | Gameplay event |
 |---|---|---|---|---|---|---|---|
 | `amb_desert_bed` | 1 | Ambience | loop 40s | 40.00 | 2 | 20 | Map 'desert' biome: always-on 2D bed (crossfade 3 s on load). |
-| `amb_desert_spot_metal_creak` | 2 | Ambience | one-shot | 5.04 | 1 | 15 | Random 3D emitter around the listener on 'desert' maps (every 8-30 s, 60-300 m away). |
-| `amb_desert_spot_sand_gust` | 1 | Ambience | one-shot | 2.57 | 1 | 15 | Random 3D emitter around the listener on 'desert' maps (every 8-30 s, 60-300 m away). |
+| `amb_desert_spot_metal_creak` | 2 | Ambience | one-shot | 4.96 | 1 | 15 | Random 3D emitter around the listener on 'desert' maps (every 8-30 s, 60-300 m away). |
+| `amb_desert_spot_sand_gust` | 1 | Ambience | one-shot | 2.52 | 1 | 15 | Random 3D emitter around the listener on 'desert' maps (every 8-30 s, 60-300 m away). |
 | `amb_fortress_old_bed` | 1 | Ambience | loop 40s | 40.00 | 2 | 20 | Map 'fortress_old' biome: always-on 2D bed (crossfade 3 s on load). |
 | `amb_fortress_old_spot_bell_toll` | 1 | Ambience | one-shot | 7.13 | 1 | 15 | Random 3D emitter around the listener on 'fortress_old' maps (every 8-30 s, 60-300 m away). |
 | `amb_fortress_old_spot_crow` | 2 | Ambience | one-shot | 2.63 | 1 | 15 | Random 3D emitter around the listener on 'fortress_old' maps (every 8-30 s, 60-300 m away). |
 | `amb_harbor_bed` | 1 | Ambience | loop 40s | 40.00 | 2 | 20 | Map 'harbor' biome: always-on 2D bed (crossfade 3 s on load). |
 | `amb_harbor_spot_buoy_bell` | 1 | Ambience | one-shot | 5.01 | 1 | 15 | Random 3D emitter around the listener on 'harbor' maps (every 8-30 s, 60-300 m away). |
 | `amb_harbor_spot_crane_clank` | 2 | Ambience | one-shot | 3.99 | 1 | 15 | Random 3D emitter around the listener on 'harbor' maps (every 8-30 s, 60-300 m away). |
-| `amb_harbor_spot_foghorn` | 1 | Ambience | one-shot | 6.80 | 1 | 15 | Random 3D emitter around the listener on 'harbor' maps (every 8-30 s, 60-300 m away). |
+| `amb_harbor_spot_foghorn` | 1 | Ambience | one-shot | 6.78 | 1 | 15 | Random 3D emitter around the listener on 'harbor' maps (every 8-30 s, 60-300 m away). |
 | `amb_harbor_spot_gull` | 3 | Ambience | one-shot | 1.95 | 1 | 15 | Random 3D emitter around the listener on 'harbor' maps (every 8-30 s, 60-300 m away). |
 | `amb_mountain_bed` | 1 | Ambience | loop 40s | 40.00 | 2 | 20 | Map 'mountain' biome: always-on 2D bed (crossfade 3 s on load). |
-| `amb_mountain_spot_gust_howl` | 1 | Ambience | one-shot | 3.41 | 1 | 15 | Random 3D emitter around the listener on 'mountain' maps (every 8-30 s, 60-300 m away). |
-| `amb_mountain_spot_rockfall` | 2 | Ambience | one-shot | 5.15 | 1 | 15 | Random 3D emitter around the listener on 'mountain' maps (every 8-30 s, 60-300 m away). |
+| `amb_mountain_spot_gust_howl` | 1 | Ambience | one-shot | 3.31 | 1 | 15 | Random 3D emitter around the listener on 'mountain' maps (every 8-30 s, 60-300 m away). |
+| `amb_mountain_spot_rockfall` | 2 | Ambience | one-shot | 5.13 | 1 | 15 | Random 3D emitter around the listener on 'mountain' maps (every 8-30 s, 60-300 m away). |
 | `amb_plains_bed` | 1 | Ambience | loop 40s | 40.00 | 2 | 20 | Map 'plains' biome: always-on 2D bed (crossfade 3 s on load). |
-| `amb_plains_spot_distant_thunder` | 2 | Ambience | one-shot | 8.34 | 1 | 15 | Random 3D emitter around the listener on 'plains' maps (every 8-30 s, 60-300 m away). |
-| `amb_plains_spot_insect_flyby` | 1 | Ambience | one-shot | 2.48 | 1 | 15 | Random 3D emitter around the listener on 'plains' maps (every 8-30 s, 60-300 m away). |
+| `amb_plains_spot_distant_thunder` | 2 | Ambience | one-shot | 7.87 | 1 | 15 | Random 3D emitter around the listener on 'plains' maps (every 8-30 s, 60-300 m away). |
+| `amb_plains_spot_insect_flyby` | 1 | Ambience | one-shot | 2.43 | 1 | 15 | Random 3D emitter around the listener on 'plains' maps (every 8-30 s, 60-300 m away). |
 | `amb_river_town_bed` | 1 | Ambience | loop 40s | 40.00 | 2 | 20 | Map 'river_town' biome: always-on 2D bed (crossfade 3 s on load). |
 | `amb_river_town_spot_church_bell` | 2 | Ambience | one-shot | 5.66 | 1 | 15 | Random 3D emitter around the listener on 'river_town' maps (every 8-30 s, 60-300 m away). |
 | `amb_river_town_spot_shutter_bang` | 2 | Ambience | one-shot | 1.92 | 1 | 15 | Random 3D emitter around the listener on 'river_town' maps (every 8-30 s, 60-300 m away). |
@@ -771,7 +810,7 @@ _Generated from `assets/audio/catalog.json` by `tools/audio/doc_sound_list.py` -
 | `amb_temperate_valley_industrial_spot_machinery_clank` | 2 | Ambience | one-shot | 3.64 | 1 | 15 | Random 3D emitter around the listener on 'temperate_valley_industrial' maps (every 8-30 s, 60-300 m away). |
 | `amb_winter_bed` | 1 | Ambience | loop 40s | 40.00 | 2 | 20 | Map 'winter' biome: always-on 2D bed (crossfade 3 s on load). |
 | `amb_winter_spot_ice_crack` | 3 | Ambience | one-shot | 3.48 | 1 | 15 | Random 3D emitter around the listener on 'winter' maps (every 8-30 s, 60-300 m away). |
-| `amb_winter_spot_wind_whistle` | 1 | Ambience | one-shot | 2.97 | 1 | 15 | Random 3D emitter around the listener on 'winter' maps (every 8-30 s, 60-300 m away). |
+| `amb_winter_spot_wind_whistle` | 1 | Ambience | one-shot | 2.91 | 1 | 15 | Random 3D emitter around the listener on 'winter' maps (every 8-30 s, 60-300 m away). |
 
 #### Weather (4)
 
@@ -786,7 +825,7 @@ _Generated from `assets/audio/catalog.json` by `tools/audio/doc_sound_list.py` -
 
 | Key | Var | Bus | Type | Len s | Ch | Prio | Gameplay event |
 |---|---|---|---|---|---|---|---|
-| `hangar_compressor_cycle` | 1 | Ambience | one-shot | 7.22 | 1 | 20 | Garage: occasional (every 60-120 s). |
+| `hangar_compressor_cycle` | 1 | Ambience | one-shot | 7.18 | 1 | 20 | Garage: occasional (every 60-120 s). |
 | `hangar_distant_tools` | 3 | Ambience | one-shot | 3.53 | 1 | 20 | Garage: random 3D emitters every 10-40 s. |
 | `hangar_pa_chime` | 2 | Ambience | one-shot | 4.10 | 2 | 40 | Garage: before/after notifications such as 'battle found' or events (2D). |
 | `hangar_room_tone` | 1 | Ambience | loop 40s | 40.00 | 2 | 20 | Garage/hangar scene: always-on 2D bed. |
@@ -843,23 +882,23 @@ _Generated from `assets/music/catalog.json` by `tools/audio/doc_sound_list.py` -
 | Key | State | Type | Len s | Tempo / meter | Key | Bar 1 at | LUFS | Vol | Motif | Upload as |
 |---|---|---|---|---|---|---|---|---|---|---|
 | `main_theme` | MENU | loop | 106.67 | 72 BPM 4/4 | D minor | 591 smp | -18.0 | 0.8 | 7x (aug, full, head) | `main_theme.ogg` |
-| `garage_theme` | GARAGE | loop | 132.00 | 80 BPM 4/4 | D minor | 742 smp | -20.0 | 0.6 | 6x (full) | `garage_theme.ogg` |
-| `loading_theme` | LOADING | loop | 50.00 | 96 BPM 4/4 | D minor | 12 smp | -19.1 | 0.7 | 6x (full, head) | `loading_theme.ogg` |
+| `garage_theme` | GARAGE | loop | 132.00 | 80 BPM 4/4 | D minor | 690 smp | -20.0 | 0.6 | 6x (full) | `garage_theme.ogg` |
+| `loading_theme` | LOADING | loop | 60.00 | 96 BPM 4/4 | D minor | 764 smp | -19.0 | 0.7 | 8x (full, head) | `loading_theme.ogg` |
 | `battle_base` | BATTLE | loop (base stem) | 80.00 | 120 BPM 4/4 | D minor | 203 smp | -22.4 | 0.8 | - | `battle_base.ogg` |
-| `battle_mid` | BATTLE | loop (mid stem) | 80.00 | 120 BPM 4/4 | D minor | 203 smp | -22.7 | 0.8 | - | `battle_mid.ogg` |
+| `battle_mid` | BATTLE | loop (mid stem) | 80.00 | 120 BPM 4/4 | D minor | 203 smp | -22.6 | 0.8 | - | `battle_mid.ogg` |
 | `battle_high` | BATTLE | loop (high stem) | 80.00 | 120 BPM 4/4 | D minor | 203 smp | -20.7 | 0.8 | 22x (full, head, relmajor, transposed) | `battle_high.ogg` |
-| `battle_endgame` | BATTLE_ENDGAME | loop | 64.00 | 120 BPM 4/4 | D minor | 882 smp | -17.0 | 0.85 | 10x (aug, full, head) | `battle_endgame.ogg` |
-| `victory` | RESULT_STINGER | stinger | 26.90 | 80 BPM 4/4 | D major | 10 ms | -16.0 | 0.9 | 2x (full) | `banks/music_stingers_1.ogg` |
+| `battle_endgame` | BATTLE_ENDGAME | loop | 64.00 | 120 BPM 4/4 | D minor | 537 smp | -17.0 | 0.85 | 10x (aug, full, head) | `battle_endgame.ogg` |
+| `victory` | RESULT_STINGER | stinger | 26.89 | 80 BPM 4/4 | D major | 10 ms | -16.0 | 0.9 | 2x (full) | `banks/music_stingers_1.ogg` |
 | `defeat` | RESULT_STINGER | stinger | 26.68 | 60 BPM 4/4 | D minor | 10 ms | -18.0 | 0.85 | 2x (head, lament) | `banks/music_stingers_1.ogg` |
-| `draw` | RESULT_STINGER | stinger | 16.74 | 72 BPM 4/4 | D (open, sus) | 10 ms | -18.5 | 0.8 | 2x (full, head) | `banks/music_stingers_1.ogg` |
-| `results_theme` | RESULTS | loop | 60.00 | 64 BPM 4/4 | D minor / F major | 507 smp | -21.0 | 0.6 | 1x (full) | `results_theme.ogg` |
-| `map_dust_basin` | LOADING_MAP_STINGER | stinger | 15.42 | 90 BPM 4/4 | D Phrygian dominant | 10 ms | -18.0 | 0.8 | 1x (full) | `banks/music_stingers_1.ogg` |
+| `draw` | RESULT_STINGER | stinger | 16.60 | 72 BPM 4/4 | D (open, sus) | 10 ms | -18.5 | 0.8 | 2x (full, head) | `banks/music_stingers_1.ogg` |
+| `results_theme` | RESULTS | loop | 60.00 | 64 BPM 4/4 | D minor / F major | 498 smp | -21.0 | 0.6 | 1x (full) | `results_theme.ogg` |
+| `map_dust_basin` | LOADING_MAP_STINGER | stinger | 15.46 | 90 BPM 4/4 | D Phrygian dominant | 10 ms | -18.0 | 0.8 | 1x (full) | `banks/music_stingers_1.ogg` |
 | `map_frozen_front` | LOADING_MAP_STINGER | stinger | 17.34 | 72 BPM 4/4 | D minor (add9) | 10 ms | -18.0 | 0.8 | 2x (full) | `banks/music_stingers_1.ogg` |
-| `map_harbor_district` | LOADING_MAP_STINGER | stinger | 14.59 | 120 BPM 6/8 | D Dorian | 10 ms | -18.0 | 0.8 | 1x (dorian) | `banks/music_stingers_2.ogg` |
-| `map_iron_valley` | LOADING_MAP_STINGER | stinger | 13.89 | 100 BPM 4/4 | D minor (Phrygian) | 10 ms | -18.1 | 0.8 | 2x (full, head) | `banks/music_stingers_2.ogg` |
+| `map_harbor_district` | LOADING_MAP_STINGER | stinger | 14.64 | 120 BPM 6/8 | D Dorian | 10 ms | -18.0 | 0.8 | 1x (dorian) | `banks/music_stingers_2.ogg` |
+| `map_iron_valley` | LOADING_MAP_STINGER | stinger | 14.04 | 100 BPM 4/4 | D minor (Phrygian) | 10 ms | -18.1 | 0.8 | 2x (full, head) | `banks/music_stingers_2.ogg` |
 | `map_mountain_pass` | LOADING_MAP_STINGER | stinger | 19.01 | 60 BPM 4/4 | D Lydian | 10 ms | -18.0 | 0.8 | 3x (full, head) | `banks/music_stingers_2.ogg` |
 | `map_old_fortress` | LOADING_MAP_STINGER | stinger | 18.51 | 64 BPM 4/4 | D Dorian | 10 ms | -18.0 | 0.8 | 3x (dorian, head) | `banks/music_stingers_2.ogg` |
-| `map_open_plains` | LOADING_MAP_STINGER | stinger | 16.84 | 72 BPM 4/4 | D Mixolydian | 10 ms | -18.0 | 0.8 | 1x (full) | `banks/music_stingers_2.ogg` |
+| `map_open_plains` | LOADING_MAP_STINGER | stinger | 16.76 | 72 BPM 4/4 | D Mixolydian | 10 ms | -18.0 | 0.8 | 1x (full) | `banks/music_stingers_2.ogg` |
 | `map_river_town` | LOADING_MAP_STINGER | stinger | 15.51 | 144 BPM 3/4 | D minor | 10 ms | -18.0 | 0.8 | 1x (full) | `banks/music_stingers_2.ogg` |
 <!-- END MUSIC LIST -->
 
@@ -869,9 +908,11 @@ _Generated from `assets/music/catalog.json` by `tools/audio/doc_sound_list.py` -
 * **`garage_theme`**: calm military theme. Piano arpeggios run over an i–VI–III–VII vamp with a solo
   horn on the motif, then a string interlude, a brushed march snare, and celesta and flute quotes. It
   is 132 s long so it does not wear out in the garage.
-* **`loading_theme`** (tension build): ticking pulse, D pedal and an endless Shepard-Risset riser, with
-  a motif ostinato in the celli. Then come the horn call, the trombone motif and a Phrygian D/Eb
-  menace, a hit at bar 17, and a rebuild into the loop point.
+* **`loading_theme`** (tension build, 24 bars / 60 s): ticking pulse, D pedal and an endless
+  Shepard-Risset riser, with a motif ostinato in the celli. Then come the horn call, the trombone motif
+  answered by the full call in the horns (bars 13–16), a Phrygian D/Eb menace, a hit at bar 21, and a
+  rebuild into the loop point. (QA extended it from 20 bars / 50 s, which was under the 60–150 s window
+  for music loops.)
 * **Battle stems**: `battle_base` (low pulse and percussion), `battle_mid` (ostinato and harmony) and
   `battle_high` (full drums, brass with the motif, choir). They share one tempo, key, length and
   sample grid, and are mastered together, so base + mid + high is the full mix at −17 LUFS.
@@ -908,7 +949,7 @@ _Generated from `assets/music/catalog.json` by `tools/audio/doc_sound_list.py` -
 | Mastering | 28 Hz high-pass, then linked glue compression (2:1). Then a linked 3 ms look-ahead limiter detecting on the full mix and every stem, so stems keep their balance and still sum cleanly |
 | Loops | Rendered **periodic by construction**. Note releases and reverb tails wrap into the loop start (an overlap-add seam). Reverb is circular convolution, and filters, compressor and limiter run circularly. The loop never relies on a crossfade at runtime |
 | Loop start | All stems of a cue are rotated by one common offset (0–20 ms) to the quietest, smoothest common point just before bar 1. Bar 1 beat 1 is at `loop.gridOffsetSamples` |
-| Stingers | 10 ms silent lead-in (`stinger.leadS`). Bar 1 starts there. `stinger.bodyEndS` = end of the last bar. Natural ring-out trimmed at −70 dB with a 250 ms fade |
+| Stingers | 10 ms silent lead-in (`stinger.leadS`). Bar 1 starts there. `stinger.bodyEndS` = end of the last bar. Natural ring-out trimmed at −70 dB with a 250 ms fade. The first downbeat gets a 5 ms fade-in (10 or 20 ms if needed), chosen so that Vorbis pre-echo leaves the decoded lead-in below −62 dBFS |
 | Grid | Tempos give an integer number of samples per beat (72 BPM = 40 000, 120 BPM = 24 000). Battle stems and endgame share 120 BPM: 96 000 samples per bar |
 | Determinism | Seeded per cue, part and note. Byte-identical re-renders (checked on `draw`) |
 
@@ -997,7 +1038,7 @@ UI sounds.
 ### 11.8 Pipeline and uploads
 
 ```bash
-python3 tools/audio/generate_music.py           # compose + render + master + encode all cues, pack stinger banks, write catalog (~3 min on 4 cores)
+python3 tools/audio/generate_music.py           # compose + render + master + encode all cues, pack stinger banks, write catalog (~4.5 min on 4 cores)
 python3 tools/audio/generate_music.py --only 'map_*,draw'   # partial re-render (catalogue is merged)
 python3 tools/audio/generate_music.py --list    # cue list: tempo, meter, bars, length, parts, notes
 python3 tools/audio/validate_music.py           # all checks + review sheets -> build/audio_review/music_validation.json, music_*.png
@@ -1019,14 +1060,16 @@ python3 tools/audio/doc_sound_list.py           # refresh the generated tables i
 
 `python3 tools/audio/validate_music.py`: **0 errors, 1 warning** (19 files, 2 banks).
 
-* **Headroom:** highest sample peak −1.52 dBFS and highest true peak −1.51 dBTP. The summed battle
-  stems peak at −1.36 dBFS. Largest DC offset is 0.00005, and there are no clipped runs.
-* **Loudness:** every cue is within 0.1 dB of its target. Battle base + mid + high measures
-  −17.04 LUFS.
-* **Loop seams** (decoded files): worst jump ratio 0.20 (limit 1.0). The spectral and level change
+* **Headroom:** highest sample peak −1.40 dBFS and highest true peak −1.40 dBTP. The summed battle
+  stems peak at −1.28 dBFS. Largest DC offset is 0.00008, and there are no clipped runs. Every
+  stinger's decoded lead-in is at or below −67.6 dBFS (§11.3).
+* **Loudness:** every cue is within 0.1 dB of its target, measured with the corrected BS.1770 meter
+  (§2). Battle base + mid + high measures −17.03 LUFS.
+* **Loop seams** (decoded files): worst jump ratio 0.14 (limit 1.0). The spectral and level change
   across each seam is no larger than at the same loop's ordinary bar lines (results_theme: level
-  change 6.8 dB, against up to 6.0 dB at bar lines from its accented piano downbeats, within the
-  1 dB allowance).
+  change 6.6 dB, against up to 6.4 dB at bar lines from its accented piano downbeats, within the
+  1 dB allowance). `qa_audio.py` measures the same seam against every bar line with 50 ms windows:
+  10.2 dB against up to 12.2 dB elsewhere.
 * **Stem alignment:**
   * Identical lengths (3 840 000 samples = 40 bars) and identical grid offset (203 samples).
   * Onset cross-correlation lags between stems are 0 and 1 hop (2.5 ms).
@@ -1040,7 +1083,7 @@ python3 tools/audio/doc_sound_list.py           # refresh the generated tables i
   Krumhansl–Kessler key profiles for every cue except `draw`. The draw is open fifths and sus chords
   by design: it ranks 4th, with D as the strongest bass pitch class. That is the one warning.
 * **Motif:** every cue states it. At the statement points, the audio's chroma shows the call's tonic
-  and fifth among the three strongest pitch classes in 136 of 144 windows.
+  and fifth among the three strongest pitch classes in 140 of 148 windows.
 * **Banks:** each region matches its standalone file (envelope correlation ≥ 0.9995).
 * **Determinism:** a re-render is byte-identical.
 * **Melody salience** (measured during development, on dry parts): leads hold 88–97 % of their
