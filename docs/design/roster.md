@@ -1136,19 +1136,19 @@ Lore appears in the About Vehicle overview and the tech-tree tooltip (`vehicle.<
 sentences, present tense for what the vehicle does, past tense for how it came to be (§0.4 tone).
 
 **Iron Union**
-* `iu_kolmal` — Built on the frame of a foundry tractor, the Kolmal is the first vehicle every Union apprentice learns to rivet. Its armor is scrap from the casting floor, and it is still thicker than it needs to be.
-* `iu_ostmal` — The Ostmal's short gun was bored from a furnace-tapping tool, because the Rivet Guild refused to wait for a proper barrel. It hits harder than anything its size and reloads like it knows it.
-* `iu_bulmal` — The Bulmal's turret was the Union's first one-piece casting, poured in the great bellows hall at Kolvenn. Crews call it "the bell" for the sound a shell makes when it glances off.
+* `iu_kolmal` — The first Cinderbelt foundries bolted armor plate onto plough tractors to clear the proving fields. The Kolmal kept the tractor's patience and its stubbornness, and every Iron Union crew still learns to angle in one.
+* `iu_ostmal` — Foundry crews wanted a tank that could knock down a gate in one blow. The Ostmal's short gun and stepped glacis were cast in the same shop that made the furnace doors of the Cinderbelt.
+* `iu_bulmal` — Bulmal crews were the first to trust a cast dome. The foundry poured it in one piece, and the Marshals of the Trials logged it turning away shot after shot on the open flats.
 * `iu_osthald` — When the Trials first admitted heavy classes, the Union welded its thickest boiler plate into a box and called it a wall. The Osthald is that box, honest and slow, and it taught a generation to keep its front toward the enemy.
 * `iu_brakkhald` — The Slagmasters' council argued for a year about the Brakkhald's gun and then fitted both candidates. Its crews still argue about which one was right.
-* `iu_kolhald` — The Kolhald introduced the cast dome, a turret the foundries could pour in a single night shift. It also carried the Union's first long gun, which made its gunners briefly famous for hitting things at range.
+* `iu_kolhald` — The Kolhald brought the cast dome to the heavies, a turret the foundries could pour in a single night shift. It also carried the longest gun yet fitted to a Union heavy, which made its gunners briefly famous for hitting things at range.
 * `iu_varrhald` — The pike nose came from a shipwright who joined the Cinderbelt works and asked why tanks were flat at the front. The Varrhald proved him right, and every Union heavy since has kept the ridge.
 * `iu_tukkhald` — Two guns on one mantlet was a foundry joke until the Tukkhald's trials crew landed both shells on the same plate. The joke became doctrine within a season.
 * `iu_tukktund` — The Tukktund adds cheek armor and a heavier dome to the twin-gun idea, at the cost of almost everything else. Its crews say it does not need to move fast, because the enemy comes to it.
 * `iu_durhald` — The Durhald is the Union's answer to every question asked at the Marshal's Fields: thicker, heavier, twice. Both barrels come from the same pour, so they wear and shoot as one.
 * `iu_tundmal` — Tundmal crews describe it as a heavy that forgot to stop growing. A medium chassis carries a turret cast for something much bigger, and the Union never saw a reason to apologise.
 * `iu_brakkmal` — The Brakkmal was built to break the line itself, not to wait behind it. Its turret is the heaviest ever mounted on a Union medium, which is why it cannot look down a slope to save its life.
-* `iu_tammvarr` — The Tammvarr is an export pattern: lighter, quicker, with a rotating mount for buyers who did not want to point the whole vehicle. Union crews call it soft and secretly love the reload.
+* `iu_tammvarr` — The Tammvarr is an export pattern: lighter, quicker, with a rotating mount for buyers who did not want to point the whole vehicle. Union crews call it soft and secretly love the turret.
 * `iu_gorrtund` — Furnace Number One at Kolvenn was relit for a single casting: the Gorrtund's gun. It takes a breath before it fires, and so does everyone in front of it.
 
 **Crown Industries**
