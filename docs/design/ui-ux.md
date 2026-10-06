@@ -1466,13 +1466,14 @@ items flagged `camoBonus` (D§5; 0 in ranked), which say so explicitly.
 │ INSCRIPTIONS│                                                                         │ ─────────────────  │
 │ DECALS      │                                                                         │ Total [C] 40,000   │
 │ ATTACHMENTS │                                                                         │       [T] 300      │
+│ EFFECTS     │                                                                         │                    │
 │             │ [Season: Summer|Winter|Desert]  [□ Show only owned]                     │ [ BUY & APPLY ]    │
 ├─────────────┴─[item][item][item][item][item][item][item][item][item][item] ›──────────────────────────────────┤
 ```
 
 | Region | Rect | Content |
 |---|---|---|
-| Category rail | (144, 72, 240, 760) | `STYLES` (full sets), `PAINT`, `CAMOUFLAGE`, `EMBLEMS`, `INSCRIPTIONS`, `DECALS`, `ATTACHMENTS` (gun sleeves, stat trackers, stowage); a dot marks categories with pending changes |
+| Category rail | (144, 72, 240, 760) | One category per `CustomizationKind` (`Types/Content`): `STYLES` (`Style`), `PAINT`, `CAMOUFLAGE`, `EMBLEMS`, `INSCRIPTIONS`, `DECALS`, `ATTACHMENTS` (`Attachment` nets, stowage and antennas, plus `GunSleeve` and `StatTracker`), `EFFECTS` (`Effect`: shot, tracer and destruction effects, previewed by a looping 3 s demo in the viewport). A dot marks categories with pending changes |
 | Preview | full; interactive (400, 72, 1100, 760) | orbit/zoom; emblem/inscription/decal **slot hotspots** (hull L/R, turret L/R, front) as 32 px rings, select a slot then an item |
 | Cart | (1536, 72, 360, 760) | every pending change with price or `owned`, totals per currency, `BUY & APPLY` primary / `APPLY` when all owned, `DISCARD` |
 | Item strip | (144, 848, 1752, 160) | `CosmeticCard` 136 × 136: art, rarity 3 px top edge + pip (B§3.5, never a full fill), name, price / `OWNED` / source chip (`PASS`, `EVENT`, `MISSION`), scope lock ("Iron Union only") |
@@ -1481,10 +1482,13 @@ items flagged `camoBonus` (D§5; 0 in ranked), which say so explicitly.
 * Selecting an item **previews** it at once (local renderer only); nothing is bought until `BUY & APPLY` (Purchase
   confirm listing every item). Leaving with pending changes asks; leaving without buying restores the applied
   cosmetics exactly (REG-UI-10). `→ BuyCustomization`, `→ ApplyCustomization`.
-* `camoBonus` items show a `caption` "+4 % concealment in Open Trials (not ranked)" with the scouting glyph.
-* Content kinds today: `Paint`, `Camouflage`, `Emblem`, `Inscription`, `Style`, `GunSleeve`, `StatTracker`. `DECALS`
-  and stowage `ATTACHMENTS` need new kinds (`Decal`, `Attachment`), requested in §5.4; until then the Decals tab is
-  hidden and Attachments lists gun sleeves and stat trackers.
+* `camoBonus` items show a `caption` "Concealment +0.04 in Open Trials (none in ranked)" with the scouting glyph.
+  **No pay-for-stealth (D§5, D§15):** every `camoBonus` item must have a Credits price. A Bullion price may be offered
+  only alongside it, and items from the pass or events must have a Credits equivalent in the same category. The
+  bonus is flat and never stacks (one per vehicle). The Exterior hides a Bullion-only `camoBonus` item and
+  `ContentRegistry` validation flags it (§5.4).
+* Attachments and effects are visual only: they never add armor, never change the hitbox (ArmorGeometry comes from
+  the Blueprint, A§6.3) and never change concealment.
 * **Controller:** initial focus = first item of the active category; `[LB]/[RB]` categories; `[LT]/[RT]` page items;
   right stick orbit; `[X]` toggle slot hotspot mode; `[Y]` jump to cart.
 * **Compact:** category rail = icon tabs on top; cart = `CART (3)` button opening a sheet; item strip 96 × 96 cards.
@@ -1514,7 +1518,7 @@ pass track (D§14). Tabs: `DAILY` · `WEEKLY` · `CAMPAIGNS` · `SPECIAL` · `EV
 | Tab | Layout | Content and rules |
 |---|---|---|
 | DAILY | 4 `MissionCard`s 400 × 560 at (144, 136) with 24 px gaps | Easy / Medium / Hard + Bonus (locked until the three are complete, `PV.missions.daily.bonusUnlocked`). Conditions (`MissionCondition`) as rows with progress bars; "in one battle" vs cumulative shown explicitly; scope line from `MissionScope` ("Medium or heavy, Tier IV+"); rewards (scaled by top owned tier, D§14). `REROLL` uses `PV.missions.daily.rerollsUsed` (1 free, +1 with Premium Time) → `RerollDaily`; `CLAIM` → `ClaimMission` (reward toast + `ui_mission_complete`). |
-| WEEKLY | 3 cards 560 × 400 + a strip "Complete all 3: Guide (crew book)" | 5–10 battles each; rewards Booklet + 10 Tokens + 60 pass points (D§14); no credits. |
+| WEEKLY | 3 cards 560 × 400 + a strip "Complete all 3: Drill Manual (25k crew XP book)" | 5–10 battles each; rewards Field Notes (5k book) + 10 Tokens + 60 pass points (D§14 "Booklet" / "Guide", display names §0.3); no credits. |
 | CAMPAIGNS | Operation selector (3) · series tabs `ASSAULT` / `OVERWATCH` / `SUPPORT` · a 10-node path on a khaki operations-map panel (B§6.5 missions) · detail panel 520 px | Node = counter 56 px with index; states locked / active / complete / complete with honours (second notch). Detail: primary conditions, `WITH HONOURS` conditions, rewards, unique reward preview (3D lineup camera for vehicles/cosmetics). One active mission per series, `TRACK` toggle (tracked missions show in the battle scoreboard, §S34). |
 | SPECIAL | List of `MissionRow`s 1,200 × 96, filter chips `ALL` · `CLASS` (scope.classes) · `VEHICLE` (scope.vehicles) | Class missions show the class glyph; vehicle missions show the vehicle silhouette and also put a dot on that carousel card. |
 | EVENT | Event header 1,752 × 200 (art, name, ends in, token balance `PV.currencies.eventTokens[id]`, `EVENT SHOP ›`) + mission list | Ranked events show ladder rank and points (`PV.events[id].ranked`). |
@@ -1534,7 +1538,8 @@ pass track (D§14). Tabs: `DAILY` · `WEEKLY` · `CAMPAIGNS` · `SPECIAL` · `EV
 
 * 3 chapters × 30 stages × 30 points (D§14). Stage nodes 104 × 120 (reward icon 48, amount, state: claimed tick,
   claimable dusk edge + glow-free pulse, locked). Horizontal `VirtualList`; the current stage is centred on open.
-* `CLAIM ALL` claims every claimable stage in one request sequence (`→ ClaimPassStage` per stage, one toast summary).
+* `CLAIM ALL` claims every claimable stage in **one** request (`→ ClaimPassStage` with the list of stage keys, §0.6)
+  and shows one summary toast.
 * Paid track: **fixed rewards only** (D§14, no random items); unlock = Purchase confirm for the `SeasonPass` store
   item (`→ BuyPassPaid`).
 * **Controller:** `[LB]/[RB]` tabs (chapters are a segmented control above, `[X]` cycles them); `[LT]/[RT]` page 10
