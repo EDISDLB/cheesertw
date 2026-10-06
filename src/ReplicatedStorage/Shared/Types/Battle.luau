@@ -37,6 +37,9 @@ type CrewRole = Content.CrewRole
 type InternalModuleKind = Content.InternalModuleKind
 type ConsumableId = Content.ConsumableId
 type AchievementId = Content.AchievementId
+type ArmorZone = Content.ArmorZone
+type EventId = Content.EventId
+type BoosterId = Content.BoosterId
 
 export type BattleId = string
 --- Vehicle entity id inside one battle (also the participant id). Stable for the whole battle.
@@ -66,6 +69,18 @@ export type BattleOutcome = {
 --------------------------------------------------------------------------------
 
 export type BotSkill = "Recruit" | "Regular" | "Veteran"
+--- Account state a human brings to the battle, snapshotted by the Hub at enqueue and carried in the match manifest
+--- next to the Loadout (battle servers never read profiles). Scoring needs it to fill every bonus line on the
+--- battle server; anything that changes after enqueue (Premium Time bought mid-battle) applies from the next battle.
+export type RewardContext = {
+	premiumTime: boolean, -- Premium Time active at enqueue
+	plus: boolean, -- HULLDOWN Plus subscriber
+	plusBoostedVehicle: boolean, -- this vehicle is the subscriber's +20 % Plus vehicle
+	robloxPremium: boolean, -- +10 % credits (MembershipType Premium)
+	firstWinAvailable: boolean, -- first win of the day on this vehicle not used yet (×2 XP)
+	boosters: { { id: BoosterId, target: "VehicleXP" | "FreeXP" | "CrewXP" | "Credits", multiplier: number } },
+	eventIds: { EventId }, -- running events the player takes part in (EventModifiers apply)
+}
 export type BattleParticipant = {
 	participantId: EntityId,
 	userId: number?, -- nil for bots
@@ -81,10 +96,14 @@ export type BattleParticipant = {
 	role: RoleId,
 	faction: FactionId,
 	premiumVehicle: boolean,
+	maxHp: number, -- VehicleStats.hp at battle start (repair cost, High Caliber's "20 % of enemy HP", team HP bars)
 	--- Share of the battle the human controlled the vehicle (disconnect/AFK hand-over to a bot); rewards scale by it.
 	controlShare: number,
+	rewardContext: RewardContext?, -- humans only (nil for bots)
 }
 
+--- Per-target-class counters (missions with `against.classes`, Results breakdowns).
+export type TargetClassStats = { damageDealt: number, kills: number, spotted: number, assist: number }
 --- Per-participant counters, all derived from the event stream. Damage values are HP.
 export type BattleStats = {
 	damageDealt: number,
@@ -116,6 +135,9 @@ export type BattleStats = {
 	firstContactDamage: number, -- damage dealt in the first 180 s (Role Score)
 	soleSpotterDamaged: number, -- enemies damaged by allies that only this vehicle spotted (Patrol Duty)
 	hitsOnLaterKilled: number, -- enemies hit by this vehicle and later destroyed by others (Confederate)
+	--- The counters above split by the class of the enemy involved (assist = spotting + tracking + stun). Keys are
+	--- only present for classes with a non-zero entry.
+	byTargetClass: { [VehicleClass]: TargetClassStats },
 	killedBy: EntityId?,
 	deathCause: DamageKind?,
 	roleScore: number?, -- filled by Scoring (normalised; 1.0 = class×tier median)
@@ -150,6 +172,9 @@ export type DamageEvent = {
 	damage: number, -- HP removed (0 for blocked shots)
 	potentialDamage: number, -- rolled damage before armor (feeds damageBlocked)
 	distanceM: number?,
+	zone: ArmorZone?, -- first plate hit (damage log, hit-log QA, Armor Inspector replays)
+	effectiveArmorMm: number?, -- T_eff of the plate that decided the result
+	penetrationMm: number?, -- rolled penetration at the first impact (after falloff)
 	modulesHit: { ModuleHit },
 	crewInjured: { CrewHit },
 	fireStarted: boolean,
@@ -167,7 +192,7 @@ export type CaptureBaseId = string
 export type BattleEvent =
 	{ type: "Started", t: number }
 	| { type: "Spotted", t: number, spotter: EntityId, target: EntityId, first: boolean }
-	| { type: "Shot", t: number, shooter: EntityId, shellId: ShellId }
+	| { type: "Shot", t: number, shooter: EntityId, shellId: ShellId, ammoLeft: number } -- ammoLeft after the shot
 	| { type: "Damage", t: number, damage: DamageEvent }
 	| {
 		type: "ModuleState",
@@ -269,14 +294,17 @@ export type CreditReport = {
 	plusBonus: number,
 	eventBonus: number,
 	awardRewards: number, -- medal credit rewards
-	missionRewards: number, -- 0 from the battle server; the Hub's RewardService evaluates missions against the
-	-- inbox entry and fills this (plus "MissionRewards" lines) before showing the report
-	repairCost: number, -- positive amounts; subtracted in `net`
-	ammoCost: number,
-	consumableCost: number,
-	debtWaived: number, -- auto-repair floor: part of the costs waived so the balance never goes negative
+	--- Hub-filled fields: the battle server writes 0 for missionRewards, ammoCost, consumableCost and debtWaived,
+	--- because they depend on profile state it cannot see (missions, depot stock + autoResupply, credit balance).
+	--- RewardService fills them from the inbox entry under the session lock, appends their ledger lines and
+	--- recomputes `net`, so the lines still sum to what is applied.
+	missionRewards: number,
+	repairCost: number, -- positive amounts; subtracted in `net` (battle server: full repair × HP lost / max HP)
+	ammoCost: number, -- Hub: resupply of consumedAmmo not covered by depot stock
+	consumableCost: number, -- Hub: resupply of consumedConsumables
+	debtWaived: number, -- Hub: auto-repair floor, the part of the costs waived so the balance never goes negative
 	gross: number,
-	net: number, -- gross − costs + debtWaived (may be negative before the floor; never applied below 0 balance)
+	net: number, -- gross − costs + debtWaived
 }
 export type XpReport = {
 	base: number, -- Σ action XP × tier scale (win bonus excluded)
@@ -319,6 +347,8 @@ export type BattleResult = {
 	battleId: BattleId,
 	mode: BattleMode,
 	battleType: BattleType?, -- Random battles
+	eventId: EventId?, -- Event-mode battles: the event and its EventModeDefinition id
+	eventModeId: string?,
 	mapId: MapId,
 	startedAt: number, -- unix seconds at GO
 	durationS: number,
@@ -334,6 +364,8 @@ export type BattleSummary = {
 	battleId: BattleId,
 	mode: BattleMode,
 	battleType: BattleType?,
+	eventId: EventId?,
+	eventModeId: string?,
 	mapId: MapId,
 	startedAt: number,
 	durationS: number,
@@ -341,6 +373,7 @@ export type BattleSummary = {
 	team: TeamId,
 	outcome: BattleOutcomeKind,
 	reason: BattleEndReason,
+	botShare: number, -- BattleResult.botShare (missions' excludeBotHeavy, pvpOnly achievements)
 	stats: BattleStats,
 	medals: { MedalAward },
 	xp: number,
@@ -348,15 +381,49 @@ export type BattleSummary = {
 	creditsNet: number,
 }
 
+--- One row of the Results "Team" tab (both teams, ascending participantId).
+export type ResultRow = {
+	participantId: EntityId,
+	name: string,
+	isBot: boolean,
+	team: TeamId,
+	vehicleId: VehicleId,
+	survived: boolean,
+	damageDealt: number,
+	assist: number, -- spotting + tracking + stun
+	damageBlocked: number,
+	kills: number,
+	spotted: number,
+	xp: number, -- vehicle XP (Scoring); 0 for bots
+	roleScore: number?,
+	medals: number,
+}
+--- The receiving player's exchanges with one other vehicle (Results "Team" row -> per-enemy hits, 00-DECISIONS §14).
+export type Interaction = {
+	other: EntityId,
+	shotsAt: number,
+	hitsOn: number,
+	pensOn: number,
+	critsOn: number,
+	damageDealt: number,
+	spottedIt: boolean,
+	killedIt: boolean,
+	hitsFrom: number,
+	damageReceived: number,
+	killedBy: boolean,
+}
 --- One reward-inbox entry (DataStore RewardInbox_v1, key u_<UserId>, <= 20 entries; ARCHITECTURE §7). Written by
---- the battle server before teleporting players back; applied once by the Hub under the session lock.
+--- the battle server before teleporting players back; applied once by the Hub under the session lock. The Hub
+--- keeps only `summary` in profile.battleHistory; roster and interactions feed the Results screen of that session.
 export type RewardInboxEntry = {
 	battleId: BattleId,
 	issuedAt: number,
 	userId: number,
 	summary: BattleSummary,
 	rewards: RewardBreakdown,
-	consumedAmmo: { { shell: ShellId, count: number } }, -- for auto-resupply
+	roster: { ResultRow }, -- every participant (<= 30 rows)
+	interactions: { Interaction }, -- only vehicles this player exchanged shots or spotting with
+	consumedAmmo: { { shell: ShellId, count: number } }, -- for auto-resupply (AmmoCost is filled by the Hub)
 	consumedConsumables: { ConsumableId },
 	afkStrike: boolean,
 }

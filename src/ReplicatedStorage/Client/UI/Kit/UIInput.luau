@@ -8,6 +8,7 @@
 	                  Focus (shoulder tab switching) listen to. The context is enabled only while a focus scope is
 	                  active (Focus toggles it), never sinks input, and ignores presses while a TextBox has focus.
 	                  If the engine refuses to create IAS instances, it falls back to UserInputService.InputBegan.
+	                  Back interceptors (interceptBack) let open popovers consume Back before the Router pops.
 	Dependencies:     Kit/InputMode (key lists), Kit/Services, Core/Signal, Core/Log.
 	State:            The created context/actions (one per start), enabled flag, the three Signals.
 	Validation:       Only registered action names can be triggered.
@@ -47,6 +48,8 @@ UIInput.tabNext = Signal.new() :: Signal.Signal<>
 
 local enabled = false
 local context: InputContext? = nil
+-- Back interceptors (open popovers/dialogs): the newest one sees Back first; returning true consumes it.
+local interceptors: { { fn: () -> boolean } } = {}
 
 local function signalFor(name: string): Signal.Signal<>?
 	if name == "Back" then
@@ -75,8 +78,38 @@ function UIInput.trigger(name: ActionName): boolean
 	if not enabled or textBoxFocused() then
 		return false
 	end
+	if name == "Back" and UIInput.interceptBackNow() then
+		return true
+	end
 	signal:Fire()
 	return true
+end
+
+--- Registers a Back interceptor (open dropdowns, dialogs): it runs before the Router hears Back; return true to
+--- consume the press. Returns a function that removes it.
+function UIInput.interceptBack(fn: () -> boolean): () -> ()
+	local entry = { fn = fn }
+	table.insert(interceptors, entry)
+	return function()
+		local index = table.find(interceptors, entry)
+		if index ~= nil then
+			table.remove(interceptors, index)
+		end
+	end
+end
+
+--- Offers a Back press to the interceptors (newest first). Returns true if one consumed it.
+function UIInput.interceptBackNow(): boolean
+	for i = #interceptors, 1, -1 do
+		local entry = interceptors[i]
+		local ok, consumed = pcall(entry.fn)
+		if not ok then
+			log:error("back interceptor failed: %s", tostring(consumed))
+		elseif consumed == true then
+			return true
+		end
+	end
+	return false
 end
 
 --- Enables/disables the UI context (Focus enables it while any focus scope is active).

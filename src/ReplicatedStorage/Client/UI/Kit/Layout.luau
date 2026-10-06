@@ -179,8 +179,22 @@ Layout.isCompact = State.Computed(function(): boolean
 	return breakpointComputed:get() == "Compact"
 end)
 
+--- Pure: the Theme layout family for an environment (TV wins over Compact).
+function Layout.layoutModeFor(breakpoint: Breakpoint, tenFoot: boolean): Theme.LayoutMode
+	if tenFoot then
+		return "tv"
+	elseif breakpoint == "Compact" then
+		return "compact"
+	end
+	return "regular"
+end
+
 local function pushToTheme()
-	Theme.setSystem({ renderScale = scaleComputed:peek(), platform = platformComputed:peek() })
+	Theme.setSystem({
+		renderScale = scaleComputed:peek(),
+		platform = platformComputed:peek(),
+		layout = Layout.layoutModeFor(breakpointComputed:peek(), tenFootValue:peek()),
+	})
 end
 
 --- Overrides the environment (tests, gallery previews, the device emulator). `start` keeps it in sync otherwise.

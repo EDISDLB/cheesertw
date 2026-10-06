@@ -27,7 +27,11 @@
 	  * Gun space: origin = trunnion (elevation axis = X), -Z = barrel direction at elevation 0.
 	    world = turretWorld * pivots.gunTrunnion * CFrame.Angles(elevation, 0, 0) * p   (+ elevation = up).
 	  * Casemate mounts: the Turret group is fixed (yaw always 0); the gun yaws inside `yawLimitsDeg` about the
-	    trunnion's Y axis, then elevates.
+	    trunnion's Y axis, then elevates:
+	    world = hullCFrame * pivots.turretRing * pivots.gunTrunnion * CFrame.Angles(0, -gunYaw, 0)
+	            * CFrame.Angles(elevation, 0, 0) * p   (gunYaw radians, + = clockwise, |gunYaw| <= yaw limit).
+	  * Yaw sectors (ArcSector, yawLimitsDeg) are hull-relative bearings in degrees: 0 = forward, + = clockwise,
+	    range (-180, 180].
 ]]
 
 local Content = require("./Content")
@@ -121,6 +125,7 @@ export type CrewSlotStats = {
 	role: CrewRole,
 	also: { CrewRole },
 	level: number, -- effective crew level L at battle start (100 + ventilation/rations/brothers in arms)
+	maxHp: number, -- crew HP (0.8 × tier reference alpha, 00-DECISIONS §2); 0 HP = injured (L 50), never killed
 }
 
 export type CamoStats = {
@@ -162,7 +167,7 @@ export type VehicleStats = {
 	hp: number, -- hull hp + turret hpBonus, × equipment
 	massKg: number, -- hull + mounted modules
 	dimensionsM: Vector3, -- (width, height, length) of the hull box incl. tracks; collision OBB
-	modules: { [InternalModuleKind]: ModuleStats },
+	modules: { [InternalModuleKind]: ModuleStats }, -- one HP pool per kind (every volume of that kind shares it)
 	fireChance: number, -- per engine hit
 	fireDurationS: number,
 	crewInjuryChanceMul: number,
@@ -202,7 +207,7 @@ export type VehicleStats = {
 	crewLevels: { [CrewRole]: number }, -- per duty (multiple loaders averaged; doubled duties use that member)
 	consumableSlots: number,
 	consumableCooldownMul: number,
-	mechanics: { SpecialMechanic },
+	mechanics: { SpecialMechanic }, -- resolved copies: Apex `mechanic*` StatKeys already applied to their numbers
 	conditionalModifiers: { StatModifier },
 }
 
@@ -222,11 +227,17 @@ export type CrewMemberSnapshot = {
 	level: number, -- base level L before equipment/consumables (100; 50 never appears here: injuries are battle-only)
 	skills: { CrewSkillTraining },
 }
+--- Applied cosmetics, one id per slot (each must be a CustomizationDefinition of the matching kind whose scope
+--- admits the vehicle). A Style replaces paint + camouflage while applied. Never affects gameplay except the flat
+--- paint/camouflage camo bonus (`camoBonus`, 0 in competitive modes).
 export type CustomizationLoadout = {
 	paint: CustomizationId?,
 	camouflage: CustomizationId?,
 	emblem: CustomizationId?,
 	inscription: CustomizationId?,
+	decal: CustomizationId?,
+	attachments: { CustomizationId }?, -- <= 4, distinct
+	effect: CustomizationId?,
 	style: CustomizationId?,
 	gunSleeve: CustomizationId?,
 	statTracker: CustomizationId?,
@@ -272,9 +283,19 @@ export type InputFlag = "fire" | "holdTurret" | "brake" | "mechanic"
 --------------------------------------------------------------------------------
 
 export type ArmorGroup = "Hull" | "Turret" | "Gun"
---- Armor = main plates (penetration ends the shell's flight); Spaced = screens, skirts, tracks/wheels (subtract and
---- continue); Module = internal module volume (post-penetration path); Crew = crew seat volume.
-export type ArmorVolumeKind = "Armor" | "Spaced" | "Module" | "Crew"
+--- How a volume takes a shell (00-DECISIONS §1 "Order", 01-R2), walked in ray order along the shell's path:
+---   Armor   = the BODY of a group (hull box, sponsons, superstructure, turret shell, cupola). The interior of the
+---             vehicle is the union of the Armor volumes. Penetrating an Armor face puts the shell inside: rolled HP
+---             damage plus the internal path (Module/Crew volumes within max(0.5 m, 10 cal)). From inside, Armor
+---             faces stop the path (shells never exit); faces shared by adjoining Armor volumes are unreachable from
+---             outside and carry the thickness of the plate they continue.
+---   Layered = main armor OUTSIDE the body (gun mantlet, appliqué plates): the shell must penetrate it and then the
+---             body behind it (pen −= T_eff, continue); penetrating only it deals no HP damage; HE/HESH stopped
+---             here deal non-penetration damage from this plate's nominal thickness.
+---   Spaced  = screens, skirts, tracks/wheels, the gun barrel: pen −= T_eff (HE/HESH: 3 T), continue; never HP
+---             damage on its own; `module` names the external module it damages (TrackLeft/TrackRight, Gun).
+---   Module / Crew = internal volumes (thickness 0), reached only on the post-penetration path.
+export type ArmorVolumeKind = "Armor" | "Layered" | "Spaced" | "Module" | "Crew"
 
 --- One bounding plane of a convex volume, in the local space of the volume's group (studs).
 --- Points p inside the volume satisfy normal:Dot(p) <= distance for every face.
@@ -283,7 +304,7 @@ export type ArmorFace = {
 	distance: number, -- plane offset: normal:Dot(p) = distance on the face
 	thicknessMm: number, -- nominal plate thickness of this face (0 for Module/Crew volumes)
 	zone: ArmorZone,
-	spaced: boolean, -- true for screen faces (shell continues after subtracting T_eff)
+	spaced: boolean, -- = (volume.kind == "Spaced"), copied so face-level consumers (inspector, hit log) need no lookup
 }
 
 --- Convex polyhedron = intersection of its faces' half-spaces.
@@ -294,7 +315,7 @@ export type ArmorVolume = {
 	faces: { ArmorFace }, -- >= 4
 	center: Vector3, -- bounding-sphere centre (group space, studs)
 	radius: number, -- bounding-sphere radius (studs)
-	module: InternalModuleKind?, -- Module volumes, and Spaced volumes that are external modules (tracks)
+	module: InternalModuleKind?, -- Module volumes; Spaced volumes that are external modules (tracks, gun barrel)
 	crewSlot: number?, -- Crew volumes: index into VehicleDefinition.crew
 	label: string, -- Armor Inspector / debug label ("Upper glacis", "Ammo rack (bustle)")
 }
@@ -313,7 +334,9 @@ export type VehiclePivots = {
 
 --- Complete armor + module + crew geometry of one vehicle configuration (turret/gun swaps rebuild it).
 --- Invariants (REG-ARM-01): the union of Armor volumes per group is watertight against 10,000 random rays; every
---- Module and Crew volume lies inside its group's Armor volumes; faces are unit-normal and finite.
+--- Module and Crew volume lies inside its group's Armor volumes; Layered and Spaced volumes lie outside them;
+--- faces are unit-normal and finite; volume ids are unique. Gun-group volumes move with the gun (yaw on casemates,
+--- elevation always); the Armor Inspector reads the same volumes (zone, thickness, label, module) as Combat.
 export type ArmorModel = {
 	volumes: { ArmorVolume },
 	boundsCenter: Vector3, -- hull space, studs (broadphase sphere covering every group at any turret yaw)

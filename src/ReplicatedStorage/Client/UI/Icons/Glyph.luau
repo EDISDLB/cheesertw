@@ -62,7 +62,7 @@ end
 
 --- Creates a square canvas Frame of `size` px.
 function Glyph.canvas(size: CanBeState<number>, name: string?): Canvas
-	local sizeState = State.of(size)
+	local sizeState: State<number> = State.of(size)
 	local scale = State.Computed(function(): number
 		return sizeState:get() / Glyph.GRID
 	end)
@@ -90,7 +90,15 @@ local function px(c: Canvas, units: number, minimum: number?): State<number>
 end
 
 --- Axis-aligned rectangle with its top-left corner at (x, y).
-function Glyph.rect(c: Canvas, x: number, y: number, w: number, h: number, paint: Paint, options: PrimitiveOptions?): Frame
+function Glyph.rect(
+	c: Canvas,
+	x: number,
+	y: number,
+	w: number,
+	h: number,
+	paint: Paint,
+	options: PrimitiveOptions?
+): Frame
 	local opts: PrimitiveOptions = options or {}
 	local children: { Instance } = {}
 	if opts.radius ~= nil and opts.radius > 0 then
@@ -111,7 +119,15 @@ function Glyph.rect(c: Canvas, x: number, y: number, w: number, h: number, paint
 end
 
 --- Rectangle centred on (cx, cy), optionally rotated (degrees, clockwise) about its centre.
-function Glyph.box(c: Canvas, cx: number, cy: number, w: number, h: number, paint: Paint, options: PrimitiveOptions?): Frame
+function Glyph.box(
+	c: Canvas,
+	cx: number,
+	cy: number,
+	w: number,
+	h: number,
+	paint: Paint,
+	options: PrimitiveOptions?
+): Frame
 	local opts: PrimitiveOptions = options or {}
 	return Create.Frame({
 		Name = opts.name or "Box",
@@ -172,7 +188,15 @@ export type RingOptions = {
 }
 
 --- Ring with OUTER radius `r` and `thickness` units (UIStroke drawn outside a disc of radius r - thickness).
-function Glyph.ring(c: Canvas, cx: number, cy: number, r: number, thickness: number, paint: Paint, options: RingOptions?): Frame
+function Glyph.ring(
+	c: Canvas,
+	cx: number,
+	cy: number,
+	r: number,
+	thickness: number,
+	paint: Paint,
+	options: RingOptions?
+): Frame
 	local opts: RingOptions = options or {}
 	local strokeChildren: { Instance } = {}
 	if opts.arc ~= nil then
@@ -190,7 +214,7 @@ function Glyph.ring(c: Canvas, cx: number, cy: number, r: number, thickness: num
 		ZIndex = nextZ(c),
 		Parent = c.root,
 		[Create.Children] = {
-			Create.UICorner({ CornerRadius = UDim.new(0.5, 0) }),
+			Create.UICorner({ CornerRadius = UDim.new(0.5, 0) }) :: Instance,
 			Create.UIStroke({
 				Color = paint,
 				Thickness = px(c, thickness, 1),
@@ -204,7 +228,14 @@ function Glyph.ring(c: Canvas, cx: number, cy: number, r: number, thickness: num
 end
 
 --- Disc cut to one half (a dome when keep = "top").
-function Glyph.halfDisc(c: Canvas, cx: number, cy: number, r: number, keep: "top" | "bottom" | "left" | "right", paint: Paint): Frame
+function Glyph.halfDisc(
+	c: Canvas,
+	cx: number,
+	cy: number,
+	r: number,
+	keep: "top" | "bottom" | "left" | "right",
+	paint: Paint
+): Frame
 	local rotation, mask = halfMask(keep)
 	local disc = Glyph.circle(c, cx, cy, r, paint, { name = "HalfDisc" })
 	Create.UIGradient({ Rotation = rotation, Transparency = mask, Parent = disc })
@@ -212,7 +243,16 @@ function Glyph.halfDisc(c: Canvas, cx: number, cy: number, r: number, keep: "top
 end
 
 --- Straight segment of `thickness` units between two points.
-function Glyph.line(c: Canvas, x1: number, y1: number, x2: number, y2: number, thickness: number, paint: Paint, options: PrimitiveOptions?): Frame
+function Glyph.line(
+	c: Canvas,
+	x1: number,
+	y1: number,
+	x2: number,
+	y2: number,
+	thickness: number,
+	paint: Paint,
+	options: PrimitiveOptions?
+): Frame
 	local dx, dy = x2 - x1, y2 - y1
 	local length = math.sqrt(dx * dx + dy * dy)
 	local opts: PrimitiveOptions = if options then table.clone(options) else {}
@@ -234,7 +274,15 @@ end
 export type Corner = "tl" | "tr" | "bl" | "br"
 
 --- Right isosceles triangle filling the half of the square [x, y, size] that contains `corner` (the right angle).
-function Glyph.triangle(c: Canvas, x: number, y: number, size: number, corner: Corner, paint: Paint, options: PrimitiveOptions?): Frame
+function Glyph.triangle(
+	c: Canvas,
+	x: number,
+	y: number,
+	size: number,
+	corner: Corner,
+	paint: Paint,
+	options: PrimitiveOptions?
+): Frame
 	local opts: PrimitiveOptions = options or {}
 	-- Rotation 45 runs top-left -> bottom-right; 135 runs top-right -> bottom-left.
 	local rotation = if corner == "tl" or corner == "br" then 45 else 135
@@ -266,7 +314,14 @@ function Glyph.triangle(c: Canvas, x: number, y: number, size: number, corner: C
 end
 
 --- Isosceles 45° wedge pointing `direction` with its apex at (ax, ay) and `depth` units deep.
-function Glyph.wedge(c: Canvas, ax: number, ay: number, depth: number, direction: "up" | "down" | "left" | "right", paint: Paint)
+function Glyph.wedge(
+	c: Canvas,
+	ax: number,
+	ay: number,
+	depth: number,
+	direction: "up" | "down" | "left" | "right",
+	paint: Paint
+)
 	local d = depth
 	if direction == "up" then
 		Glyph.triangle(c, ax - d, ay, d, "br", paint)
@@ -296,7 +351,17 @@ end
 export type ChamferCorners = "all" | "brand" | "top" | "bottom"
 
 --- Rectangle with 45° cut corners (cut = leg length in units). "all" with cut = w/(2+√2) gives a regular octagon.
-function Glyph.chamferRect(c: Canvas, x: number, y: number, w: number, h: number, cut: number, paint: Paint, corners: ChamferCorners?, options: PrimitiveOptions?)
+function Glyph.chamferRect(
+	c: Canvas,
+	x: number,
+	y: number,
+	w: number,
+	h: number,
+	cut: number,
+	paint: Paint,
+	corners: ChamferCorners?,
+	options: PrimitiveOptions?
+)
 	local which = corners or "all"
 	local tl = which == "all" or which == "brand" or which == "top"
 	local tr = which == "all" or which == "top"
@@ -337,7 +402,15 @@ function Glyph.octagon(c: Canvas, cx: number, cy: number, d: number, paint: Pain
 end
 
 --- Open chevron (two strokes) with its apex at (cx, cy) pointing `direction`; `span` = arm reach in units.
-function Glyph.chevron(c: Canvas, cx: number, cy: number, span: number, thickness: number, paint: Paint, direction: "up" | "down" | "left" | "right")
+function Glyph.chevron(
+	c: Canvas,
+	cx: number,
+	cy: number,
+	span: number,
+	thickness: number,
+	paint: Paint,
+	direction: "up" | "down" | "left" | "right"
+)
 	if direction == "up" then
 		Glyph.line(c, cx - span, cy + span, cx, cy, thickness, paint)
 		Glyph.line(c, cx, cy, cx + span, cy + span, thickness, paint)
@@ -354,7 +427,16 @@ function Glyph.chevron(c: Canvas, cx: number, cy: number, span: number, thicknes
 end
 
 --- Arrow from (x1, y1) to (x2, y2) with a chevron head.
-function Glyph.arrow(c: Canvas, x1: number, y1: number, x2: number, y2: number, thickness: number, head: number, paint: Paint)
+function Glyph.arrow(
+	c: Canvas,
+	x1: number,
+	y1: number,
+	x2: number,
+	y2: number,
+	thickness: number,
+	head: number,
+	paint: Paint
+)
 	Glyph.line(c, x1, y1, x2, y2, thickness, paint)
 	local angle = math.atan2(y2 - y1, x2 - x1)
 	for _, side in { -1, 1 } do
@@ -364,7 +446,15 @@ function Glyph.arrow(c: Canvas, x1: number, y1: number, x2: number, y2: number, 
 end
 
 --- Text drawn in the glyph (numerals and stencil letters only, per the icon grammar).
-function Glyph.text(c: Canvas, text: string, cx: number, cy: number, height: number, paint: Paint, role: Theme.TypeRole?): TextLabel
+function Glyph.text(
+	c: Canvas,
+	text: string,
+	cx: number,
+	cy: number,
+	height: number,
+	paint: Paint,
+	role: Theme.TypeRole?
+): TextLabel
 	return Create.TextLabel({
 		Name = "Text",
 		BackgroundTransparency = 1,

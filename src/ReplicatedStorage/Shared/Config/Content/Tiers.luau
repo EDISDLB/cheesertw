@@ -8,14 +8,16 @@
 	                  vehicle prices and research costs against.
 	Dependencies:     Types/Content.
 	State:            Data only (deep-frozen by ContentRegistry).
-	Validation:       ContentRegistry: tiers 1..11 exactly once, contiguous, ranges sane.
+	Validation:       ContentRegistry: tiers 1..11 exactly once, contiguous, ranges sane and mutual, Field Kits
+	                  exactly at VI–X, category slot from VI.
 	Error handling:   N/A.
 	Performance notes: Loaded once.
 
 	Economy columns are REFERENCE values from 00-DECISIONS §11; Config/Economy owns the live formulas. xpScale and
 	creditScale are placeholders (1.0) until Economy tunes Scoring. Matchmaking ranges are hints: two vehicles may
 	share a battle only if each tier range contains the other's tier (I–II single tier; III–IV ±1; V–X ±2 never
-	above X; XI meets X–XI only). Config/Matchmaking owns the templates.
+	above X; XI meets X–XI only). The ranges are written mutually (the registry rejects a one-sided range, which
+	would show a battle tier the vehicle can never meet). Config/Matchmaking owns the templates.
 ]]
 
 local Content = require("../../Types/Content")
@@ -187,7 +189,7 @@ local tiers: { Content.TierDefinition } = {
 		tier = 5,
 		numeral = "V",
 		badge = "tiers/tier_05",
-		matchmaking = { min = 3, max = 7 },
+		matchmaking = { min = 4, max = 7 }, -- III meets ±1 only, so V never meets III
 		baseline = {
 			hp = 640,
 			alpha = 115,
@@ -228,7 +230,7 @@ local tiers: { Content.TierDefinition } = {
 		tier = 6,
 		numeral = "VI",
 		badge = "tiers/tier_06",
-		matchmaking = { min = 4, max = 8 },
+		matchmaking = { min = 5, max = 8 }, -- IV meets ±1 only, so VI never meets IV
 		baseline = {
 			hp = 820,
 			alpha = 160,

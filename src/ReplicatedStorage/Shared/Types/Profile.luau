@@ -41,6 +41,8 @@ type EventId = Content.EventId
 type SeasonId = Content.SeasonId
 type StoreItemId = Content.StoreItemId
 type FactionId = Content.FactionId
+type MapId = Content.MapId
+type BattleType = Content.BattleType
 type VehicleClass = Content.VehicleClass
 type CrewRole = Content.CrewRole
 type Configuration = Content.Configuration
@@ -71,6 +73,9 @@ export type Account = {
 	flags: AccountFlags,
 	firstWinResetAt: number, -- next UTC reset of first-win-of-the-day
 	lastPlusGrantDay: number, -- day index of the last Plus +25 Bullion grant
+	plusCrewXpDay: number, -- day index of plusCrewXpToday (Plus: 100 crew XP per 5 min online, <= 3,000 a day)
+	plusCrewXpToday: number,
+	plusVehicleId: VehicleId?, -- the tech-tree vehicle that gets the Plus +20 % (subscribers only)
 }
 export type Currencies = {
 	credits: number,
@@ -205,7 +210,13 @@ export type PassState = {
 	claimed: { string }, -- "<chapterId>:<stage>:<Free|Paid>" keys already claimed
 	tokens: number, -- season tokens carried across seasons
 }
-export type EventState = { joinedAt: number, progress: { [string]: number } }
+--- Ranked ladder standing in one Ranked event (index into the mode's RankLadder.ranks, 1 = lowest).
+export type RankedProgress = { rank: number, points: number, bestRank: number, battles: number, wins: number }
+export type EventState = {
+	joinedAt: number,
+	progress: { [string]: number }, -- event-owned counters (stage reached, tokens earned…)
+	ranked: RankedProgress?, -- Ranked events only
+}
 export type AchievementProgress = {
 	count: number, -- times earned (medals) or tier reached (milestones)
 	progress: number, -- current value toward the next threshold
@@ -275,6 +286,12 @@ export type StoreState = {
 	purchases: { [StoreItemId]: number }, -- counts (purchaseLimit enforcement)
 	history: { PurchaseRecord }, -- ring (LIMITS.PURCHASE_HISTORY)
 }
+--- Matchmaking preferences (00-DECISIONS §8): map blacklist (1 slot, 2 with Premium Time, once >= 8 maps exist)
+--- and battle-type opt-outs (lower weight, never a split queue).
+export type MatchmakingPrefs = {
+	mapBlacklist: { MapId }, -- <= LIMITS.MAP_BLACKLIST
+	battleTypeOptOuts: { BattleType }, -- Encounter / Assault only
+}
 export type Moderation = {
 	afkStrikes: { number }, -- timestamps of AFK/leave strikes in the last 24 h (00-DECISIONS §9)
 	queueLockedUntil: number,
@@ -312,6 +329,7 @@ export type Profile = {
 	settings: { [string]: SettingValue }, -- Settings controller owns the keys (LIMITS.SETTINGS)
 	social: Social,
 	store: StoreState,
+	matchmaking: MatchmakingPrefs,
 	moderation: Moderation,
 }
 
@@ -332,6 +350,7 @@ export type ProfileLimits = {
 	CREW_SKILLS: number,
 	SETTINGS: number,
 	AFK_STRIKES: number,
+	MAP_BLACKLIST: number,
 	REQUEST_ID_LENGTH: number,
 	CREW_NAME_LENGTH: number,
 	SIZE_TARGET_BYTES: number,
@@ -355,6 +374,7 @@ local LIMITS: ProfileLimits = table.freeze({
 	CREW_SKILLS = 5, -- perk slots per member (00-DECISIONS §12)
 	SETTINGS = 128,
 	AFK_STRIKES = 10,
+	MAP_BLACKLIST = 2, -- with Premium Time (1 without)
 	REQUEST_ID_LENGTH = 40,
 	CREW_NAME_LENGTH = 24,
 	SIZE_TARGET_BYTES = 200 * 1024,

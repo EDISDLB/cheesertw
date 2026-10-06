@@ -90,7 +90,8 @@ function AssetResolver.categoryOf(key: string): string?
 end
 
 local function isContentId(id: any): boolean
-	return type(id) == "string" and (string.match(id, "^rbxassetid://%d+$") ~= nil or string.match(id, "^rbxasset://.+") ~= nil)
+	return type(id) == "string"
+		and (string.match(id, "^rbxassetid://%d+$") ~= nil or string.match(id, "^rbxasset://.+") ~= nil)
 end
 
 local function isFiniteNumber(n: any): boolean

@@ -22,6 +22,7 @@ local sources: Content.ContentSources = {
 	classes = require("@self/Classes"),
 	roles = require("@self/Roles"),
 	tiers = require("@self/Tiers"),
+	branches = require("@self/TechTree"),
 
 	shells = {
 		require("@self/Shells/IronUnion"),
@@ -40,10 +41,10 @@ local sources: Content.ContentSources = {
 	},
 
 	vehicles = {
-		-- Iron Union
-		require("@self/Vehicles/IronUnion/IuForge"),
-		require("@self/Vehicles/IronUnion/IuAnvil"),
-		require("@self/Vehicles/IronUnion/IuBastion"),
+		-- Iron Union (roster.md §2.1)
+		require("@self/Vehicles/IronUnion/IuKolmal"),
+		require("@self/Vehicles/IronUnion/IuOstmal"),
+		require("@self/Vehicles/IronUnion/IuBulmal"),
 	},
 
 	equipment = require("@self/Equipment"),

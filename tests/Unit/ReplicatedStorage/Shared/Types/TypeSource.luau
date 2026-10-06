@@ -177,6 +177,18 @@ function TypeSource.shapeProblems(value: { [string]: any }, source: string, name
 	return problems
 end
 
+function TypeSource.deepEqualLists(a: { string }, b: { string }): boolean
+	if #a ~= #b then
+		return false
+	end
+	for i = 1, #a do
+		if a[i] ~= b[i] then
+			return false
+		end
+	end
+	return true
+end
+
 function TypeSource.sortedKeys(t: { [string]: any }): { string }
 	local out = {}
 	for key in t do

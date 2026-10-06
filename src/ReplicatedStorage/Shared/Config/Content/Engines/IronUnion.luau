@@ -1,6 +1,6 @@
 --!strict
 --[[
-	Content/Engines/IronUnion — Iron Union engines (exemplar line, tiers I–III).
+	Content/Engines/IronUnion — Iron Union engines (exemplar line: roster.md §2.1 Foundry trunk, I–III).
 
 	Purpose:          Engine modules: power (hp), fuel (fire chance default), sound family, exhaust visuals.
 	Dependencies:     Types/Content.
@@ -9,8 +9,8 @@
 	Error handling:   N/A.
 	Performance notes: Loaded once.
 
-	Engine power is a GAMEPLAY value tuned to the class power-to-weight target (00-DECISIONS §6), not a
-	real-world rating. Diesels: 12 % fire chance per engine hit.
+	Engine power is a GAMEPLAY value tuned to the class power-to-weight target (00-DECISIONS §6), not a real-world
+	rating. Iron Union runs diesels (12 % fire chance per engine hit) with rear exhaust stacks (roster.md §1.1).
 ]]
 
 local Content = require("../../../Types/Content")
@@ -43,30 +43,30 @@ local engines: { Content.EngineDefinition } = {
 		visual = { exhausts = 2, exhaustPlacement = "Rear" },
 	},
 	{
-		id = "iu_engine_d230",
+		id = "iu_engine_d210",
 		kind = "Engine",
-		name = "IU-D230 diesel",
+		name = "IU-D210 diesel",
 		tier = 3,
-		massKg = 950,
+		massKg = 800,
 		priceCredits = 0,
 		researchXp = 0,
-		powerHp = 230,
+		powerHp = 210,
 		fuel = "Diesel",
-		audio = "heavy_diesel",
-		visual = { exhausts = 2, exhaustPlacement = "Sides" },
+		audio = "medium_diesel",
+		visual = { exhausts = 2, exhaustPlacement = "Rear" },
 	},
 	{
-		id = "iu_engine_d290",
+		id = "iu_engine_d250",
 		kind = "Engine",
-		name = "IU-D290 supercharged diesel",
+		name = "IU-D250 supercharged diesel",
 		tier = 3,
-		massKg = 1050,
+		massKg = 880,
 		priceCredits = 6000,
 		researchXp = 80,
-		powerHp = 290,
+		powerHp = 250,
 		fuel = "Diesel",
-		audio = "heavy_diesel",
-		visual = { exhausts = 2, exhaustPlacement = "Sides" },
+		audio = "medium_diesel",
+		visual = { exhausts = 2, exhaustPlacement = "Rear" },
 	},
 }
 

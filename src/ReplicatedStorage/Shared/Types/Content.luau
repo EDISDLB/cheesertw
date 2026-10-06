@@ -124,7 +124,9 @@ export type ShellKind = "AP" | "APCR" | "HEAT" | "HE" | "HESH"
 --- Researchable module kinds. There is NO radio module (00-DECISIONS §2, §21 #7; ARCHITECTURE §9).
 export type ModuleKind = "Gun" | "Turret" | "Engine" | "Tracks"
 --- Damageable internal/external modules (00-DECISIONS §2). Tracks are external; wheeled vehicles use the same
---- two sides (a side = all wheel pairs on it).
+--- two sides (a side = all wheel pairs on it). One HP pool per kind: a layout with two ammo racks or two fuel tanks
+--- produces several volumes that all damage the same module. The transmission is part of the Engine module (a front
+--- transmission is an Engine volume behind the lower plate: engine damage and fire chance).
 export type InternalModuleKind =
 	"Engine"
 	| "AmmoRack"
@@ -195,8 +197,9 @@ export type Vec2 = { x: number, z: number }
 export type StatKey =
 	-- firepower
 	"damage"
-	| "damageRollMin"
+	| "damageRollMin" -- raises the low end of the ±25 % damage roll (Ammo Tuck)
 	| "penetration"
+	| "penetrationRollMin" -- raises the low end of the penetration roll
 	| "reloadTime"
 	| "aimTime"
 	| "dispersion"
@@ -219,8 +222,9 @@ export type StatKey =
 	| "loadLimit"
 	-- survivability
 	| "hp"
-	| "moduleHp"
-	| "repairTime"
+	| "moduleHp" -- `module` qualifier = one module kind (nil = every module)
+	| "repairTime" -- `module` qualifier as moduleHp
+	| "damagedModulePenalty" -- × the Damaged-state penalty of `module` (Recon: optics, Engineer: engine)
 	| "fireChance"
 	| "fireDuration"
 	| "crewInjuryChance"
@@ -240,6 +244,12 @@ export type StatKey =
 	| "crewLevel"
 	| "consumableCooldown"
 	| "crewXp"
+	-- the vehicle's SpecialMechanic (Apex nodes upgrade the signature, 00-DECISIONS §11; roster §2.7)
+	| "mechanicChargeTime" -- ChargedShot chargeTimeS
+	| "mechanicCooldown" -- cooldownS of Turbo / RocketBoost / ActiveCooling / ReserveTracks
+	| "mechanicDuration" -- durationS of Turbo / RocketBoost / ActiveCooling (ReserveTracks: repairS)
+	| "mechanicCharges" -- RocketBoost / ReserveTracks charges (add)
+	| "mechanicFactor" -- main factor: AdaptiveMagazine partialReloadFactor, Turbo powerMul, ChargedShot mul
 export type StatOp = "mul" | "add"
 --- When a modifier applies. "Always" modifiers are folded into VehicleStats at battle start; every other condition
 --- is carried in VehicleStats.conditionalModifiers and evaluated by the runtime system that owns the stat.
@@ -263,7 +273,7 @@ export type StatModifier = {
 	condition: StatCondition?, -- default "Always"
 	durationS: number?, -- AfterShot / AfterTakingDamage / AfterSpotting window
 	rangeM: number?, -- NearEnemy radius
-	module: InternalModuleKind?, -- qualifier for moduleHp / repairTime (nil = every module)
+	module: InternalModuleKind?, -- qualifier for moduleHp / repairTime / damagedModulePenalty only (nil = all)
 }
 
 --------------------------------------------------------------------------------
@@ -312,7 +322,8 @@ export type FactionSignature =
 export type FactionDefinition = {
 	id: FactionId,
 	name: string, -- Title Case body name ("Iron Union"); UI upper-cases for headings
-	shortName: string, -- 2-4 letter designation prefix ("IU")
+	shortName: string, -- 2-4 letter display designation ("IU", "EAG")
+	idPrefix: string, -- id prefix of this faction's vehicles, modules and branches ("iu" -> "iu_kolmal")
 	motto: string,
 	description: string,
 	focus: { string }, -- 2-4 identity bullets
@@ -758,50 +769,64 @@ export type VisualSpec = {
 }
 
 --- Vehicle mechanics (00-DECISIONS §4). Placement: VehicleSim runs SiegeMode, Hydropneumatic, Wheeled, Turbo,
---- RocketBoost; GunState runs ChargedShot, ActiveCooling, AdaptiveMagazine (Magazine/Autoreloader/DualGun are gun
---- reload kinds). Turbo, RocketBoost, ChargedShot, ActiveCooling and AdaptiveMagazine are Tier XI signatures only
---- (or Event vehicles).
-export type SpecialMechanic = {
-	kind: "SiegeMode",
-	engageS: number, -- 2.0
-	disengageS: number, -- 1.25
-	maxSpeedKmh: number, -- 10 while sieged
-	autoEngageS: number?, -- player option: engage after this long stationary (0.5)
-	travelReverseRatio: number?, -- travel-mode reverse = forward × ratio (0.9)
-	modifiers: { StatModifier }, -- applied while sieged (aim ×0.4, dispersion ×0.85, depression +8 …)
-} | {
-	kind: "Hydropneumatic",
-	depressionBonusDeg: number,
-	elevationBonusDeg: number,
-	settleS: number,
-} | {
-	kind: "Wheeled",
-	wheelPairs: number,
-	speedModeTopSpeedMul: number, -- 1.30
-	speedModeSteeringMul: number, -- 0.60
-	speedModeReverseMul: number, -- 0.70
-	toggleS: number, -- 1.0
-	lostPairSpeedMul: number, -- 0.75 per destroyed wheel pair
-	movingDispersionMul: number, -- 1.15
-	turnRadiusM: number,
-} | { kind: "Turbo", powerMul: number, durationS: number, cooldownS: number } | {
-	kind: "RocketBoost",
-	charges: number,
-	durationS: number,
-	speedBonusKmh: number,
-	cooldownS: number,
-} | {
-	kind: "ChargedShot",
-	chargeTimeS: number,
-	effect: "Accuracy" | "Damage",
-	dispersionMul: number?, -- effect Accuracy (0.6)
-	damageMul: number?, -- effect Damage (1.10)
-} | {
-	kind: "ActiveCooling",
-	durationS: number,
-	cooldownS: number,
-	modifiers: { StatModifier },
-} | { kind: "AdaptiveMagazine", partialReloadFactor: number } -- reload scales with shells missing
+--- RocketBoost, ReserveTracks; GunState runs ChargedShot, ActiveCooling, AdaptiveMagazine (Magazine/Autoreloader/
+--- DualGun are gun reload kinds). Turbo, RocketBoost, ChargedShot, ActiveCooling, AdaptiveMagazine and ReserveTracks
+--- are Tier XI signatures only (or Event vehicles); ReserveTracks is not assigned to any launch Apex.
+export type SpecialMechanic =
+	{
+		kind: "SiegeMode",
+		engageS: number, -- 2.0
+		disengageS: number, -- 1.25
+		maxSpeedKmh: number, -- 10 while sieged
+		autoEngageS: number?, -- player option: engage after this long stationary (0.5)
+		travelReverseRatio: number?, -- travel-mode reverse = forward × ratio (0.9)
+		modifiers: { StatModifier }, -- applied while sieged (aim ×0.4, dispersion ×0.85, depression +8 …)
+	}
+	| {
+		kind: "Hydropneumatic",
+		depressionBonusDeg: number,
+		elevationBonusDeg: number,
+		settleS: number,
+	}
+	| {
+		kind: "Wheeled",
+		wheelPairs: number,
+		speedModeTopSpeedMul: number, -- 1.30
+		speedModeSteeringMul: number, -- 0.60
+		speedModeReverseMul: number, -- 0.70
+		toggleS: number, -- 1.0
+		lostPairSpeedMul: number, -- 0.75 per destroyed wheel pair
+		movingDispersionMul: number, -- 1.15
+		turnRadiusM: number,
+	}
+	| { kind: "Turbo", powerMul: number, durationS: number, cooldownS: number }
+	| {
+		kind: "RocketBoost",
+		charges: number,
+		durationS: number,
+		speedBonusKmh: number,
+		cooldownS: number,
+	}
+	| {
+		kind: "ChargedShot",
+		chargeTimeS: number,
+		effect: "Accuracy" | "Damage",
+		dispersionMul: number?, -- effect Accuracy (0.6)
+		damageMul: number?, -- effect Damage (1.10)
+	}
+	| {
+		kind: "ActiveCooling",
+		durationS: number,
+		cooldownS: number,
+		modifiers: { StatModifier },
+	}
+	| { kind: "AdaptiveMagazine", partialReloadFactor: number } -- reload scales with shells missing
+	| {
+		kind: "ReserveTracks",
+		charges: number, -- destroyed tracks replaced automatically, per battle
+		repairS: number, -- time from destroyed to working again (instead of the field repair)
+		cooldownS: number, -- between uses
+	}
 export type MechanicKind =
 	"SiegeMode"
 	| "Hydropneumatic"
@@ -811,6 +836,7 @@ export type MechanicKind =
 	| "ChargedShot"
 	| "ActiveCooling"
 	| "AdaptiveMagazine"
+	| "ReserveTracks"
 
 --- Tier XI upgrade track (replaces modules and Field Kits; 00-DECISIONS §11: 6 small, 3 large, 1 final).
 export type ApexNode = {
@@ -918,7 +944,8 @@ export type ConsumableDefinition = {
 	--- Passive = active the whole battle (rations, fuel).
 	activation: "Manual" | "Automatic" | "Passive",
 	cooldownS: number?, -- required for Manual/Automatic (reusable within a battle)
-	durationS: number?, -- for timed `effects`
+	charges: number?, -- uses per battle (nil = unlimited: reusable whenever the cooldown allows; Manual/Automatic)
+	durationS: number?, -- for timed `effects` (required when a Manual/Automatic item has `effects`)
 	triggerDelayS: number?, -- Automatic only (auto extinguisher 0.5)
 	repairs: { modules: boolean?, crew: boolean?, fire: boolean?, stun: boolean? }?,
 	stunImmunityS: number?, -- after a medkit clears stun (5)
@@ -966,7 +993,20 @@ export type BoosterDefinition = {
 -- Cosmetics
 --------------------------------------------------------------------------------
 
-export type CustomizationKind = "Paint" | "Camouflage" | "Emblem" | "Inscription" | "Style" | "GunSleeve" | "StatTracker"
+--- Paint/Camouflage colour the hull; Emblem/Inscription/Decal are projected marks; Attachment = 3-D add-ons (nets,
+--- stowage, antennas: never armor, never gameplay); Effect = cosmetic shot/tracer/destruction effects; Style = a
+--- full set that replaces paint + camouflage; GunSleeve/StatTracker = barrel marks and the kill counter.
+export type CustomizationKind =
+	"Paint"
+	| "Camouflage"
+	| "Emblem"
+	| "Inscription"
+	| "Decal"
+	| "Attachment"
+	| "Effect"
+	| "Style"
+	| "GunSleeve"
+	| "StatTracker"
 export type CustomizationDefinition = {
 	id: CustomizationId,
 	name: string,
@@ -974,8 +1014,8 @@ export type CustomizationDefinition = {
 	icon: IconKey,
 	kind: CustomizationKind,
 	rarity: Rarity,
-	colors: { Color3 }?, -- paint / camouflage colours
-	pattern: string?, -- camouflage pattern key (renderer)
+	colors: { Color3 }?, -- paint / camouflage / style colours (required for Paint and Camouflage)
+	pattern: string?, -- camouflage pattern, decal or attachment model key (renderer)
 	camoBonus: boolean?, -- grants the flat paint camo bonus (Config.Spotting; 0 in ranked)
 	scope: { factions: FactionIds?, classes: VehicleClasses?, vehicles: { VehicleId }? }?,
 	source: "Store" | "Mission" | "Pass" | "Event" | "Achievement",
@@ -1013,12 +1053,14 @@ export type BattleStatKey =
 	| "distanceM"
 	| "firstBlood"
 	| "medals"
+--- `teamXpRank` is a per-battle rank: SingleBattle with atMost only. `against` narrows damageDealt, kills,
+--- spotted, assistTotal and damagePlusAssist to enemies of these classes (BattleStats.byTargetClass).
 export type MissionCondition = {
 	stat: BattleStatKey,
 	atLeast: number?, -- one of atLeast / atMost is required
 	atMost: number?,
 	aggregate: "SingleBattle" | "Cumulative",
-	against: { classes: VehicleClasses? }?, -- only count damage/kills against these classes
+	against: { classes: VehicleClasses? }?, -- only count the stat against enemies of these classes
 }
 export type MissionCadence = "Daily" | "Weekly" | "Campaign" | "Event" | "Tutorial" | "Special"
 export type MissionScope = {
@@ -1057,7 +1099,7 @@ export type MissionDefinition = {
 	description: string,
 	icon: IconKey?,
 	cadence: MissionCadence,
-	difficulty: ("Easy" | "Medium" | "Hard" | "Bonus")?, -- dailies
+	difficulty: ("Easy" | "Medium" | "Hard" | "Bonus")?, -- required for Daily, never set on other cadences
 	match: "All" | "Any", -- how `conditions` combine
 	conditions: { MissionCondition },
 	requireWin: boolean?,
@@ -1093,10 +1135,10 @@ export type AchievementDefinition = {
 	rule: string,
 	stat: BattleStatKey?, -- the stat the rule reads (when it reads one)
 	params: { [string]: number }?,
-	thresholds: { number }?, -- tiered milestones, strictly increasing
-	perVehicle: boolean?, -- Mastery / Marks
+	thresholds: { number }?, -- tiered milestones, strictly increasing (required for kind Milestone and Streak)
+	perVehicle: boolean?, -- true for kind Mastery / Marks (progress lives in VehicleCareerStats)
 	repeatable: boolean?, -- medals counted every time
-	scope: { minTier: Tier?, maxTier: Tier?, modes: BattleModes?, pvpOnly: boolean? }?,
+	scope: { minTier: Tier?, maxTier: Tier?, modes: BattleModes?, pvpOnly: boolean? }?, -- pvpOnly: botShare <= 0.5
 	rarity: Rarity,
 	rewards: { Reward }, -- {} when none
 	hidden: boolean?,
@@ -1181,7 +1223,23 @@ export type FoliageVolume = {
 	radiusM: number,
 	concealment: number?,
 }
+--- Tactical points for bots, minimap hints and map QA (00-DECISIONS §10: >= 3 hull-down spots per side on the
+--- Flex lane). HullDown = ridge/reverse slope for MT/HT; Brawl = hard cover for close fights; Sniper = long
+--- sightline for TD/MT snipers; Scout = passive-spotting bush for LT; Flank = route waypoint for flankers;
+--- Artillery = SPG firing pit in the rear band.
+export type MapPositionKind = "HullDown" | "Brawl" | "Sniper" | "Scout" | "Flank" | "Artillery"
+export type MapPosition = {
+	id: string,
+	kind: MapPositionKind,
+	at: Vec2,
+	facingDeg: number, -- where the position looks (0 = north (-z), clockwise)
+	team: number?, -- 1 or 2 = that team's side; nil = contested (does not count toward a side's minimum)
+	lane: string?, -- Lane.id it belongs to
+	classes: VehicleClasses?, -- classes that should use it (nil = the kind's usual classes)
+}
 export type DestructibleClass = "Light" | "Medium" | "Heavy" | "Permanent"
+--- Builder prop. Bridges, large buildings and rocks are props with `destructible = "Permanent"` (structures: ground
+--- under them comes from World:raycast, not the heightfield).
 export type PropPlacement = {
 	prop: PropKind,
 	at: Vec2,
@@ -1209,6 +1267,7 @@ export type MapDefinition = {
 	spawns: MapSpawns,
 	bases: { CaptureBase },
 	lanes: { Lane }, -- at least one Heavy, one Flex and one Open
+	positions: { MapPosition }, -- per team: >= 3 HullDown, >= 1 Sniper, >= 1 Scout (+ >= 1 Artillery when SPGs play)
 	foliage: { FoliageVolume },
 	props: { PropPlacement },
 	water: { WaterBody }?,
@@ -1253,7 +1312,8 @@ export type StoreItem = {
 	featured: boolean?,
 }
 
-export type EventKind = "Seasonal" | "Weekend" | "MedalHunt" | "Mode" | "Campaign" | "XpFever"
+--- Ranked = a competitive season: an event whose mode carries a `ladder` (04 §1: Onslaught-style 7 v 7, seasonal).
+export type EventKind = "Seasonal" | "Weekend" | "MedalHunt" | "Mode" | "Campaign" | "XpFever" | "Ranked"
 export type EventModifiers = {
 	xpMul: number?,
 	creditMul: number?,
@@ -1273,6 +1333,17 @@ export type EventAbility = {
 	damage: number?,
 	icon: IconKey?,
 }
+--- One step of a ranked ladder. Points carry over between ranks; a `protected` rank cannot be lost once reached.
+export type LadderRank = { id: string, name: string, pointsToAdvance: number, protected: boolean?, rewards: Rewards? }
+--- Ladder points per battle by team XP rank (ascending maxTeamRank; the last rule covers the rest; loss may be < 0).
+export type LadderPointsRule = { maxTeamRank: number, win: number, loss: number }
+--- Ranked/competitive progression of an event mode (season = the event window). The player's rank and points
+--- live in Profile.events[eventId].ranked.
+export type RankLadder = {
+	ranks: { LadderRank }, -- lowest first; the last rank has pointsToAdvance 0 (top of the ladder)
+	points: { LadderPointsRule },
+	finalRewards: Rewards?, -- granted at season end by the highest rank reached (per-rank `rewards` on promotion)
+}
 export type EventModeDefinition = {
 	id: string,
 	name: string,
@@ -1284,6 +1355,12 @@ export type EventModeDefinition = {
 	abilities: EventAbilities?,
 	respawns: number?,
 	durationS: number?,
+	battleTypes: BattleTypes?, -- objective types this mode plays (default { "Standard" }); maps must have their bases
+	--- Competitive rules: Config.Combat COMPETITIVE_SPREAD (±10 % rolls), no paint camo bonus, no SPG, labelled
+	--- bots never fill, > 50 % bot battles never count (00-DECISIONS §1, §5, §8).
+	competitive: boolean?,
+	classCaps: { [VehicleClass]: number }?, -- per-team class limits overriding Config.Matchmaking (0 = banned)
+	ladder: RankLadder?, -- required for EventKind "Ranked"
 }
 export type EventDefinition = {
 	id: EventId,

@@ -302,9 +302,36 @@ local Tokens = {
 		},
 		tab = { family = "Oswald", weight = "SemiBold", size = 20, lineHeight = 1.00, upper = true, kind = "label" },
 		badge = { family = "Oswald", weight = "SemiBold", size = 13, lineHeight = 1.00, upper = true, kind = "label" },
+		--- Toast titles (brand-art §8.5: Builder Sans Bold 16).
+		["title.s"] = {
+			family = "BuilderSans",
+			weight = "Bold",
+			size = 16,
+			lineHeight = 1.20,
+			upper = false,
+			kind = "label",
+		},
 	},
 
 	--- brand-art §4.2: minimum rendered sizes (after UIScale) per platform profile.
+	--- Authored minimums per layout (docs/design/ui-ux.md §1.1): Compact authors larger roles so the 0.92 floor scale
+	--- still meets the phone minimums without the clamp overflowing layouts; TV raises the smallest labels.
+	--- Theme uses max(role size, minimum) before the text-scale and render-scale rules.
+	layoutTypeMinimums = {
+		compact = {
+			body = 18,
+			["body.s"] = 18,
+			label = 16,
+			caption = 16,
+			micro = 16,
+			h4 = 20,
+			h3 = 24,
+			h2 = 28,
+			h1 = 32,
+			["num.m"] = 20,
+		},
+		tv = { label = 15, caption = 15, micro = 15 },
+	},
 	minTextSize = {
 		pc = { sentence = 14, label = 12, display = 12 },
 		console = { sentence = 20, label = 18, display = 18 },
@@ -327,6 +354,8 @@ local Tokens = {
 		Background3D = 0,
 		HUD = 10,
 		Screens = 20,
+		--- Garage top bar in the engine's top-bar row (ScreenInsets.TopbarSafeInsets; ui-ux §1.1).
+		TopBar = 25,
 		Modals = 30,
 		Toasts = 40,
 		Tooltip = 50,

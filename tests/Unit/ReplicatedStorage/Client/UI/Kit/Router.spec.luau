@@ -81,6 +81,7 @@ describe("Router layers", function()
 			Background3D = 0,
 			HUD = 10,
 			Screens = 20,
+			TopBar = 25,
 			Modals = 30,
 			Toasts = 40,
 			Tooltip = 50,
@@ -99,6 +100,8 @@ describe("Router layers", function()
 		expect(router:layer("Background3D").IgnoreGuiInset).toBe(true)
 		expect(router:layer("Screens").ScreenInsets).toBe(Enum.ScreenInsets.CoreUISafeInsets)
 		expect(router:layer("Screens").IgnoreGuiInset).toBe(false)
+		expect(router:layer("TopBar").ScreenInsets).toBe(Enum.ScreenInsets.TopbarSafeInsets)
+		expect(router:layerRoot("TopBar"):FindFirstChild("SafeArea")).toBeNil()
 		expect(Layers.get("Tooltip")).toBe(router:layerRoot("Tooltip"))
 		expect(router:layerRoot("Screens"):FindFirstChildOfClass("UIScale")).never.toBeNil()
 		router:destroy()
@@ -209,11 +212,14 @@ describe("Router stack semantics", function()
 	it("asks onBack first and only pops when unhandled", function()
 		local handled = true
 		local router = newRouter()
-		router:register("Drawer", fakeScreen({
-			onBack = function()
-				return handled
-			end,
-		}))
+		router:register(
+			"Drawer",
+			fakeScreen({
+				onBack = function()
+					return handled
+				end,
+			})
+		)
 		router:push("Garage")
 		router:push("Drawer")
 		expect(router:back()).toBe(true)

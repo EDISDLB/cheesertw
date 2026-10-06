@@ -77,6 +77,7 @@ local function zeroStats(): BattleStats
 		firstContactDamage = 0,
 		soleSpotterDamaged = 0,
 		hitsOnLaterKilled = 0,
+		byTargetClass = {},
 	}
 end
 
@@ -234,6 +235,95 @@ describe("Types/Battle", function()
 			performance += line.credits
 		end
 		expect(performance).toBe(rewards.credits.battleIncome)
+	end)
+
+	it("a reward inbox entry carries the summary, the Results roster and per-enemy interactions", function()
+		local stats = zeroStats()
+		stats.damageDealt = 410
+		stats.kills = 1
+		stats.byTargetClass = { heavy = { damageDealt = 410, kills = 1, spotted = 0, assist = 0 } }
+		local entry: Types.RewardInboxEntry = {
+			battleId = "b_0001",
+			issuedAt = 1790000412,
+			userId = 42,
+			summary = {
+				battleId = "b_0001",
+				mode = "Random",
+				battleType = "Standard",
+				mapId = "proving_grounds",
+				startedAt = 1790000000,
+				durationS = 412,
+				vehicleId = "iu_kolmal",
+				team = 1,
+				outcome = "Victory",
+				reason = "Destruction",
+				botShare = 0.4,
+				stats = stats,
+				medals = {},
+				xp = 450,
+				freeXp = 8,
+				creditsNet = 16400,
+			},
+			rewards = nil :: any, -- the ledger example below covers RewardBreakdown
+			roster = {
+				{
+					participantId = 1,
+					name = "Player",
+					isBot = false,
+					team = 1,
+					vehicleId = "iu_kolmal",
+					survived = true,
+					damageDealt = 410,
+					assist = 0,
+					damageBlocked = 49,
+					kills = 1,
+					spotted = 0,
+					xp = 450,
+					medals = 0,
+				},
+			},
+			interactions = {
+				{
+					other = 7,
+					shotsAt = 2,
+					hitsOn = 2,
+					pensOn = 1,
+					critsOn = 1,
+					damageDealt = 410,
+					spottedIt = false,
+					killedIt = true,
+					hitsFrom = 0,
+					damageReceived = 0,
+					killedBy = false,
+				},
+			},
+			consumedAmmo = { { shell = "iu_45mm_ap", count = 2 } },
+			consumedConsumables = {},
+			afkStrike = false,
+		}
+		expect(TypeSource.shapeProblems(entry.summary :: any, SOURCE, "BattleSummary")).toEqual({})
+		expect(TypeSource.shapeProblems(entry.roster[1] :: any, SOURCE, "ResultRow")).toEqual({})
+		expect(TypeSource.shapeProblems(entry.interactions[1] :: any, SOURCE, "Interaction")).toEqual({})
+		expect(TypeSource.shapeProblems(stats.byTargetClass.heavy :: any, SOURCE, "TargetClassStats")).toEqual({})
+		-- the fields every inbox consumer reads exist
+		for _, field in { "battleId", "summary", "rewards", "roster", "interactions", "consumedAmmo" } do
+			expect(TypeSource.fieldNames(SOURCE, "RewardInboxEntry")).toContain(field)
+		end
+	end)
+
+	it("participants carry max HP and, for humans, the reward context Scoring needs", function()
+		local names = TypeSource.fieldNames(SOURCE, "RewardContext")
+		expect(names).toEqual({
+			"boosters",
+			"eventIds",
+			"firstWinAvailable",
+			"plus",
+			"plusBoostedVehicle",
+			"premiumTime",
+			"robloxPremium",
+		})
+		expect(TypeSource.fieldNames(SOURCE, "BattleParticipant")).toContain("maxHp")
+		expect(TypeSource.fieldNames(SOURCE, "BattleParticipant", true)).toContain("rewardContext")
 	end)
 
 	it("keeps the outcome vocabulary of 00-DECISIONS §9", function()

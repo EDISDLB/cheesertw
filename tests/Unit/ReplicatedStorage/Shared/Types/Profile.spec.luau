@@ -47,6 +47,10 @@ local function stats(): Types.BattleStats
 		firstContactDamage = 600,
 		soleSpotterDamaged = 1,
 		hitsOnLaterKilled = 2,
+		byTargetClass = {
+			heavy = { damageDealt = 1600, kills = 2, spotted = 1, assist = 900 },
+			medium = { damageDealt = 850, kills = 1, spotted = 3, assist = 700 },
+		},
 		killedBy = 17,
 		deathCause = "Shell",
 		roleScore = 1.12,
@@ -66,6 +70,7 @@ local function summary(i: number): BattleSummary
 		team = 1,
 		outcome = "Victory",
 		reason = "Destruction",
+		botShare = 0.2,
 		stats = stats(),
 		medals = { { id = "top_gun", count = 1 }, { id = "scout", count = 1 } },
 		xp = 1240,
@@ -100,7 +105,12 @@ local function vehicleRecord(i: number): VehicleRecord
 		},
 		autoResupply = { ammo = true, consumables = true, repair = true },
 		crewId = "c" .. i,
-		customization = { paint = "paint_foundry_red", camouflage = "camo_ridge", emblem = "emblem_anvil" },
+		customization = {
+			paint = "paint_foundry_red",
+			camouflage = "camo_ridge",
+			emblem = "emblem_anvil",
+			attachments = { "attachment_spare_links", "attachment_logs" },
+		},
 		favorite = false,
 		fieldKit = { "fk_a", "fk_b", "fk_a", "fk_b", "fk_a" },
 		apexNodes = {},
@@ -211,6 +221,9 @@ local function maxedProfile(vehicleCount: number): Profile
 			},
 			firstWinResetAt = 1795046400,
 			lastPlusGrantDay = 20500,
+			plusCrewXpDay = 20500,
+			plusCrewXpToday = 1200,
+			plusVehicleId = "iu_vehicle_1",
 		},
 		currencies = {
 			credits = 98000000,
@@ -241,7 +254,14 @@ local function maxedProfile(vehicleCount: number): Profile
 			claimed = ring(LIMITS.CLAIMED_MISSIONS, "mission_", 12),
 		},
 		pass = { seasonId = "season_1", points = 1800, paid = true, claimed = ring(180, "s1c1:", 4), tokens = 40 },
-		events = { forge_week = { joinedAt = 1790000000, progress = { stage = 4 } } },
+		events = {
+			forge_week = { joinedAt = 1790000000, progress = { stage = 4 } },
+			ranked_s1 = {
+				joinedAt = 1790000000,
+				progress = {},
+				ranked = { rank = 7, points = 140, bestRank = 8, battles = 212, wins = 118 },
+			},
+		},
 		achievements = achievements,
 		stats = {
 			battles = 25000,
@@ -285,6 +305,7 @@ local function maxedProfile(vehicleCount: number): Profile
 			recentPlatoonmates = table.create(LIMITS.RECENT_PLATOONMATES, 9876543210),
 		},
 		store = { purchases = { bullion_pack_s = 4 }, history = {} },
+		matchmaking = { mapBlacklist = { "proving_grounds", "ridge_line" }, battleTypeOptOuts = { "Assault" } },
 		moderation = { afkStrikes = {}, queueLockedUntil = 0 },
 	}
 	return profile
@@ -328,6 +349,16 @@ describe("Types/Profile", function()
 		check(profile.social, "Social")
 		check(profile.store, "StoreState")
 		check(profile.moderation, "Moderation")
+		check(profile.matchmaking, "MatchmakingPrefs")
+		check(profile.events.ranked_s1, "EventState")
+		check(profile.events.ranked_s1.ranked :: any, "RankedProgress")
+		expect(
+			TypeSource.shapeProblems(
+				profile.vehicles.iu_vehicle_1.customization :: any,
+				TypeSource.read("Vehicle"),
+				"CustomizationLoadout"
+			)
+		).toEqual({})
 		expect(TypeSource.shapeProblems(profile.battleHistory[1] :: any, TypeSource.read("Battle"), "BattleSummary")).toEqual({})
 		expect(
 			TypeSource.shapeProblems(profile.battleHistory[1].stats :: any, TypeSource.read("Battle"), "BattleStats")

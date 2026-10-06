@@ -84,6 +84,8 @@ type ScopeImpl = {
 }
 
 local stack: { ScopeImpl } = {}
+-- Shoulder handlers registered by components (TabBar): used when the top scope has no handler of its own.
+local shoulderHandlers: { { object: GuiObject, fn: (number) -> () } } = {}
 local ScopeClass = {}
 ScopeClass.__index = ScopeClass
 
@@ -475,13 +477,54 @@ function ScopeClass.Destroy(self: ScopeImpl)
 	self._shoulder = nil
 end
 
---- Routes a shoulder press (-1 LB, +1 RB) to the top scope. Returns true if a handler ran.
-function Focus.shoulder(direction: number): boolean
-	local top = stack[#stack]
-	if top == nil or top._shoulder == nil then
+--- Registers a component's LB/RB handler (tab bars). It receives presses while `object` is visible inside the
+--- top scope and that scope has no handler of its own (newest registration wins). Returns unregister().
+function Focus.registerShoulder(object: GuiObject, handler: (direction: number) -> ()): () -> ()
+	local entry = { object = object, fn = handler }
+	table.insert(shoulderHandlers, entry)
+	return function()
+		local index = table.find(shoulderHandlers, entry)
+		if index ~= nil then
+			table.remove(shoulderHandlers, index)
+		end
+	end
+end
+
+local function visibleWithin(object: GuiObject, root: GuiObject): boolean
+	if not Focus.contains(root, object) then
 		return false
 	end
-	local ok, err = pcall(top._shoulder :: any, direction)
+	local node: Instance? = object
+	while node ~= nil and node ~= root do
+		if node:IsA("GuiObject") and (node :: GuiObject).Visible == false then
+			return false
+		end
+		node = node.Parent
+	end
+	return true
+end
+
+--- Routes a shoulder press (-1 LB, +1 RB) to the top scope (its own handler, else a registered component inside
+--- it). Returns true if a handler ran.
+function Focus.shoulder(direction: number): boolean
+	local top = stack[#stack]
+	if top == nil then
+		return false
+	end
+	local handler = top._shoulder
+	if handler == nil then
+		for i = #shoulderHandlers, 1, -1 do
+			local entry = shoulderHandlers[i]
+			if visibleWithin(entry.object, top.root) then
+				handler = entry.fn
+				break
+			end
+		end
+	end
+	if handler == nil then
+		return false
+	end
+	local ok, err = pcall(handler :: any, direction)
 	if not ok then
 		log:error("shoulder handler of %s failed: %s", top.name, tostring(err))
 	end

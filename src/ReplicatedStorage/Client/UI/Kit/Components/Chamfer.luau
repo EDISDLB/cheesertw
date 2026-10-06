@@ -28,11 +28,11 @@ local Theme = require("../Theme")
 
 type CanBeState<T> = State.CanBeState<T>
 
-export type Corners = "brand" | "all" | "none" | "top" | "bottom"
+export type Corners = "brand" | "all" | "none" | "top" | "bottom" | "tl" | "tr" | "bl" | "br"
 export type ChamferProps = {
 	--- Cut size in px (default Theme chamfer "m" = 8).
 	size: number?,
-	--- "brand" = top-left + bottom-right (HULLDOWN cut, default); "all"; "none"; "top" (TL+TR); "bottom" (BL+BR).
+	--- "brand" = top-left + bottom-right (HULLDOWN cut, default); "all"; "none"; "top"; "bottom"; or one corner.
 	corners: Corners?,
 	fill: CanBeState<Color3>?,
 	fillTransparency: CanBeState<number>?,
@@ -65,6 +65,14 @@ function Chamfer.cornerSizes(corners: Corners, size: number): CornerSizes
 		return { tl = 0, tr = 0, bl = s, br = s }
 	elseif corners == "none" then
 		return { tl = 0, tr = 0, bl = 0, br = 0 }
+	elseif corners == "tl" then
+		return { tl = s, tr = 0, bl = 0, br = 0 }
+	elseif corners == "tr" then
+		return { tl = 0, tr = s, bl = 0, br = 0 }
+	elseif corners == "bl" then
+		return { tl = 0, tr = 0, bl = s, br = 0 }
+	elseif corners == "br" then
+		return { tl = 0, tr = 0, bl = 0, br = s }
 	end
 	error(`Chamfer: unknown corners "{tostring(corners)}"`, 3)
 end
@@ -155,7 +163,10 @@ function Chamfer.fillPieces(props: ChamferProps): { Instance }
 		midColor = Color3.new(1, 1, 1)
 		midGradient = Create.UIGradient({
 			Rotation = 90,
-			Color = ColorSequence.new(gradient.top:Lerp(gradient.bottom, a), gradient.top:Lerp(gradient.bottom, b)),
+			Color = ColorSequence.new({
+				ColorSequenceKeypoint.new(0, gradient.top:Lerp(gradient.bottom, a)),
+				ColorSequenceKeypoint.new(1, gradient.top:Lerp(gradient.bottom, b)),
+			}),
 		})
 	else
 		local fill: CanBeState<Color3> = props.fill or Theme.color("bg.panel")

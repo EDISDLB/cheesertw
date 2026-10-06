@@ -746,8 +746,8 @@ function State.Computed<T>(compute: (previous: T?) -> T, options: Options<T>?): 
 end
 
 --- Shorthand for a Computed over one state (or constant): `State.map(health, function(h) return h / 100 end)`.
-function State.map<T, U>(source: CanBeState<T>, transform: (T) -> U, options: Options<U>?): Computed<U>
-	return State.Computed(function(): U
+local function mapImpl(source: any, transform: (any) -> any, options: Options<any>?): any
+	return State.Computed(function(): any
 		return transform(State.get(source))
 	end, options)
 end
@@ -822,21 +822,35 @@ function State.isState(value: any): boolean
 	return isNode(value) and (value._kind == KIND_VALUE or value._kind == KIND_COMPUTED)
 end
 
---- Tracked read of a maybe-state (use inside Computed/effect): constants are returned as-is.
-function State.get<T>(value: CanBeState<T>): T
+local function getImpl(value: any): any
 	if isNode(value) then
 		return readNode(value :: any, true)
 	end
-	return value :: any
+	return value
 end
 
---- Untracked read of a maybe-state (always up to date, never adds a dependency).
-function State.peek<T>(value: CanBeState<T>): T
+local function peekImpl(value: any): any
 	if isNode(value) then
 		return readNode(value :: any, false)
 	end
-	return value :: any
+	return value
 end
+
+-- Overloaded signatures: a State<T> argument binds T to its value type, a CanBeState<T> prop to T.
+type ReadFn = (<T>(value: State<T>) -> T) & (<T>(value: CanBeState<T>) -> T)
+type MapFn =
+	(<T, U>(source: State<T>, transform: (T) -> U, options: Options<U>?) -> Computed<U>)
+	& (<T, U>(source: CanBeState<T>, transform: (T) -> U, options: Options<U>?) -> Computed<U>)
+type OfFn = (<T>(value: State<T>) -> State<T>) & (<T>(value: CanBeState<T>) -> State<T>)
+
+--- Tracked read of a maybe-state (use inside Computed/effect): constants are returned as-is.
+State.get = (getImpl :: any) :: ReadFn
+
+--- Untracked read of a maybe-state (always up to date, never adds a dependency).
+State.peek = (peekImpl :: any) :: ReadFn
+
+--- Derived state over one State or constant: `State.map(health, function(h) return h / 100 end)`.
+State.map = (mapImpl :: any) :: MapFn
 
 --- Runs `fn` without dependency tracking and returns its result.
 function State.untracked<T>(fn: () -> T): T
@@ -855,13 +869,15 @@ function State.readonly<T>(value: Value<T>): State<T>
 	return (value :: any) :: State<T>
 end
 
---- Wraps a constant as a State (so code that needs a State can accept constants).
-function State.of<T>(value: CanBeState<T>): State<T>
+local function ofImpl(value: any): any
 	if isNode(value) then
-		return value :: any
+		return value
 	end
-	return State.Value(value :: any) :: any
+	return State.Value(value)
 end
+
+--- Wraps a constant as a State (so code that needs a State can accept constants); States pass through.
+State.of = (ofImpl :: any) :: OfFn
 
 --- Keyed list rendering: returns a State array of render outputs in item order. An output is created once per key
 --- with `render(item, index, scope)`, which receives per-entry Values (a changed item with the same key updates its
@@ -869,7 +885,7 @@ end
 --- by render is destroyed with it). nil/duplicate keys fall back to the item index with a warning.
 --- Lifetime: the list lives while the returned State is referenced (e.g. bound as Create Children); `:Destroy()`
 --- (or `options.scope`) destroys every entry immediately.
-function State.list<T, R>(
+local function listImpl<T, R>(
 	source: CanBeState<{ T }>,
 	keyOf: (item: T, index: number) -> any,
 	render: (item: Value<T>, index: Value<number>, scope: Trove) -> R,
@@ -951,6 +967,22 @@ function State.list<T, R>(
 	end
 	return (output :: any) :: State<{ R }>
 end
+
+type ListFn =
+	(<T, R>(
+		source: State<{ T }>,
+		keyOf: (item: T, index: number) -> any,
+		render: (item: Value<T>, index: Value<number>, scope: Trove) -> R,
+		options: ListOptions<T>?
+	) -> State<{ R }>)
+	& (<T, R>(
+		source: CanBeState<{ T }>,
+		keyOf: (item: T, index: number) -> any,
+		render: (item: Value<T>, index: Value<number>, scope: Trove) -> R,
+		options: ListOptions<T>?
+	) -> State<{ R }>)
+
+State.list = (listImpl :: any) :: ListFn
 
 --- Constructors bound to `scope`: every node/effect they create is destroyed when the scope is cleaned.
 function State.scoped(scope: Trove): Scoped

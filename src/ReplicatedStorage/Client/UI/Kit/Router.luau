@@ -2,10 +2,10 @@
 --[[
 	Kit/Router — screen registry, navigation stack, modal layer, transitions, Back handling and deep links.
 
-	Purpose:          Owns the UI layers (one ScreenGui per layer: Background3D, HUD, Screens, Modals, Toasts, Tooltip,
-	                  Debug — DisplayOrder from Theme, ResetOnSpawn off, Sibling ZIndex, SafeAreaCompatibility None,
-	                  CoreUISafeInsets for interactive layers, None + IgnoreGuiInset for Background3D/Debug) with a
-	                  scaled Layout root each, and a stack of screens. A screen module is `{ new(ctx) -> Screen }`;
+	Purpose:          Owns the UI layers (one ScreenGui per layer: Background3D, HUD, Screens, TopBar, Modals, Toasts,
+	                  Tooltip, Debug — DisplayOrder from Theme, ResetOnSpawn off, Sibling ZIndex, SafeAreaCompatibility
+	                  None, CoreUISafeInsets for interactive layers, TopbarSafeInsets for TopBar, None + IgnoreGuiInset
+	                  for Background3D/Debug) with a scaled Layout root each, and a stack of screens. A screen module is `{ new(ctx) -> Screen }`;
 	                  Screen = { mount(parent), show(params, info), hide(), destroy(), onBack()? }. push/pop/replace/
 	                  reset/openModal/closeModal/back/navigate drive the lifecycle:
 	                    create (new) -> mount (once, into a host Frame) -> show (each time it becomes visible)
@@ -134,7 +134,7 @@ export type Router = {
 
 local log = Log.scope("UI.Router")
 
-local LAYERS: { Layer } = { "Background3D", "HUD", "Screens", "Modals", "Toasts", "Tooltip", "Debug" }
+local LAYERS: { Layer } = { "Background3D", "HUD", "Screens", "TopBar", "Modals", "Toasts", "Tooltip", "Debug" }
 local NON_INTERACTIVE: { [string]: boolean } = { Background3D = true, Debug = true }
 
 type Registration = { module: ScreenModule, options: ScreenOptions }
@@ -243,16 +243,23 @@ end
 
 local function createLayer(self: RouterImpl, name: Layer, parent: Instance?, prefix: string)
 	local nonInteractive = NON_INTERACTIVE[name] == true
+	local topBar = name == "TopBar"
 	local gui = Create.ScreenGui({
 		Name = `{prefix}_{name}`,
 		DisplayOrder = Theme.layer(name),
 		ResetOnSpawn = false,
 		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
-		IgnoreGuiInset = nonInteractive,
-		ScreenInsets = if nonInteractive then Enum.ScreenInsets.None else Enum.ScreenInsets.CoreUISafeInsets,
 		SafeAreaCompatibility = Enum.SafeAreaCompatibility.None,
 	})
-	local root = Layout.root({ Name = "Root", safeArea = not nonInteractive })
+	-- IgnoreGuiInset and ScreenInsets are coupled in the engine (writing one updates the other), so they are written
+	-- in a fixed order with ScreenInsets last instead of through a props table (hash order is unspecified).
+	gui.IgnoreGuiInset = nonInteractive
+	gui.ScreenInsets = if nonInteractive
+		then Enum.ScreenInsets.None
+		elseif topBar then Enum.ScreenInsets.TopbarSafeInsets
+		else Enum.ScreenInsets.CoreUISafeInsets
+	-- The top-bar row is already inside the engine's safe area; no extra TV margin there.
+	local root = Layout.root({ Name = "Root", safeArea = not nonInteractive and not topBar })
 	root.Parent = gui
 	gui.Parent = parent
 	self._guis[name] = gui
@@ -397,20 +404,16 @@ local function playEntrance(entry: EntryImpl, reason: ShowReason)
 		Parent = entry.host,
 	})
 	local tween = Motion.tween(veil, { BackgroundTransparency = 1 }, { duration = "slow", kind = "fade" })
-	if tween == nil then
+	Motion.onComplete(tween, function()
 		veil:Destroy()
-	else
-		tween.Completed:Once(function()
-			veil:Destroy()
-		end)
-	end
+	end)
 	if transition == "slide" then
 		entry.host.Position = UDim2.new()
 		Motion.slideIn(entry.host, if reason == "return" then "left" else "right", 24, { duration = "base" })
 	end
 end
 
-local function showEntry(self: RouterImpl, entry: EntryImpl, reason: ShowReason, previous: string?)
+local function showEntry(_self: RouterImpl, entry: EntryImpl, reason: ShowReason, previous: string?)
 	entry.ctx.params:set(entry.params, true)
 	entry.host.Visible = true
 	entry.visible = true

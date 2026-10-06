@@ -3,11 +3,13 @@
 	Content/Maps/ProvingGrounds — "Proving Grounds", a small 800 m training-pool map (exemplar map definition).
 
 	Purpose:          Smallest complete MapDefinition: terrain recipe, 15 + 15 spawns, Standard bases, the three lane
-	                  kinds, analytic foliage volumes, props, water, cosmetic variants, audio and tips.
+	                  kinds, tactical positions, analytic foliage volumes, props, water, cosmetic variants, audio
+	                  and tips.
 	Dependencies:     Types/Content.
 	State:            Data only (deep-frozen by ContentRegistry).
 	Validation:       ContentRegistry: spawn counts/rear slots/bounds/spacing/centroid separation, bases per battle
-	                  type and >= 60 m inside the edge, one lane of each kind, foliage ranges, references.
+	                  type and >= 60 m inside the edge, one lane of each kind, per-team positions, foliage ranges,
+	                  references.
 	Error handling:   N/A.
 	Performance notes: Loaded once; the Battle server builds the map from this data before players arrive.
 
@@ -119,6 +121,92 @@ local map: Content.MapDefinition = {
 			kind = "Open",
 			points = { { x = 260, z = -250 }, { x = 240, z = 0 }, { x = 260, z = 250 } },
 			widthM = 180,
+		},
+	},
+	-- Tactical points for bots and map QA: three hull-down spots per side on the ridge, a sniper overwatch and a
+	-- scout bush per team, and a brawl corner at the western farm. No artillery pits: SPGs start at Tier IV.
+	positions = {
+		{
+			id = "t1_ridge_north",
+			kind = "HullDown",
+			at = { x = -45, z = -140 },
+			facingDeg = 180,
+			team = 1,
+			lane = "central_ridge",
+		},
+		{
+			id = "t1_ridge_mid",
+			kind = "HullDown",
+			at = { x = -30, z = -100 },
+			facingDeg = 180,
+			team = 1,
+			lane = "central_ridge",
+		},
+		{
+			id = "t1_ridge_crest",
+			kind = "HullDown",
+			at = { x = -10, z = -60 },
+			facingDeg = 180,
+			team = 1,
+			lane = "central_ridge",
+		},
+		{ id = "t1_hill_overwatch", kind = "Sniper", at = { x = -230, z = -150 }, facingDeg = 150, team = 1 },
+		{
+			id = "t1_hedgerow",
+			kind = "Scout",
+			at = { x = 190, z = -70 },
+			facingDeg = 180,
+			team = 1,
+			lane = "east_meadow",
+		},
+		{
+			id = "t1_farm_corner",
+			kind = "Brawl",
+			at = { x = -285, z = -85 },
+			facingDeg = 180,
+			team = 1,
+			lane = "west_farm",
+		},
+		{
+			id = "t2_ridge_south",
+			kind = "HullDown",
+			at = { x = 45, z = 140 },
+			facingDeg = 0,
+			team = 2,
+			lane = "central_ridge",
+		},
+		{
+			id = "t2_ridge_mid",
+			kind = "HullDown",
+			at = { x = 30, z = 100 },
+			facingDeg = 0,
+			team = 2,
+			lane = "central_ridge",
+		},
+		{
+			id = "t2_ridge_crest",
+			kind = "HullDown",
+			at = { x = 10, z = 60 },
+			facingDeg = 0,
+			team = 2,
+			lane = "central_ridge",
+		},
+		{ id = "t2_hill_overwatch", kind = "Sniper", at = { x = 230, z = 150 }, facingDeg = 330, team = 2 },
+		{
+			id = "t2_dense_bush",
+			kind = "Scout",
+			at = { x = 205, z = 125 },
+			facingDeg = 0,
+			team = 2,
+			lane = "east_meadow",
+		},
+		{
+			id = "t2_farm_corner",
+			kind = "Brawl",
+			at = { x = -270, z = 60 },
+			facingDeg = 0,
+			team = 2,
+			lane = "west_farm",
 		},
 	},
 	foliage = {

@@ -119,6 +119,7 @@ export type TypeRole =
 	| "button.battle"
 	| "tab"
 	| "badge"
+	| "title.s"
 export type MotionToken =
 	"instant"
 	| "hover"
@@ -134,7 +135,9 @@ export type MotionToken =
 	| "toastHoldAction"
 	| "focusPulse"
 export type EasingToken = "standard" | "enter" | "exit" | "linear" | "emphasized"
-export type Layer = "Background3D" | "HUD" | "Screens" | "Modals" | "Toasts" | "Tooltip" | "Debug"
+export type Layer = "Background3D" | "HUD" | "Screens" | "TopBar" | "Modals" | "Toasts" | "Tooltip" | "Debug"
+--- Layout family pushed by Kit/Layout: Regular, Compact (phones) or TV (10-ft); selects authored type minimums.
+export type LayoutMode = "regular" | "compact" | "tv"
 
 export type Settings = {
 	scheme: Scheme,
@@ -157,6 +160,7 @@ export type SettingsPatch = {
 export type SystemPatch = {
 	renderScale: number?,
 	platform: Platform?,
+	layout: LayoutMode?,
 	reducedMotionSystem: boolean?,
 	preferredTransparency: number?,
 }
@@ -170,6 +174,7 @@ export type Snapshot = {
 	preferredTransparency: number,
 	renderScale: number,
 	platform: Platform,
+	layout: LayoutMode,
 }
 
 export type TypeSpec = {
@@ -254,6 +259,7 @@ local reducedMotionSystemValue = State.Value(false)
 local preferredTransparencyValue = State.Value(1)
 local renderScaleValue = State.Value(1)
 local platformValue: State.Value<Platform> = State.Value("pc") :: any
+local layoutValue: State.Value<LayoutMode> = State.Value("regular") :: any
 
 local reducedMotionComputed = State.Computed(function(): boolean
 	return reducedMotionUserValue:get() or reducedMotionSystemValue:get()
@@ -269,6 +275,7 @@ Theme.state = {
 	preferredTransparency = State.readonly(preferredTransparencyValue),
 	renderScale = State.readonly(renderScaleValue),
 	platform = State.readonly(platformValue),
+	layout = State.readonly(layoutValue),
 }
 
 --- Fires (Snapshot) after any setting changes (user or system), once per Theme.set/setSystem call.
@@ -284,6 +291,7 @@ function Theme.snapshot(): Snapshot
 		preferredTransparency = preferredTransparencyValue:peek(),
 		renderScale = renderScaleValue:peek(),
 		platform = platformValue:peek(),
+		layout = layoutValue:peek(),
 	}
 end
 
@@ -345,6 +353,12 @@ function Theme.setSystem(patch: SystemPatch)
 		if patch.platform ~= nil then
 			platformValue:set(patch.platform)
 		end
+		if patch.layout ~= nil then
+			if patch.layout ~= "regular" and patch.layout ~= "compact" and patch.layout ~= "tv" then
+				error(`Theme.setSystem: unknown layout "{tostring(patch.layout)}"`, 3)
+			end
+			layoutValue:set(patch.layout)
+		end
 		if patch.reducedMotionSystem ~= nil then
 			reducedMotionSystemValue:set(patch.reducedMotionSystem == true)
 		end
@@ -367,7 +381,13 @@ function Theme.reset()
 		uiScale = DEFAULTS.uiScale,
 		reducedMotion = false,
 	})
-	Theme.setSystem({ renderScale = 1, platform = "pc", reducedMotionSystem = false, preferredTransparency = 1 })
+	Theme.setSystem({
+		renderScale = 1,
+		platform = "pc",
+		layout = "regular",
+		reducedMotionSystem = false,
+		preferredTransparency = 1,
+	})
 end
 
 --- Follows GuiService.ReducedMotionEnabled / PreferredTransparency. Returns a function that stops listening.
@@ -626,7 +646,16 @@ function Theme.computeTextSize(
 	return math.max(scaled, minUnscaled)
 end
 
---- Reactive TextSize for a role (follows text scale, UI render scale and platform minimums).
+--- Pure: the authored size of a role in a layout (the role size, raised to the layout's authored minimum).
+function Theme.authoredSize(role: TypeRole, layout: LayoutMode): number
+	local spec = typeSpec(role)
+	local minimums = (Tokens.layoutTypeMinimums :: any)[layout]
+	local minimum = if minimums ~= nil then minimums[role] else nil
+	return if minimum ~= nil then math.max(spec.size, minimum) else spec.size
+end
+
+--- Reactive TextSize for a role (follows the layout's authored minimums, text scale, UI render scale and platform
+--- minimums).
 function Theme.textSize(role: TypeRole): State<number>
 	local cached = sizeCache[role]
 	if cached then
@@ -635,7 +664,7 @@ function Theme.textSize(role: TypeRole): State<number>
 	local spec = typeSpec(role)
 	local state = State.Computed(function(): number
 		return Theme.computeTextSize(
-			spec.size,
+			Theme.authoredSize(role, layoutValue:get()),
 			spec.kind,
 			textScaleValue:get(),
 			renderScaleValue:get(),

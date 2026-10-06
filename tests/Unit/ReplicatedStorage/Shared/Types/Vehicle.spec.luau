@@ -88,6 +88,17 @@ describe("Types/Vehicle: armor model contract", function()
 		local trunnion = CFrame.new(0, 1, -2)
 		local muzzle = hullCFrame * turretRing * turret * trunnion * CFrame.new(0, 0, -9)
 		expect(muzzle.Position).toBeCloseTo(Vector3.new(100 + 2 + 9, 7, 50 - 1.5), 1e-6)
+		-- Casemate: the turret group stays at yaw 0; the gun yaws about the trunnion, then elevates.
+		local gunYaw = math.rad(-11) -- 11° to the left (the default casemate limit)
+		local casemateMuzzle = hullCFrame
+			* turretRing
+			* trunnion
+			* CFrame.Angles(0, -gunYaw, 0)
+			* CFrame.Angles(math.rad(5), 0, 0)
+			* CFrame.new(0, 0, -9)
+		expect(casemateMuzzle.LookVector.X).toBeLessThan(0) -- points left of the hull axis
+		expect(casemateMuzzle.LookVector.Y).toBeGreaterThan(0) -- elevated
+		expect((casemateMuzzle.Position - (hullCFrame * turretRing * trunnion).Position).Magnitude).toBeCloseTo(9, 1e-6)
 	end)
 
 	it("lists every armor-model field the producer must fill", function()
@@ -115,7 +126,13 @@ describe("Types/Vehicle: armor model contract", function()
 			"viewPoint",
 		})
 		expect(TypeSource.unionMembers(SOURCE, "ArmorGroup")).toEqual({ "Gun", "Hull", "Turret" })
-		expect(TypeSource.unionMembers(SOURCE, "ArmorVolumeKind")).toEqual({ "Armor", "Crew", "Module", "Spaced" })
+		expect(TypeSource.unionMembers(SOURCE, "ArmorVolumeKind")).toEqual({
+			"Armor",
+			"Crew",
+			"Layered",
+			"Module",
+			"Spaced",
+		})
 	end)
 end)
 
@@ -143,27 +160,33 @@ describe("Types/Vehicle: input, loadout, stats", function()
 		expect(TypeSource.sortedKeys(example :: any)).toEqual(names)
 	end)
 
-	it("a Loadout for the IU-1 Forge passes the content mount rules", function()
+	it("a Loadout for the IU-1 Kolmal passes the content mount rules", function()
 		local content = ContentRegistry.get()
-		local forge = content:getVehicle("iu_forge") :: any
+		local kolmal = content:getVehicle("iu_kolmal") :: any
 		local loadout: Loadout = {
-			vehicleId = "iu_forge",
-			configuration = forge.top,
+			vehicleId = "iu_kolmal",
+			configuration = kolmal.top,
 			equipment = {},
 			ammo = {
-				{ shell = "iu_45mm_ap", count = 70 },
+				{ shell = "iu_45mm_ap", count = 60 },
 				{ shell = "iu_45mm_apcr", count = 20 },
 				{ shell = "iu_45mm_he", count = 20 },
 			},
 			consumables = {},
 			crew = {
-				{ slot = 1, role = "Commander", also = { "Loader" }, level = 100, skills = {} },
-				{ slot = 2, role = "Gunner", level = 100, skills = { { id = "snap_shot", training = 0.4 } } },
-				{ slot = 3, role = "Driver", level = 100, skills = {} },
+				{
+					slot = 1,
+					role = "Commander",
+					also = { "Gunner", "Loader" },
+					level = 100,
+					skills = { { id = "snap_shot", training = 0.4 } },
+				},
+				{ slot = 2, role = "Driver", level = 100, skills = {} },
 			},
-			customization = {},
+			customization = { paint = "paint_foundry_red", attachments = { "attachment_spare_links" } },
 		}
 		expect(content:checkConfiguration(loadout.vehicleId, loadout.configuration)).toBeOk()
+		expect(TypeSource.shapeProblems(loadout.customization :: any, SOURCE, "CustomizationLoadout")).toEqual({})
 		local gun = content:getGun(loadout.configuration.gun) :: any
 		local total = 0
 		for i, load in loadout.ammo do
@@ -171,9 +194,9 @@ describe("Types/Vehicle: input, loadout, stats", function()
 			total += load.count
 		end
 		expect(total).toBeLessThanOrEqual(gun.ammoCapacity)
-		expect(#loadout.crew).toBe(#forge.crew)
+		expect(#loadout.crew).toBe(#kolmal.crew)
 		for i, member in loadout.crew do
-			expect(member.role).toBe(forge.crew[i].role)
+			expect(member.role).toBe(kolmal.crew[i].role)
 		end
 		expect(TypeSource.shapeProblems(loadout :: any, SOURCE, "Loadout")).toEqual({})
 		expect(TypeSource.shapeProblems(loadout.crew[1] :: any, SOURCE, "CrewMemberSnapshot")).toEqual({})
@@ -181,16 +204,16 @@ describe("Types/Vehicle: input, loadout, stats", function()
 
 	it("a complete VehicleStats example covers every required field", function()
 		local stats: VehicleStats = {
-			vehicleId = "iu_forge",
+			vehicleId = "iu_kolmal",
 			faction = "iron_union",
 			tier = 1,
 			class = "medium",
 			role = "medium_versatile",
-			configuration = (ContentRegistry.get():getVehicle("iu_forge") :: any).top,
+			configuration = (ContentRegistry.get():getVehicle("iu_kolmal") :: any).top,
 			premium = false,
 			hp = 280,
-			massKg = 10070,
-			dimensionsM = Vector3.new(2.3, 1.55, 4.6),
+			massKg = 10020,
+			dimensionsM = Vector3.new(2.3, 2.05, 4.4),
 			modules = {
 				Engine = { maxHp = 40, repairS = 14 },
 				AmmoRack = { maxHp = 36, repairS = 10 },
@@ -211,21 +234,21 @@ describe("Types/Vehicle: input, loadout, stats", function()
 			fallDamageMul = 1,
 			repairTimeMul = 1,
 			enginePowerHp = 120,
-			specificPowerHpT = 120 / 10.07,
-			topSpeedKmh = 40,
-			reverseSpeedKmh = 14,
-			hullTraverseDegS = 38,
+			specificPowerHpT = 120 / 10.02,
+			topSpeedKmh = 36,
+			reverseSpeedKmh = 13,
+			hullTraverseDegS = 36,
 			terrainResistance = { hard = 0.9, medium = 1.1, soft = 1.9 },
 			loadLimitKg = 10100,
 			pivot = true,
 			turretMount = "Turret",
-			turretTraverseDegS = 40,
+			turretTraverseDegS = 38,
 			gun = {
 				id = "iu_gun_45mm",
 				caliberMm = 45,
-				reload = { kind = "Single", reloadS = 2.3 },
-				dispersionM100 = 0.51,
-				aimTimeS = 2.0,
+				reload = { kind = "Single", reloadS = 2.64 },
+				dispersionM100 = 0.55,
+				aimTimeS = 2.2,
 				bloom = {
 					movementPerKmh = 0.07,
 					hullTraversePerDegS = 0.075,
@@ -234,21 +257,20 @@ describe("Types/Vehicle: input, loadout, stats", function()
 					damagedMul = 1.5,
 				},
 				depressionDeg = 5,
-				elevationDeg = 22,
+				elevationDeg = 20,
 				arcSectors = {},
 				shells = {},
-				ammoCapacity = 110,
+				ammoCapacity = 100,
 				camoAfterShotMul = 0.34,
-				shellSwapS = 2.3,
+				shellSwapS = 2.64,
 				indirect = false,
 			},
 			viewRangeM = 300,
 			signalRangeM = 600,
 			camo = { stationary = 0.12, moving = 0.07, afterShotMul = 0.34, net = 0, paint = 0 },
 			crew = {
-				{ slot = 1, role = "Commander", also = { "Loader" }, level = 100 },
-				{ slot = 2, role = "Gunner", also = {}, level = 100 },
-				{ slot = 3, role = "Driver", also = {}, level = 100 },
+				{ slot = 1, role = "Commander", also = { "Gunner", "Loader" }, level = 100, maxHp = 32 },
+				{ slot = 2, role = "Driver", also = {}, level = 100, maxHp = 32 },
 			},
 			crewLevels = { Commander = 100, Gunner = 100, Driver = 100, Loader = 100 },
 			consumableSlots = 3,

@@ -54,6 +54,7 @@ local MIRRORS: { [string]: string } = {
 	TerrainFeatureKind = "terrainFeature",
 	TerrainMaterial = "terrainMaterial",
 	LaneKind = "laneKind",
+	MapPositionKind = "mapPosition",
 	FoliageKind = "foliage",
 	DestructibleClass = "destructible",
 	StoreItemKind = "storeKind",
@@ -82,12 +83,12 @@ describe("Types/Content", function()
 		)
 	end)
 
-	it("the bundle, the manifest and ContentKind describe the same 22 kinds", function()
+	it("the bundle, the manifest and ContentKind describe the same 23 kinds", function()
 		local kinds = TypeSource.unionMembers(SOURCE, "ContentKind")
-		expect(#kinds).toBe(22)
+		expect(#kinds).toBe(23)
 		local bundle = TypeSource.fieldNames(SOURCE, "ContentBundle")
 		local sources = TypeSource.fieldNames(SOURCE, "ContentSources")
-		expect(#bundle).toBe(22)
+		expect(#bundle).toBe(23)
 		expect(bundle).toEqual(sources)
 		local shipped = ContentRegistry.shippedBundle() :: any
 		expect(TypeSource.sortedKeys(shipped)).toEqual(bundle)
@@ -118,6 +119,115 @@ describe("Types/Content", function()
 			for key in vehicle :: any do
 				expect(allowed[key]).toBe(true)
 			end
+		end
+	end)
+
+	it("the registry's known-field sets match the type declarations (no UNKNOWN_FIELD drift)", function()
+		-- ContentRegistry.FIELDS key -> declared table type. Inline nested tables without a named type are not listed.
+		local SHAPES: { [string]: string } = {
+			Faction = "FactionDefinition",
+			Branch = "BranchDefinition",
+			Class = "ClassDefinition",
+			Role = "RoleDefinition",
+			Tier = "TierDefinition",
+			Shell = "ShellDefinition",
+			Gun = "GunDefinition",
+			Turret = "TurretDefinition",
+			Engine = "EngineDefinition",
+			Tracks = "TracksDefinition",
+			Vehicle = "VehicleDefinition",
+			Equipment = "EquipmentDefinition",
+			Consumable = "ConsumableDefinition",
+			CrewSkill = "CrewSkillDefinition",
+			CrewBook = "CrewBookDefinition",
+			Booster = "BoosterDefinition",
+			Customization = "CustomizationDefinition",
+			Mission = "MissionDefinition",
+			Achievement = "AchievementDefinition",
+			Map = "MapDefinition",
+			StoreItem = "StoreItem",
+			Event = "EventDefinition",
+			Season = "SeasonDefinition",
+			Hull = "HullDefinition",
+			HullArmor = "HullArmor",
+			Mobility = "MobilityDefinition",
+			HullVisual = "HullVisual",
+			Layout = "InternalLayout",
+			Slots = "VehicleSlots",
+			Economy = "VehicleEconomy",
+			Camo = "CamoSpec",
+			Range = "Range",
+			Vec2 = "Vec2",
+			BalanceKit = "BalanceKit",
+			TerrainResistance = "TerrainResistance",
+			FieldKitLevel = "FieldKitLevel",
+			FieldKitOption = "FieldKitOption",
+			MediumBaseline = "MediumBaseline",
+			TierEconomy = "TierEconomy",
+			Stun = "StunSpec",
+			GunArcs = "GunArcs",
+			GunBloom = "GunBloom",
+			GunVisual = "GunVisual",
+			TurretArmor = "TurretArmor",
+			TurretVisual = "TurretVisual",
+			ArcSector = "ArcSector",
+			TurretRing = "TurretRingSpec",
+			Superstructure = "SuperstructureVisual",
+			Running = "RunningGearVisual",
+			Details = "DetailVisual",
+			VehiclePalette = "VehiclePalette",
+			VolumeSpec = "InternalVolumeSpec",
+			Apex = "ApexTrack",
+			ApexNode = "ApexNode",
+			Modifier = "StatModifier",
+			Reward = "Reward",
+			Price = "Price",
+			MissionScope = "MissionScope",
+			Terrain = "TerrainRecipe",
+			Noise = "TerrainNoise",
+			Feature = "TerrainFeature",
+			MaterialRule = "MaterialRule",
+			SpawnPoint = "SpawnPoint",
+			Base = "CaptureBase",
+			Lane = "Lane",
+			Position = "MapPosition",
+			Foliage = "FoliageVolume",
+			Prop = "PropPlacement",
+			Water = "WaterBody",
+			Variant = "MapVariant",
+			RandomEvent = "MapRandomEvent",
+			Robux = "RobuxProduct",
+			EventModifiers = "EventModifiers",
+			EventMode = "EventModeDefinition",
+			Ability = "EventAbility",
+			Ladder = "RankLadder",
+			LadderRank = "LadderRank",
+			PointsRule = "PassPointsRule",
+			Chapter = "PassChapter",
+			PassReward = "PassReward",
+		}
+		local fieldSets = ContentRegistry.FIELDS :: any
+		for key, typeName in SHAPES do
+			local set = fieldSets[key]
+			if set == nil then
+				error(`ContentRegistry.FIELDS has no {key} ({typeName})`)
+			end
+			local declared = TypeSource.fieldNames(SOURCE, typeName, true)
+			if not TypeSource.deepEqualLists(TypeSource.sortedKeys(set), declared) then
+				error(
+					`FIELDS.{key} {table.concat(TypeSource.sortedKeys(set), ",")} ~= {typeName} {table.concat(
+						declared,
+						","
+					)}`
+				)
+			end
+		end
+		expect(TypeSource.fieldNames(SOURCE, "LadderPointsRule", true)).toEqual(
+			TypeSource.fieldNames(SOURCE, "PassPointsRule", true)
+		)
+		-- every SpecialMechanic variant has its field set
+		for _, kind in TypeSource.unionMembers(SOURCE, "MechanicKind") do
+			expect((ContentRegistry.MECHANIC_FIELDS :: any)[kind]).never.toBeNil()
 		end
 	end)
 

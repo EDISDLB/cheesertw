@@ -185,6 +185,22 @@ function Motion.scaleOf(guiObject: GuiObject): UIScale
 	return scale
 end
 
+--- Runs `fn` once when `tween` finishes (immediately when it is nil — applied instantly — or already finished).
+function Motion.onComplete(tween: Tween?, fn: () -> ())
+	if tween == nil then
+		fn()
+		return
+	end
+	local state = tween.PlaybackState
+	if state == Enum.PlaybackState.Completed or state == Enum.PlaybackState.Cancelled then
+		fn()
+		return
+	end
+	tween.Completed:Once(function()
+		fn()
+	end)
+end
+
 --- Small scale-up entrance (0.92 -> 1). Reduced motion: none.
 function Motion.pop(guiObject: GuiObject, spec: Spec?): Tween?
 	if Motion.isReduced() then
