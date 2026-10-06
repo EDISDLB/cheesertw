@@ -49,6 +49,8 @@ export type SliderProps = {
 local Slider = {}
 
 local STICK_THRESHOLD = 0.6
+--- Height of the drawn track row (the touch hit area is taller, see Slider.new).
+local TRACK_HEIGHT = 24
 local STICK_REPEAT = 0.15
 
 --- Pure: clamps to [min, max] and snaps to the step grid anchored at min.
@@ -113,14 +115,21 @@ function Slider.new(props: SliderProps): Frame
 	local fraction = State.Computed(function(): number
 		return Slider.fraction(value:get(), min, max)
 	end)
+	-- The visual track is a 24 px row at the bottom; on touch the hit area grows upward to the 44 px minimum
+	-- (48 authored on Compact) behind the label, so the drawn slider does not move.
+	local hitHeight = Common.touchHeight(TRACK_HEIGHT)
 	local track = Create.TextButton({
 		Name = "Track",
 		Text = "",
 		AutoButtonColor = false,
 		BackgroundTransparency = 1,
 		Selectable = true,
-		Position = UDim2.new(0, 0, 1, -24),
-		Size = UDim2.new(1, 0, 0, 24),
+		Position = State.map(hitHeight, function(h: number): UDim2
+			return UDim2.new(0, 0, 1, -h)
+		end),
+		Size = State.map(hitHeight, function(h: number): UDim2
+			return UDim2.new(1, 0, 0, h)
+		end),
 	})
 	track.NextSelectionLeft = track
 	track.NextSelectionRight = track
@@ -134,7 +143,7 @@ function Slider.new(props: SliderProps): Frame
 				Name = "Bar",
 				BackgroundTransparency = 1,
 				AnchorPoint = Vector2.new(0, 0.5),
-				Position = UDim2.fromScale(0, 0.5),
+				Position = UDim2.new(0, 0, 1, -TRACK_HEIGHT / 2),
 				Size = UDim2.new(1, 0, 0, 8),
 				ZIndex = 2,
 				[Create.Children] = {
@@ -161,7 +170,7 @@ function Slider.new(props: SliderProps): Frame
 				BackgroundTransparency = 1,
 				AnchorPoint = Vector2.new(0.5, 0.5),
 				Position = State.Computed(function(): UDim2
-					return UDim2.fromScale(fraction:get(), 0.5)
+					return UDim2.new(fraction:get(), 0, 1, -TRACK_HEIGHT / 2)
 				end),
 				Size = UDim2.fromOffset(12, 20),
 				ZIndex = 5,

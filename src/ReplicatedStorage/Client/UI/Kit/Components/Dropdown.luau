@@ -147,6 +147,8 @@ function Dropdown.new(props: DropdownProps): TextButton
 			return
 		end
 		local list = State.peek(options)
+		-- Option rows are touch targets too: 40 px, raised to 44 (48 authored on Compact) on touch.
+		local rowHeight = Common.touchHeight(ROW_HEIGHT):peek()
 		local rows: { Instance } = { Layout.list({ gap = 2 }) }
 		local selectedRow: GuiObject? = nil
 		for index, option in list do
@@ -156,7 +158,7 @@ function Dropdown.new(props: DropdownProps): TextButton
 				AutoButtonColor = false,
 				BackgroundTransparency = 1,
 				Selectable = true,
-				Size = UDim2.new(1, 0, 0, ROW_HEIGHT),
+				Size = UDim2.new(1, 0, 0, rowHeight),
 				LayoutOrder = index,
 			})
 			local rowInteraction = Common.trackInteraction(row, true)
@@ -224,16 +226,16 @@ function Dropdown.new(props: DropdownProps): TextButton
 			table.insert(rows, row)
 		end
 		local visibleRows = math.min(#list, MAX_VISIBLE_ROWS)
-		local height = visibleRows * (ROW_HEIGHT + 2) + 8
+		local height = visibleRows * (rowHeight + 2) + 8
 		local scale = 1
 		local rootScale = parent:FindFirstChildOfClass("UIScale")
 		if rootScale ~= nil then
 			scale = rootScale.Scale
 		end
-		local origin = if parent:IsA("GuiBase2d") then (parent :: GuiBase2d).AbsolutePosition else Vector2.new(0, 0)
 		local screenPosition =
 			Dropdown.popupPosition(field.AbsolutePosition, field.AbsoluteSize, height * scale, Services.viewportSize())
-		local localPosition = (screenPosition - origin) / scale
+		-- Into the layer root's content space (its UIScale and the TV-safe UIPadding).
+		local localPosition = Layers.toLocal(parent, screenPosition)
 		local listFrame = Create.Frame({
 			Name = "List",
 			BackgroundTransparency = 1,
@@ -288,6 +290,13 @@ function Dropdown.new(props: DropdownProps): TextButton
 		})
 		popup = holder
 		isOpen:set(true)
+		-- The Tooltip layer can go away under an open list (router:destroy()): release Back and focus with it.
+		holder.Destroying:Connect(function()
+			if popup == holder then
+				popup = nil
+				close()
+			end
+		end)
 		local listScope = Focus.scope(listFrame, { name = "DropdownList", trap = true, initial = selectedRow })
 		scope = listScope
 		listScope:activate()
@@ -341,6 +350,9 @@ function Dropdown.new(props: DropdownProps): TextButton
 		}),
 	}
 	values[Create.On("Activated")] = function()
+		if Common.consumeLongPress(field) then
+			return
+		end
 		if State.peek(disabled) then
 			Sound.play(Sound.KEYS.error)
 			return

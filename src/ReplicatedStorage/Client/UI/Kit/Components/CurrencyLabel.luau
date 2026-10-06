@@ -170,13 +170,14 @@ function CurrencyLabel.new(props: CurrencyLabelProps): Frame
 	if panel then
 		table.insert(content, Layout.padding({ x = Theme.space(2), y = Theme.space(1) }))
 	end
-	-- Content sits in its own auto-sized frame so the scale-sized plate does not take a list slot.
+	-- Content sits in its own auto-sized frame so the scale-sized plate does not take a list slot. It grows in both
+	-- axes: the amount (num.m 22 px, 33 px at 150 % text) is taller than the icon row, which is only the minimum.
 	local children: { Instance } = {
 		Create.Frame({
 			Name = "Content",
 			BackgroundTransparency = 1,
-			Size = UDim2.fromScale(0, 1),
-			AutomaticSize = Enum.AutomaticSize.X,
+			Size = UDim2.fromOffset(0, iconSize),
+			AutomaticSize = Enum.AutomaticSize.XY,
 			ZIndex = 3,
 			[Create.Children] = content,
 		}),
@@ -195,7 +196,7 @@ function CurrencyLabel.new(props: CurrencyLabelProps): Frame
 	local values: { [any]: any } = Common.layout(props, {}, { Name = "Currency_" .. props.currency })
 	values.BackgroundTransparency = 1
 	values.Size = UDim2.fromOffset(0, iconSize + (if panel then Theme.space(1) * 2 else 0))
-	values.AutomaticSize = Enum.AutomaticSize.X
+	values.AutomaticSize = Enum.AutomaticSize.XY
 	values[Create.Children] = children
 	values[Create.Cleanup] = scope
 	return Common.parent(Create.Frame(values), props)

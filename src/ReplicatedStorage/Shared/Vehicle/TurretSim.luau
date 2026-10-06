@@ -34,6 +34,7 @@ type VehiclePivots = VehicleTypes.VehiclePivots
 type TurretSimState = SimTypes.TurretSimState
 type TurretSimModifiers = SimTypes.TurretSimModifiers
 type VehicleSimState = SimTypes.VehicleSimState
+type TurretEffects = SimTypes.TurretEffects
 
 local TurretSim = {}
 
@@ -126,6 +127,14 @@ function TurretSim.newState(): TurretSimState
 		reachable = true,
 		modifiers = TurretSim.newModifiers(),
 	}
+end
+
+--- Maps DamageModel.effects (Types/Combat.EffectMultipliers.turretTraverseMul: ring damage, gunner injury and stun
+--- combined) onto the modifiers. Use this OR modifiers.ring, never both: the ring state is reset to "Ok" here.
+function TurretSim.applyEffects(turret: TurretSimState, effects: TurretEffects)
+	local mods = turret.modifiers
+	mods.ring = "Ok"
+	mods.traverseMul = nonNegativeOr(effects.turretTraverseMul, 1)
 end
 
 --- Selects the shell the gun is laid for (ballistic aiming); velocity 0 aims the barrel straight at the point.
@@ -371,13 +380,20 @@ function TurretSim.step(
 		if highArc == nil then
 			highArc = stats.gun.indirect == true
 		end
-		local dir, reachable = TurretSim.ballisticDirection(
-			trunnionWorld.Position,
-			aimPoint,
-			mods.shellVelocityMps,
-			mods.shellGravityMps2,
-			highArc
-		)
+		-- The shell leaves the muzzle, which lies on the barrel axis `muzzleLength` beyond the trunnion: solve from
+		-- the trunnion, then re-solve from the muzzle point that direction implies (drop is quadratic in range).
+		local trunnionPos = trunnionWorld.Position
+		local muzzleLength = max(0, -pivots.muzzle.Position.Z)
+		local origin = trunnionPos
+		local dir, reachable = Vector3.zero, true
+		for _ = 1, 2 do
+			dir, reachable =
+				TurretSim.ballisticDirection(origin, aimPoint, mods.shellVelocityMps, mods.shellGravityMps2, highArc)
+			if muzzleLength <= 0 then
+				break
+			end
+			origin = trunnionPos + dir * muzzleLength
+		end
 		local d = baseFrame:VectorToObjectSpace(dir)
 		if finiteVector(d) then
 			desiredLocal = d

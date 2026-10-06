@@ -112,6 +112,9 @@ local Movement = {
 	--- Ground within this distance below the hull keeps it grounded (snapped); samples further below are not in
 	--- contact (cliff edges, crests at speed) and do not tilt the hull.
 	GROUND_SNAP_M = 0.3,
+	--- When the samples in contact leave pitch or roll undetermined (one row/side touching), the hull tips toward
+	--- the unsupported side following all samples, but no further than this.
+	OVERHANG_MAX_TILT_DEG = 45,
 	--- Highest step (kerb, rubble, terrain seam) the tracks climb in one tick; a higher rise is a wall. Static boxes
 	--- lower than this are driven over, taller ones block (the obstacle sweep starts at this height).
 	STEP_HEIGHT_M = 0.6,
@@ -240,6 +243,7 @@ local Movement = {
 		NON_PIVOT_SPEED_KMH = { min = 0, max = 20 },
 		GROUND_FIT_RATE = { min = 0.5, max = 60 },
 		GROUND_SNAP_M = { min = 0.05, max = 2 },
+		OVERHANG_MAX_TILT_DEG = { min = 0, max = 89 },
 		STEP_HEIGHT_M = { min = 0.1, max = 2 },
 		GROUND_PROBE_UP_M = { min = 0.1, max = 10 },
 		GROUND_RECAST_UP_M = { min = 5, max = 500 },

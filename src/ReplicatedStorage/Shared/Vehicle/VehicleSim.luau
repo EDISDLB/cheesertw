@@ -13,7 +13,8 @@
 	                  Also: input sanitising for untrusted InputCommands, hull CFrame/velocity helpers, state copies for
 	                  prediction/reconciliation and impulse/displacement hooks for the server CollisionSystem.
 	Dependencies:     Config (Movement section), Core/Units, Security/InputValidator, Types/Vehicle, Types/VehicleSim,
-	                  Types/World. World queries go through the injected `World` only (pure module).
+	                  Types/World, Types/Content (type-only). World queries go through the injected `World` only.
+	                  The mechanic machine can be driven from outside (state.mechanic.external; Vehicle/Mechanics).
 	State:            None at module level except allocation-free scratch numbers; every vehicle owns a VehicleSimState
 	                  (kinematics, timers, flags, runtime modifiers, mechanic runtime, pooled events, scratch arrays).
 	Validation:       Inputs are sanitised every step (axes clamped to [-1, 1], NaN -> 0); stats are guarded (non-finite
@@ -35,11 +36,10 @@ local InputValidator = require("../Security/InputValidator")
 local VehicleTypes = require("../Types/Vehicle")
 local SimTypes = require("../Types/VehicleSim")
 local WorldTypes = require("../Types/World")
+local ContentTypes = require("../Types/Content")
 
 type VehicleStats = VehicleTypes.VehicleStats
 type InputCommand = VehicleTypes.InputCommand
-type ModuleState = VehicleTypes.ModuleState
-type VehiclePivots = VehicleTypes.VehiclePivots
 type World = WorldTypes.World
 type WorldHit = WorldTypes.WorldHit
 type VehicleSimState = SimTypes.VehicleSimState
@@ -51,6 +51,8 @@ type MapBounds = SimTypes.MapBounds
 type TerrainClass = SimTypes.TerrainClass
 type ImmobileReason = SimTypes.ImmobileReason
 type MechanicPhase = SimTypes.MechanicPhase
+type MobilityEffects = SimTypes.MobilityEffects
+type SpecialMechanic = ContentTypes.SpecialMechanic
 
 local VehicleSim = {}
 
@@ -252,6 +254,7 @@ function VehicleSim.newState(spawnCFrame: CFrame, options: VehicleSimOptions?): 
 		traction = Config.Movement.TRACTION.medium,
 		material = "",
 		waterDepthM = 0,
+		submerged = false,
 		airborneTime = 0,
 		submergedTime = 0,
 		tiltTime = 0,
@@ -266,7 +269,15 @@ function VehicleSim.newState(spawnCFrame: CFrame, options: VehicleSimOptions?): 
 		gunElevationBonusDeg = 0,
 		stillTime = 0,
 		modifiers = VehicleSim.newModifiers(),
-		mechanic = { kind = "", phase = "Off", timer = 0, charges = 0, lastInput = false },
+		mechanic = {
+			kind = "",
+			phase = "Off",
+			timer = 0,
+			charges = 0,
+			lastInput = false,
+			external = false,
+			hydroActive = false,
+		},
 		bounds = bounds,
 		lastInputSeq = 0,
 		tick = 0,
@@ -289,7 +300,7 @@ function VehicleSim.newState(spawnCFrame: CFrame, options: VehicleSimOptions?): 
 		_resting = false,
 		_restPosition = position,
 		_restYaw = yaw,
-		_hydroSettle = 0,
+		_checkOverlap = true,
 		_mechanicIndex = 0,
 		_hydroIndex = 0,
 	}
@@ -331,12 +342,15 @@ local function ensureGeometry(state: VehicleSimState, stats: VehicleStats)
 
 	local xs: { number } = {}
 	local zs: { number } = {}
-	if pivots ~= nil and pivots.trackContacts ~= nil then
-		for _, list in { pivots.trackContacts.left, pivots.trackContacts.right } do
-			for _, p in list do
-				if typeof(p) == "Vector3" and finite(p.X) and finite(p.Z) then
-					table.insert(xs, p.X)
-					table.insert(zs, p.Z)
+	local contacts = if pivots ~= nil then pivots.trackContacts else nil
+	if type(contacts) == "table" then
+		for _, list in { contacts.left, contacts.right } do
+			if type(list) == "table" then
+				for _, p in list do
+					if typeof(p) == "Vector3" and finite(p.X) and finite(p.Z) then
+						table.insert(xs, p.X)
+						table.insert(zs, p.Z)
+					end
 				end
 			end
 		end
@@ -371,8 +385,10 @@ local function ensureGeometry(state: VehicleSimState, stats: VehicleStats)
 	-- Mechanics placed in VehicleSim (00-DECISIONS §4): one keyed mechanic + passive Hydropneumatic.
 	local mech = state.mechanic
 	mech.kind = ""
-	mech.phase = "Off"
-	mech.timer = 0
+	if not mech.external then
+		mech.phase = "Off"
+		mech.timer = 0
+	end
 	mech.charges = 0
 	state._mechanicIndex = 0
 	state._hydroIndex = 0
@@ -437,6 +453,7 @@ local probeHardCount = 0
 local probeMediumCount = 0
 local probeSoftCount = 0
 local probeCentreMaterial = ""
+local probeVoid = 0 -- samples with no ground even when recast from above (inside a wall taller than the recast)
 
 -- Samples the ground under every contact for a pose. Writes H/U/W/Ok scratch; returns the number of valid samples.
 local function probe(
@@ -462,6 +479,7 @@ local function probe(
 	probeResistance, probeTraction, probeTrack = 0, 0, 0
 	probeHardCount, probeMediumCount, probeSoftCount = 0, 0, 0
 	probeCentreMaterial = ""
+	probeVoid = 0
 	for i = 1, n do
 		local x, z = xs[i], zs[i]
 		-- Hull-space (x, 0, z) rotated by Rx(pitch)·Rz(roll), expressed in the yaw frame (right, up, back).
@@ -500,6 +518,7 @@ local function probe(
 		else
 			OK[i] = false
 			H[i] = 0
+			probeVoid += 1
 		end
 	end
 	return valid
@@ -663,6 +682,7 @@ end
 
 -- Mobility modifier accumulator for the current step (reset by resetMobility; allocation-free).
 local accPowerMul = 1
+local accPowerAdd = 0 -- hp
 local accTopAdd = 0
 local accTopMul = 1
 local accRevAdd = 0
@@ -677,7 +697,7 @@ local accSteerMul = 1
 local accTravelReverseRatio = 0 -- SiegeMode travel mode: reverse = forward × ratio (0 = unused)
 
 local function resetMobility()
-	accPowerMul, accTopAdd, accTopMul, accRevAdd, accRevMul = 1, 0, 1, 0, 1
+	accPowerMul, accPowerAdd, accTopAdd, accTopMul, accRevAdd, accRevMul = 1, 0, 0, 1, 0, 1
 	accTravAdd, accTravMul, accDepAdd, accElevAdd = 0, 1, 0, 0
 	accSpeedCap, accExtraAccel, accSteerMul, accTravelReverseRatio = math.huge, 0, 1, 0
 end
@@ -695,7 +715,7 @@ local function accumulate(list: { any }?, condition: string?)
 				local stat, add = m.stat, m.op == "add"
 				if stat == "enginePower" then
 					if add then
-						accPowerMul += value -- additive power shares (e.g. +0.05) behave as multipliers here
+						accPowerAdd += value
 					else
 						accPowerMul *= value
 					end
@@ -739,7 +759,102 @@ local function setPhase(state: VehicleSimState, phase: MechanicPhase, timer: num
 	end
 end
 
--- Advances the keyed mechanic (edge-triggered by InputCommand.mechanic) and the passive Hydropneumatic settle, and
+-- Mobility effects of a keyed mechanic in `phase` (accumulated for this step).
+local function applyPhaseEffects(state: VehicleSimState, spec: SpecialMechanic, phase: MechanicPhase)
+	state.mechanicActive = phase == "On"
+	if spec.kind == "SiegeMode" then
+		if phase ~= "Off" then
+			accSpeedCap = min(accSpeedCap, positiveOr(spec.maxSpeedKmh, 10))
+		else
+			local ratio = spec.travelReverseRatio
+			if type(ratio) == "number" and ratio > 0 and finite(ratio) then
+				accTravelReverseRatio = ratio
+			end
+		end
+		if phase == "On" then
+			accumulate(spec.modifiers, nil)
+		end
+	elseif spec.kind == "Turbo" then
+		if phase == "On" then
+			accPowerMul *= positiveOr(spec.powerMul, 1)
+		end
+	elseif spec.kind == "RocketBoost" then
+		if phase == "On" then
+			accTopAdd += nonNegativeOr(spec.speedBonusKmh, 0)
+			accExtraAccel += Config.Movement.ROCKET_BOOST_ACCEL_MPS2
+		end
+	end
+	-- Wheeled speed mode: caps come from stats.wheeled in speedCaps; steering is softened in updateMechanics.
+end
+
+-- Toggle machine (SiegeMode, Wheeled): Off -> Engaging (onS) -> On -> Disengaging (offS) -> Off.
+local function advanceToggle(state: VehicleSimState, edge: boolean, onS: number, offS: number, dt: number)
+	local mech = state.mechanic
+	local phase = mech.phase
+	if phase == "Off" then
+		if edge and not state.wrecked then
+			setPhase(state, "Engaging", onS)
+		end
+	elseif phase == "On" then
+		if edge then
+			setPhase(state, "Disengaging", offS)
+		end
+	else
+		mech.timer -= dt
+	end
+	if mech.phase == "Engaging" and mech.timer <= EPS then
+		setPhase(state, "On", 0)
+	elseif mech.phase == "Disengaging" and mech.timer <= EPS then
+		setPhase(state, "Off", 0)
+	end
+end
+
+-- Timed machine (Turbo, RocketBoost): Off -> On (durationS, spends a charge) -> Cooldown (cooldownS) -> Off.
+local function advanceTimed(
+	state: VehicleSimState,
+	edge: boolean,
+	durationS: number,
+	cooldownS: number,
+	usesCharges: boolean,
+	dt: number
+)
+	local mech = state.mechanic
+	local phase = mech.phase
+	if phase == "Off" then
+		if edge and not state.wrecked and mech.charges >= 1 then
+			if usesCharges then
+				mech.charges -= 1
+			end
+			setPhase(state, "On", durationS)
+		end
+	elseif phase == "On" then
+		mech.timer -= dt
+		if mech.timer <= EPS then
+			setPhase(state, "Cooldown", cooldownS)
+		end
+	elseif phase == "Cooldown" then
+		mech.timer -= dt
+		if mech.timer <= EPS then
+			setPhase(state, "Off", 0)
+		end
+	end
+end
+
+-- Advances the keyed mechanic one step (edge-triggered by InputCommand.mechanic).
+local function advanceKeyed(state: VehicleSimState, spec: SpecialMechanic, edge: boolean, dt: number)
+	if spec.kind == "SiegeMode" then
+		advanceToggle(state, edge, nonNegativeOr(spec.engageS, 2), nonNegativeOr(spec.disengageS, 1.25), dt)
+	elseif spec.kind == "Wheeled" then
+		local toggle = nonNegativeOr(spec.toggleS, 1)
+		advanceToggle(state, edge, toggle, toggle, dt)
+	elseif spec.kind == "Turbo" then
+		advanceTimed(state, edge, nonNegativeOr(spec.durationS, 0), nonNegativeOr(spec.cooldownS, 0), false, dt)
+	elseif spec.kind == "RocketBoost" then
+		advanceTimed(state, edge, nonNegativeOr(spec.durationS, 0), nonNegativeOr(spec.cooldownS, 0), true, dt)
+	end
+end
+
+-- Runs the keyed mechanic (or reads its phase from an external owner) and the passive Hydropneumatic settle, and
 -- accumulates their mobility/gun effects for this step.
 local function updateMechanics(state: VehicleSimState, stats: VehicleStats, pressed: boolean, dt: number)
 	resetMobility()
@@ -752,80 +867,18 @@ local function updateMechanics(state: VehicleSimState, stats: VehicleStats, pres
 		then mechanics[state._mechanicIndex]
 		else nil
 	if spec ~= nil then
-		local phase = mech.phase
-		if spec.kind == "SiegeMode" or spec.kind == "Wheeled" then
-			local onS, offS
-			if spec.kind == "SiegeMode" then
-				onS, offS = nonNegativeOr(spec.engageS, 2), nonNegativeOr(spec.disengageS, 1.25)
-			else
-				onS = nonNegativeOr(spec.toggleS, 1)
-				offS = onS
-			end
-			if phase == "Off" then
-				if edge and not state.wrecked then
-					setPhase(state, "Engaging", onS)
-				end
-			elseif phase == "On" then
-				if edge then
-					setPhase(state, "Disengaging", offS)
-				end
-			elseif phase == "Engaging" or phase == "Disengaging" then
-				mech.timer -= dt
-			end
-			if mech.phase == "Engaging" and mech.timer <= EPS then
-				setPhase(state, "On", 0)
-			elseif mech.phase == "Disengaging" and mech.timer <= EPS then
-				setPhase(state, "Off", 0)
-			end
-			local p = mech.phase
-			state.mechanicActive = p == "On"
-			if spec.kind == "SiegeMode" then
-				if p ~= "Off" then
-					accSpeedCap = min(accSpeedCap, positiveOr(spec.maxSpeedKmh, 10))
-				else
-					local ratio = spec.travelReverseRatio
-					if type(ratio) == "number" and ratio > 0 and finite(ratio) then
-						accTravelReverseRatio = ratio
-					end
-				end
-				if p == "On" then
-					accumulate(spec.modifiers, nil)
-				end
-			end
-		elseif spec.kind == "Turbo" or spec.kind == "RocketBoost" then
-			if phase == "Off" then
-				if edge and not state.wrecked and mech.charges >= 1 then
-					if spec.kind == "RocketBoost" then
-						mech.charges -= 1
-					end
-					setPhase(state, "On", nonNegativeOr(spec.durationS, 0))
-				end
-			elseif phase == "On" then
-				mech.timer -= dt
-				if mech.timer <= EPS then
-					setPhase(state, "Cooldown", nonNegativeOr(spec.cooldownS, 0))
-				end
-			elseif phase == "Cooldown" then
-				mech.timer -= dt
-				if mech.timer <= EPS then
-					setPhase(state, "Off", 0)
-				end
-			end
-			if mech.phase == "On" then
-				state.mechanicActive = true
-				if spec.kind == "Turbo" then
-					accPowerMul *= positiveOr(spec.powerMul, 1)
-				else
-					accTopAdd += nonNegativeOr(spec.speedBonusKmh, 0)
-					accExtraAccel += Config.Movement.ROCKET_BOOST_ACCEL_MPS2
-				end
-			end
+		if not mech.external then
+			advanceKeyed(state, spec, edge, dt)
 		end
+		applyPhaseEffects(state, spec, mech.phase)
 	end
-	-- Passive Hydropneumatic: gun bonuses after `settleS` stationary.
+	-- Passive Hydropneumatic: gun bonuses once settled (stationary for settleS, or as the external owner says).
 	local hydro = if state._hydroIndex > 0 and type(mechanics) == "table" then mechanics[state._hydroIndex] else nil
 	if hydro ~= nil and hydro.kind == "Hydropneumatic" then
-		if state.stillTime >= nonNegativeOr(hydro.settleS, 0.75) - EPS and state.grounded then
+		local settled = if mech.external
+			then mech.hydroActive
+			else state.stillTime >= nonNegativeOr(hydro.settleS, 0.75) - EPS and state.grounded
+		if settled then
 			accDepAdd += nonNegativeOr(hydro.depressionBonusDeg, 0)
 			accElevAdd += nonNegativeOr(hydro.elevationBonusDeg, 0)
 		end
@@ -916,7 +969,8 @@ local function enginePowerWatts(state: VehicleSimState, stats: VehicleStats): nu
 	if mods.engine == "Destroyed" then
 		return 0
 	end
-	local p = nonNegativeOr(stats.enginePowerHp, 0) * M.WATTS_PER_HP * nonNegativeOr(mods.powerMul, 1) * accPowerMul
+	local hp = (nonNegativeOr(stats.enginePowerHp, 0) + accPowerAdd) * accPowerMul
+	local p = hp * M.WATTS_PER_HP * nonNegativeOr(mods.powerMul, 1)
 	if mods.engine == "Damaged" then
 		p *= M.ENGINE_DAMAGED_POWER_MUL
 	end
@@ -970,7 +1024,8 @@ local function longitudinal(
 				-- Too steep to climb: no drive force uphill (REG-VEH-03); the tracks still hold.
 				cap = 0
 			end
-			if abs(v) < cap then
+			if abs(v) <= cap + SPEED_EPS then
+				-- At or below the cap the engine drives (at the cap it holds the speed against resistance).
 				local power = enginePowerWatts(state, stats)
 				local a = power / (mass * max(abs(v), M.MIN_POWER_SPEED_MPS))
 				drive = dir * (min(a, tractionMax) + (if dir > 0 then accExtraAccel else 0))
@@ -1103,6 +1158,15 @@ local function horizontalUnit(v: Vector3): Vector3?
 	return Vector3.new(x / len, 0, z / len)
 end
 
+-- Velocity of a grounded hull moving `speed` along its forward axis and `lat` along its right axis, both tilted by
+-- (pitch, roll), in the yaw frame: (right, up, back) components. YXZ: forward = (0, sp, -cp),
+-- right = (cr, sr·cp, sr·sp).
+local function surfaceVelocity(speed: number, lat: number, pitch: number, roll: number): (number, number, number)
+	local sp, cp = sin(pitch), cos(pitch)
+	local sr, cr = sin(roll), cos(roll)
+	return cr * lat, sp * speed + sr * cp * lat, -cp * speed + sr * sp * lat
+end
+
 -- Removes (or for destructibles, mostly keeps) the velocity component into an obstacle with horizontal normal `n`.
 -- Returns the closing speed in m/s (0 when moving away).
 local function obstacleResponse(state: VehicleSimState, n: Vector3, keep: number): number
@@ -1149,7 +1213,8 @@ local function moveHorizontal(state: VehicleSimState, world: World, disp: Vector
 	local yaw = state.yaw
 	local len = disp.Magnitude
 	local rotating = newYaw ~= yaw
-	if len < 1e-6 and not rotating then
+	-- Overlap checks also run without motion after an external push (displace/teleport) or while depenetrating.
+	if len < 1e-6 and not rotating and not state._checkOverlap then
 		return
 	end
 	local cf, size = sweepFrame(state, pos, newYaw, stepUp)
@@ -1165,6 +1230,7 @@ local function moveHorizontal(state: VehicleSimState, world: World, disp: Vector
 		end
 	end
 	state.yaw = wrapPi(newYaw)
+	state._checkOverlap = hit ~= nil and hit.distance <= 0 -- still overlapping: check again next step
 	if hit == nil then
 		pos += disp
 	elseif hit.distance <= 0 then
@@ -1233,7 +1299,8 @@ end
 
 local function updateDrowning(state: VehicleSimState, dt: number)
 	local M = Config.Movement
-	if state.waterDepthM >= state._drownDepthM then
+	state.submerged = state.waterDepthM >= state._drownDepthM
+	if state.submerged then
 		if state.submergedTime <= 0 then
 			local e = pushEvent(state, "Drowning")
 			e.t = M.DROWN_TIME_S
@@ -1242,6 +1309,8 @@ local function updateDrowning(state: VehicleSimState, dt: number)
 		if state.submergedTime >= M.DROWN_TIME_S - 1e-6 then
 			state.drowned = true
 			state.wrecked = true
+			state.immobilized = true
+			state.immobileReason = "Drowned"
 			pushEvent(state, "Drowned")
 		end
 	elseif state.submergedTime > 0 then
@@ -1277,6 +1346,8 @@ local function updateOverturn(state: VehicleSimState, dt: number)
 		if destroyRule then
 			if state.overturnedTime >= M.OVERTURN_DESTROY_S - 1e-6 then
 				state.wrecked = true
+				state.immobilized = true
+				state.immobileReason = "Wrecked"
 				pushEvent(state, "OverturnDestroyed")
 			end
 		elseif state.overturnedTime >= M.SELF_RIGHT_S - 1e-6 then
@@ -1378,6 +1449,7 @@ function VehicleSim.step(
 		and state.yawRate == 0
 		and state.position == state._restPosition
 		and state.yaw == state._restYaw
+		and not state._checkOverlap
 		and state._restTimer + dt < M.REST_REPROBE_S
 	if resting then
 		state._restTimer += dt
@@ -1395,8 +1467,9 @@ function VehicleSim.step(
 			state.speed = longitudinal(state, stats, throttle, brake, immobile, topCap, revCap, dts)
 			state.lateralSpeed = lateral(state, dts)
 			state.yawRate = yawDynamics(state, stats, steer, brake, immobile, topCap, dts)
-			predictedY = pos.Y + state.speed * sin(state.pitch) * dts
-			state.verticalVelocity = state.speed * sin(state.pitch)
+			local _, vU, _ = surfaceVelocity(state.speed, state.lateralSpeed, state.pitch, state.roll)
+			predictedY = pos.Y + vU * dts
+			state.verticalVelocity = vU
 			state.airborneTime = 0
 		else
 			local vy = state.verticalVelocity
@@ -1411,9 +1484,8 @@ function VehicleSim.step(
 		-- Horizontal motion (heading first, then translation along the new heading).
 		local newYaw = yaw + state.yawRate * dts
 		local cy, sy = cos(newYaw), sin(newYaw)
-		local vH = state.speed * cos(state.pitch)
-		local lat = state.lateralSpeed
-		local disp = Vector3.new((sy * vH + cy * lat) * dts, 0, (-cy * vH + sy * lat) * dts)
+		local vR, _, vB = surfaceVelocity(state.speed, state.lateralSpeed, state.pitch, state.roll)
+		local disp = Vector3.new((cy * vR - sy * vB) * dts, 0, (sy * vR + cy * vB) * dts)
 		local wheeled = stats.wheeled
 		if
 			stats.pivot ~= true
@@ -1453,11 +1525,16 @@ function VehicleSim.step(
 		)
 		local snap = M.GROUND_SNAP_M * SPM
 		local blocked = false
+		-- Support height with the attitude the hull had when its motion was predicted: contact is judged with it
+		-- (the attitude update below then pivots the hull onto its supports instead of lifting it off them).
+		local supportY = if valid > 0 then restHeight(state, state.pitch, state.roll) else -math.huge
 		if valid > 0 and state.grounded then
 			-- Terrain step/wall check: a rise above the step height in one tick blocks the move.
-			local rise = restHeight(state, state.pitch, state.roll) - predictedY
+			local rise = supportY - predictedY
 			local horizontalMove = (moved - pos).Magnitude
-			if rise > M.STEP_HEIGHT_M * SPM and (horizontalMove > 1e-5 or movedYaw ~= yaw) then
+			-- A sample with no ground at all while the hull is supported is inside a very tall wall: blocked too.
+			local wall = rise > M.STEP_HEIGHT_M * SPM or probeVoid > 0
+			if wall and (horizontalMove > 1e-5 or movedYaw ~= yaw) then
 				blocked = true
 				local n = horizontalUnit(pos - moved)
 				state.position = pos
@@ -1475,23 +1552,32 @@ function VehicleSim.step(
 		if not blocked then
 			local x, z = moved.X, moved.Z
 			if valid == 0 then
-				if state.grounded then
-					state.grounded = false
-					state.verticalVelocity = state.speed * sin(state.pitch)
-				end
+				state.grounded = false
 				state.position = Vector3.new(x, predictedY, z)
 			else
 				local hasGx, gx, hasGz, gz = fitPlane(state, probeBase, state.pitch, state.roll, snap)
-				local tp, tr = attitudeOf(if hasGx then gx else 0, if hasGz then gz else 0)
+				if not (hasGx and hasGz) then
+					-- The contacts leave an axis undetermined (one row or one side touching: rolling off a kerb,
+					-- teetering on an edge). The hull tips toward the unsupported side, following every valid
+					-- sample, at most OVERHANG_MAX_TILT_DEG.
+					local allGx, agx, allGz, agz = fitPlane(state, probeBase, state.pitch, state.roll, math.huge)
+					local lim = math.tan(M.OVERHANG_MAX_TILT_DEG * DEG)
+					if not hasGx and allGx then
+						hasGx, gx = true, clamp(agx, -lim, lim)
+					end
+					if not hasGz and allGz then
+						hasGz, gz = true, clamp(agz, -lim, lim)
+					end
+				end
+				-- Axes still undetermined keep the previous ground attitude.
+				local curGz = -math.tan(state.groundPitch)
 				if not hasGz then
-					tp = state.groundPitch
+					gz = curGz
 				end
 				if not hasGx then
-					tr = state.groundRoll
+					gx = math.tan(state.groundRoll) * sqrt(1 + curGz * curGz)
 				end
-				if hasGx or hasGz then
-					state.groundPitch, state.groundRoll = tp, tr
-				end
+				state.groundPitch, state.groundRoll = attitudeOf(gx, gz)
 				if state.grounded then
 					local k = 1 - exp(-M.GROUND_FIT_RATE * dts)
 					state.pitch += (state.groundPitch - state.pitch) * k
@@ -1499,9 +1585,8 @@ function VehicleSim.step(
 				end
 				local yRest = restHeight(state, state.pitch, state.roll)
 				if state.grounded then
-					if predictedY - yRest > snap then
-						state.grounded = false
-						state.verticalVelocity = state.speed * sin(state.pitch)
+					if predictedY - supportY > snap then
+						state.grounded = false -- verticalVelocity already holds the surface vertical speed
 						state.position = Vector3.new(x, predictedY, z)
 					else
 						state.position = Vector3.new(x, yRest, z)
@@ -1524,7 +1609,6 @@ function VehicleSim.step(
 					state.position = Vector3.new(x, predictedY, z)
 				end
 			end
-			applyTerrain(state, stats)
 		end
 
 		-- Kill plane: falling with nothing below.
@@ -1541,18 +1625,23 @@ function VehicleSim.step(
 		end
 
 		updateWater(state, world)
-		if state.waterDepthM >= M.WATER_EFFECT_MIN_DEPTH_M then
-			applyTerrain(state, stats)
+		if not blocked then
+			applyTerrain(state, stats) -- coefficients for the next step: the accepted pose's samples (+ water)
 		end
 		state._restTimer = 0
 	end
 
-	-- Status timers.
+	-- Status timers, then the immobilisation flags they may have changed (consistent at the end of every step).
 	if not state.wrecked then
 		updateDrowning(state, dt)
 	end
 	updateOverturn(state, dt)
 	updateStill(state, dt)
+	if state.immobileReason ~= "FellOut" then
+		local after: ImmobileReason? = immobileReasonOf(state, stats)
+		state.immobilized = after ~= nil
+		state.immobileReason = after
+	end
 
 	-- NaN guard: restore the pre-step state rather than propagate garbage.
 	if not stateFinite(state) then
@@ -1596,11 +1685,9 @@ end
 --- World velocity in studs/s (forward along the slope + side slip + vertical while airborne).
 function VehicleSim.velocity(state: VehicleSimState): Vector3
 	local cy, sy = cos(state.yaw), sin(state.yaw)
-	local sp, cp = sin(state.pitch), cos(state.pitch)
-	local vH = state.speed * cp
-	local lat = state.lateralSpeed
-	local vy = if state.grounded then state.speed * sp else state.verticalVelocity
-	return Vector3.new(sy * vH + cy * lat, vy, -cy * vH + sy * lat)
+	local vR, vU, vB = surfaceVelocity(state.speed, state.lateralSpeed, state.pitch, state.roll)
+	local vy = if state.grounded then vU else state.verticalVelocity
+	return Vector3.new(cy * vR - sy * vB, vy, sy * vR + cy * vB)
 end
 
 --- Hull speed in km/h (signed, + forward).
@@ -1646,6 +1733,7 @@ function VehicleSim.displace(state: VehicleSimState, offset: Vector3)
 	local dy = if state.grounded then 0 else offset.Y
 	state.position = clampToBounds(state.position + Vector3.new(offset.X, dy, offset.Z), state.bounds)
 	state._resting = false
+	state._checkOverlap = true
 end
 
 --- Teleports the hull origin to `position` (x/z, heading optional) and re-settles it on the ground next step.
@@ -1660,6 +1748,22 @@ function VehicleSim.teleport(state: VehicleSimState, position: Vector3, yaw: num
 	state.speed, state.lateralSpeed, state.yawRate, state.verticalVelocity = 0, 0, 0, 0
 	state._settled = false
 	state._resting = false
+	state._checkOverlap = true
+end
+
+--- Maps DamageModel.effects (Types/Combat.EffectMultipliers: module states, crew injuries and stun already
+--- combined) onto the runtime modifiers. Use this OR the per-module states, never both: the module states are reset
+--- to "Ok" here so engine/track damage is not applied twice (an immobile vehicle then reports "External").
+function VehicleSim.applyEffects(state: VehicleSimState, effects: MobilityEffects)
+	local mods = state.modifiers
+	mods.engine = "Ok"
+	mods.trackLeft = "Ok"
+	mods.trackRight = "Ok"
+	mods.lostWheelPairs = 0
+	mods.powerMul = nonNegativeOr(effects.enginePowerMul, 1)
+	mods.topSpeedMul = nonNegativeOr(effects.topSpeedMul, 1)
+	mods.hullTraverseMul = nonNegativeOr(effects.hullTraverseMul, 1)
+	mods.immobilized = effects.canMove == false
 end
 
 local function copyModifiers(src: VehicleSimModifiers, dst: VehicleSimModifiers)
@@ -1696,6 +1800,7 @@ function VehicleSim.copyState(src: VehicleSimState, dst: VehicleSimState?): Vehi
 	out.traction = src.traction
 	out.material = src.material
 	out.waterDepthM = src.waterDepthM
+	out.submerged = src.submerged
 	out.airborneTime = src.airborneTime
 	out.submergedTime = src.submergedTime
 	out.tiltTime = src.tiltTime
@@ -1712,6 +1817,7 @@ function VehicleSim.copyState(src: VehicleSimState, dst: VehicleSimState?): Vehi
 	copyModifiers(src.modifiers, out.modifiers)
 	local m, d = src.mechanic, out.mechanic
 	d.kind, d.phase, d.timer, d.charges, d.lastInput = m.kind, m.phase, m.timer, m.charges, m.lastInput
+	d.external, d.hydroActive = m.external, m.hydroActive
 	out.bounds = src.bounds
 	out.lastInputSeq = src.lastInputSeq
 	out.tick = src.tick
@@ -1723,7 +1829,7 @@ function VehicleSim.copyState(src: VehicleSimState, dst: VehicleSimState?): Vehi
 	out._resting = src._resting
 	out._restPosition = src._restPosition
 	out._restYaw = src._restYaw
-	out._hydroSettle = src._hydroSettle
+	out._checkOverlap = src._checkOverlap
 	out._mechanicIndex = src._mechanicIndex
 	out._hydroIndex = src._hydroIndex
 	if src._geometryReady then

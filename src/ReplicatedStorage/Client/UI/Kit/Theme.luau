@@ -7,14 +7,15 @@
 	                  typography roles (Font + reactive TextSize honouring text scale and the brand minimum rendered
 	                  sizes per platform), spacing, radii, strokes, layers, motion timings, team/rarity/currency/
 	                  faction/material palettes. Holds the theme settings (scheme, high contrast, text scale, UI scale,
-	                  reduced motion (On / Off / follow the engine), hold-to-confirm duration, preferred transparency)
+	                  reduced motion (On / Off / follow the engine), hold-to-confirm duration or its two-step
+	                  replacement, battle HUD scale, preferred transparency)
 	                  and fires `Theme.changed` when they change.
 	Dependencies:     Kit/State, Kit/Tokens, Core/Signal, Core/Log. `bindEngine` reads GuiService accessibility
 	                  properties (ReducedMotionEnabled, PreferredTransparency) at runtime only.
 	State:            Module-level Values for each setting (app-global theme), caches of Computed tokens.
 	Validation:       Unknown token/role names raise immediately ("Theme: unknown colour token ..."); settings are
 	                  validated (scheme names, motion setting) and clamped (text scale 0.8–1.5, UI scale 0.8–1.2,
-	                  hold 0.6–2.0 s, transparency 0–1).
+	                  HUD scale 0.8–1.5, hold 0.6–2.0 s, transparency 0–1).
 	Error handling:   Invalid settings raise from Theme.set (callers are settings code, which must pass valid data).
 	Performance notes: Each token's State is created once and cached; static tokens are constant Values (no
 	                  recomputation). A scheme switch recomputes only team colours; text scale only text sizes.
@@ -154,6 +155,8 @@ export type Settings = {
 	reducedMotion: MotionSetting,
 	preferredTransparency: number,
 	holdSeconds: number,
+	twoStepConfirm: boolean,
+	hudScale: number,
 }
 
 export type SettingsPatch = {
@@ -164,6 +167,11 @@ export type SettingsPatch = {
 	reducedMotion: MotionSetting?,
 	--- Hold-to-confirm duration in seconds (clamped 0.6–2.0; ui-ux §1.15 `a11y.holdConfirm`).
 	holdSeconds: number?,
+	--- `a11y.holdConfirm` = "Two-step": hold-to-confirm buttons arm on the first press and confirm on the second
+	--- (for players who cannot hold a button; ui-ux §1.15).
+	twoStepConfirm: boolean?,
+	--- Battle HUD scale `hud.scale` (clamped 0.8–1.5; Layout caps it per display, ui-ux §1.1.1).
+	hudScale: number?,
 }
 
 export type SystemPatch = {
@@ -172,6 +180,9 @@ export type SystemPatch = {
 	layout: LayoutMode?,
 	reducedMotionSystem: boolean?,
 	preferredTransparency: number?,
+	--- GuiService.PreferredTextSize name ("Medium", "Large", "Larger", "Largest"): the engine scales rendered text and
+	--- TextService measurements by it, so measured widths depend on it.
+	preferredTextSize: string?,
 }
 
 export type Snapshot = {
@@ -183,7 +194,10 @@ export type Snapshot = {
 	reducedMotion: boolean,
 	motionSetting: MotionSetting,
 	holdSeconds: number,
+	twoStepConfirm: boolean,
+	hudScale: number,
 	preferredTransparency: number,
+	preferredTextSize: string,
 	renderScale: number,
 	platform: Platform,
 	layout: LayoutMode,
@@ -211,6 +225,8 @@ Theme.UI_SCALE_MIN = 0.8
 Theme.UI_SCALE_MAX = 1.2
 Theme.HOLD_SECONDS_MIN = 0.6
 Theme.HOLD_SECONDS_MAX = 2.0
+Theme.HUD_SCALE_MIN = 0.8
+Theme.HUD_SCALE_MAX = 1.5
 
 --------------------------------------------------------------------------------
 -- Colour parsing
@@ -262,6 +278,8 @@ local DEFAULTS: Settings = {
 	reducedMotion = "system",
 	preferredTransparency = 1,
 	holdSeconds = 1.2,
+	twoStepConfirm = false,
+	hudScale = 1,
 }
 
 -- String-literal unions widen through generic instantiation in the old solver: annotate + cast.
@@ -272,7 +290,10 @@ local uiScaleValue = State.Value(DEFAULTS.uiScale)
 local motionSettingValue: State.Value<MotionSetting> = State.Value(DEFAULTS.reducedMotion) :: any
 local reducedMotionSystemValue = State.Value(false)
 local holdSecondsValue = State.Value(DEFAULTS.holdSeconds)
+local twoStepValue = State.Value(DEFAULTS.twoStepConfirm)
+local hudScaleValue = State.Value(DEFAULTS.hudScale)
 local preferredTransparencyValue = State.Value(1)
+local preferredTextSizeValue = State.Value("Medium")
 local renderScaleValue = State.Value(1)
 local platformValue: State.Value<Platform> = State.Value("pc") :: any
 local layoutValue: State.Value<LayoutMode> = State.Value("regular") :: any
@@ -298,7 +319,11 @@ Theme.state = {
 	reducedMotion = reducedMotionComputed,
 	motionSetting = State.readonly(motionSettingValue),
 	holdSeconds = State.readonly(holdSecondsValue),
+	twoStepConfirm = State.readonly(twoStepValue),
+	hudScale = State.readonly(hudScaleValue),
 	preferredTransparency = State.readonly(preferredTransparencyValue),
+	--- GuiService.PreferredTextSize (name); Common.measureText depends on it so auto widths re-measure.
+	preferredTextSize = State.readonly(preferredTextSizeValue),
 	renderScale = State.readonly(renderScaleValue),
 	platform = State.readonly(platformValue),
 	layout = State.readonly(layoutValue),
@@ -316,7 +341,10 @@ function Theme.snapshot(): Snapshot
 		reducedMotion = reducedMotionComputed:peek(),
 		motionSetting = motionSettingValue:peek(),
 		holdSeconds = holdSecondsValue:peek(),
+		twoStepConfirm = twoStepValue:peek(),
+		hudScale = hudScaleValue:peek(),
 		preferredTransparency = preferredTransparencyValue:peek(),
+		preferredTextSize = preferredTextSizeValue:peek(),
 		renderScale = renderScaleValue:peek(),
 		platform = platformValue:peek(),
 		layout = layoutValue:peek(),
@@ -371,6 +399,12 @@ function Theme.set(patch: SettingsPatch)
 		if patch.holdSeconds ~= nil then
 			holdSecondsValue:set(clamp(patch.holdSeconds, Theme.HOLD_SECONDS_MIN, Theme.HOLD_SECONDS_MAX))
 		end
+		if patch.twoStepConfirm ~= nil then
+			twoStepValue:set(patch.twoStepConfirm == true)
+		end
+		if patch.hudScale ~= nil then
+			hudScaleValue:set(clamp(patch.hudScale, Theme.HUD_SCALE_MIN, Theme.HUD_SCALE_MAX))
+		end
 	end)
 	local after = Theme.snapshot()
 	if not sameSnapshot(before, after) then
@@ -400,6 +434,9 @@ function Theme.setSystem(patch: SystemPatch)
 		if patch.preferredTransparency ~= nil then
 			preferredTransparencyValue:set(clamp(patch.preferredTransparency, 0, 1))
 		end
+		if patch.preferredTextSize ~= nil then
+			preferredTextSizeValue:set(patch.preferredTextSize)
+		end
 	end)
 	local after = Theme.snapshot()
 	if not sameSnapshot(before, after) then
@@ -416,6 +453,8 @@ function Theme.reset()
 		uiScale = DEFAULTS.uiScale,
 		reducedMotion = DEFAULTS.reducedMotion,
 		holdSeconds = DEFAULTS.holdSeconds,
+		twoStepConfirm = DEFAULTS.twoStepConfirm,
+		hudScale = DEFAULTS.hudScale,
 	})
 	Theme.setSystem({
 		renderScale = 1,
@@ -423,24 +462,39 @@ function Theme.reset()
 		layout = "regular",
 		reducedMotionSystem = false,
 		preferredTransparency = 1,
+		preferredTextSize = "Medium",
 	})
 end
 
---- Follows GuiService.ReducedMotionEnabled / PreferredTransparency. Returns a function that stops listening.
+--- Follows GuiService.ReducedMotionEnabled / PreferredTransparency / PreferredTextSize. Returns a function that stops
+--- listening.
 function Theme.bindEngine(): () -> ()
 	local GuiService = game:GetService("GuiService")
 	local function sync()
+		local okText, textSize = pcall(function(): string
+			return GuiService.PreferredTextSize.Name
+		end)
 		Theme.setSystem({
 			reducedMotionSystem = GuiService.ReducedMotionEnabled,
 			preferredTransparency = GuiService.PreferredTransparency,
+			preferredTextSize = if okText then textSize else nil,
 		})
 	end
 	sync()
-	local a = GuiService:GetPropertyChangedSignal("ReducedMotionEnabled"):Connect(sync)
-	local b = GuiService:GetPropertyChangedSignal("PreferredTransparency"):Connect(sync)
+	local connections = {
+		GuiService:GetPropertyChangedSignal("ReducedMotionEnabled"):Connect(sync),
+		GuiService:GetPropertyChangedSignal("PreferredTransparency"):Connect(sync),
+	}
+	local okSignal, textSignal = pcall(function()
+		return GuiService:GetPropertyChangedSignal("PreferredTextSize")
+	end)
+	if okSignal and textSignal ~= nil then
+		table.insert(connections, textSignal:Connect(sync))
+	end
 	return function()
-		a:Disconnect()
-		b:Disconnect()
+		for _, connection in connections do
+			connection:Disconnect()
+		end
 	end
 end
 

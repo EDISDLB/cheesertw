@@ -4,8 +4,9 @@
 
 	Purpose:          A Button state machine around one Icon: ghost (default; icon text.secondary -> text.primary on
 	                  hover, bg.raised hover plate), secondary (bordered plate) or primary (dusk). 44 px by default so it
-	                  is a valid touch target (brand-art §4.2); `label` feeds the tooltip so meaning never depends on the
-	                  icon alone.
+	                  is a valid touch target (brand-art §4.2); smaller authored sizes (toast close 32) keep their drawn
+	                  plate but grow their hit area to the touch minimum on touch. `label` feeds the tooltip so meaning
+	                  never depends on the icon alone.
 	Dependencies:     Kit/Create, Kit/State, Kit/Theme, Kit/Sound, Components/Chamfer, Components/Common,
 	                  Components/Tooltip (lazy), Icons/Icon.
 	State:            Interaction Values per button.
@@ -54,6 +55,7 @@ function IconButton.new(props: IconButtonProps): TextButton
 	local size = props.size or Theme.sizes.touchMin
 	local disabled = props.disabled or false
 	local selected = props.selected or false
+	local hitSize = Common.touchHeight(size)
 	local button = Create.TextButton({
 		Name = props.Name or "IconButton",
 		Text = "",
@@ -61,7 +63,9 @@ function IconButton.new(props: IconButtonProps): TextButton
 		BackgroundTransparency = 1,
 		BorderSizePixel = 0,
 		Selectable = true,
-		Size = UDim2.fromOffset(size, size),
+		Size = State.map(hitSize, function(s: number): UDim2
+			return UDim2.fromOffset(s, s)
+		end),
 	})
 	local interaction = Common.trackInteraction(button, true)
 	local fill = State.Computed(function(): Color3
@@ -97,13 +101,23 @@ function IconButton.new(props: IconButtonProps): TextButton
 	end)
 	local values: { [any]: any } = Common.layout(props, {})
 	values[Create.Children] = {
-		Chamfer.new({
-			name = "Fill",
-			corners = "brand",
-			size = 6,
-			fill = fill,
-			fillTransparency = fillTransparency,
-			border = if variant == "secondary" then Theme.color("border.strong") else nil,
+		-- The drawn plate keeps the authored size, centred in the (possibly larger, touch) hit area.
+		Create.Frame({
+			Name = "Plate",
+			BackgroundTransparency = 1,
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.fromScale(0.5, 0.5),
+			Size = UDim2.fromOffset(size, size),
+			[Create.Children] = {
+				Chamfer.new({
+					name = "Fill",
+					corners = "brand",
+					size = 6,
+					fill = fill,
+					fillTransparency = fillTransparency,
+					border = if variant == "secondary" then Theme.color("border.strong") else nil,
+				}),
+			},
 		}),
 		Icon.new({
 			key = props.icon,
@@ -117,6 +131,9 @@ function IconButton.new(props: IconButtonProps): TextButton
 		}),
 	}
 	values[Create.On("Activated")] = function()
+		if Common.consumeLongPress(button) then
+			return
+		end
 		if State.peek(disabled) then
 			Sound.play(Sound.KEYS.error)
 			return

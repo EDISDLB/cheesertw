@@ -316,11 +316,11 @@ function Fixtures.model(): any
 end
 
 --- A pose (hull at the origin unless given).
-function Fixtures.pose(hullCFrame: CFrame?, turretYawDeg: number?, gunElevationDeg: number?, gunYawDeg: number?): any
+function Fixtures.pose(hullCFrame: CFrame?, turretYawDeg: number?, gunPitchDeg: number?, gunYawDeg: number?): any
 	return {
 		hullCFrame = hullCFrame or CFrame.new(),
 		turretYawDeg = turretYawDeg or 0,
-		gunElevationDeg = gunElevationDeg or 0,
+		gunPitchDeg = gunPitchDeg or 0,
 		gunYawDeg = gunYawDeg,
 	}
 end

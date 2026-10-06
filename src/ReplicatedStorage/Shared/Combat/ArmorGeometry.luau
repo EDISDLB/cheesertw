@@ -180,7 +180,7 @@ local function gunFrame(model: ArmorModel, pose: VehiclePose, turret: CFrame): C
 	return turret
 		* model.pivots.gunTrunnion
 		* CFrame.Angles(0, -math.rad(pose.gunYawDeg or 0), 0)
-		* CFrame.Angles(math.rad(pose.gunElevationDeg or 0), 0, 0)
+		* CFrame.Angles(math.rad(pose.gunPitchDeg or 0), 0, 0)
 end
 
 --- World frames of the Hull, Turret and Gun groups for `pose` (shared with the Armor Inspector and renderer).
@@ -475,6 +475,22 @@ function ArmorGeometry.firstHit(buf: CrossingBuffer): Crossing?
 		end
 	end
 	return nil
+end
+
+local probeBuffer: CrossingBuffer = { count = 0, items = {} }
+
+--- Distance (studs) along the ray to the first plate a shell would strike (entering Armor / Layered / Spaced), or
+--- nil. Cheap target selection for the projectile system (uses an internal scratch buffer).
+function ArmorGeometry.firstHitDistance(
+	model: ArmorModel,
+	pose: VehiclePose,
+	origin: Vector3,
+	direction: Vector3,
+	maxDistance: number?
+): number?
+	ArmorGeometry.raycast(model, pose, origin, direction, maxDistance, probeBuffer)
+	local first = ArmorGeometry.firstHit(probeBuffer)
+	return if first ~= nil then first.distance else nil
 end
 
 --------------------------------------------------------------------------------

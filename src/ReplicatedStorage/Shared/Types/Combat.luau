@@ -50,7 +50,7 @@ export type AttackerId = number
 export type VehiclePose = {
 	hullCFrame: CFrame, -- hull space -> world (studs)
 	turretYawDeg: number, -- hull-relative bearing, + = clockwise
-	gunElevationDeg: number, -- + = up
+	gunPitchDeg: number, -- + = up
 	gunYawDeg: number?, -- casemate gun yaw inside the mount, + = clockwise
 }
 

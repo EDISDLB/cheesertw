@@ -9,9 +9,12 @@
 	                  list, else its initial element, else the first selectable (lowest SelectionOrder, then
 	                  top-left). Popping a scope restores the scope below exactly where it was. Selection that
 	                  escapes a trapped scope is pulled back. Switching input mode to Gamepad repairs an invalid
-	                  selection; switching away clears it (no stray focus ring for mouse/touch). LB/RB (and Q/E) go to
+	                  selection; switching away clears it (no stray focus ring for mouse/touch). When the engine drops
+	                  the selection (focused element destroyed, hidden or scrolled away) it is repaired one frame later
+	                  (REG-INP-01; bounded so an engine that keeps dropping it is not fought). LB/RB (and Q/E) go to
 	                  the top scope's shoulder handler (tab bars); LT/RT (Z/C) page the focused scroll region by one
-	                  viewport minus 10 % and move focus into the new page (or the scope's own onPage handler).
+	                  viewport minus 10 % and move focus into the new page (or the scope's own onPage handler); the
+	                  right stick scrolls that region smoothly (900 px/s at full deflection) unless the scope opts out.
 	                  The ui_hover tick plays for player moves only: never for programmatic focus, and at most
 	                  HOVER_SOUND_RATE per second while scrolling fast (ui-ux §1.16). Helpers set explicit
 	                  NextSelection* neighbours.
@@ -47,6 +50,8 @@ export type ScopeOptions = {
 	onShoulder: ((direction: number) -> ())?,
 	--- LT/RT handler (-1 = page back, +1 = page forward); replaces the default scroll paging (e.g. tech-tree zoom).
 	onPage: ((direction: number) -> ())?,
+	--- Right stick scrolls the focused scroll region (default true; false where it orbits the camera instead).
+	stickScroll: boolean?,
 }
 
 export type FocusScope = {
@@ -94,6 +99,7 @@ type ScopeImpl = {
 	_rememberedPosition: Vector2?,
 	_shoulder: ((number) -> ())?,
 	_page: ((number) -> ())?,
+	_stickScroll: boolean,
 	_destroyed: boolean,
 }
 
@@ -103,9 +109,22 @@ local stack: { ScopeImpl } = {}
 Focus.HOVER_SOUND_RATE = 6
 --- Fraction of the viewport kept as context when paging with LT/RT (ui-ux §1.13: one viewport minus 10 %).
 Focus.PAGE_OVERLAP = 0.1
+--- Right-stick scroll speed at full deflection (px/s, ui-ux §1.13) and its dead zone.
+Focus.STICK_SCROLL_SPEED = 900
+Focus.STICK_DEADZONE = 0.25
+--- Automatic focus repairs allowed in a burst (each within REPAIR_WINDOW seconds of the previous one) without a
+--- player move: guards against an engine that keeps dropping the selection; separate incidents always repair.
+Focus.MAX_REPAIRS = 3
+Focus.REPAIR_WINDOW = 0.5
 
 -- The object Focus itself selected last (its SelectionChanged is not a player move: no hover tick).
 local expectedSelection: GuiObject? = nil
+-- Lost-focus repair state (see repairSelection): a repair queued for the next frame, consecutive repairs without a
+-- player move, and the element that was selected when the engine dropped the selection.
+local repairPending = false
+local repairStreak = 0
+local lastRepairAt = -math.huge
+local lostObject: GuiObject? = nil
 local lastHoverAt = -math.huge
 local clock: () -> number = os.clock
 -- Shoulder handlers registered by components (TabBar): used when the top scope has no handler of its own.
@@ -301,6 +320,24 @@ function Focus.pageOffset(offset: number, viewExtent: number, contentExtent: num
 	return math.clamp(offset + (if direction < 0 then -step else step), 0, maxOffset)
 end
 
+--- Pure: the scroll offset after `dt` seconds of right-stick deflection `axis` (-1..1; up is positive, so pushing
+--- down scrolls forward), with the dead zone rescaled away, clamped to the content.
+function Focus.stickScrollStep(
+	offset: number,
+	axis: number,
+	dt: number,
+	viewExtent: number,
+	contentExtent: number
+): number
+	local magnitude = math.abs(axis)
+	if magnitude <= Focus.STICK_DEADZONE then
+		return offset
+	end
+	local scaled = (magnitude - Focus.STICK_DEADZONE) / (1 - Focus.STICK_DEADZONE)
+	local delta = -math.sign(axis) * scaled * Focus.STICK_SCROLL_SPEED * dt
+	return math.clamp(offset + delta, 0, math.max(0, contentExtent - viewExtent))
+end
+
 --- Pure: the scroll offset that reveals [itemStart, itemStart + itemSize) inside a viewport of `viewSize` currently
 --- scrolled to `offset` (all in content coordinates), keeping `padding` px of context. Unchanged if visible.
 function Focus.revealOffset(
@@ -455,6 +492,7 @@ function Focus.push(scope: FocusScope)
 	end
 	Focus.setGroup(impl.root, impl.trap)
 	table.insert(stack, impl)
+	repairStreak = 0
 	UIInput.setEnabled(true)
 	Focus.ensureValid()
 end
@@ -471,6 +509,7 @@ function Focus.pop(scope: FocusScope)
 		rememberCurrent(impl)
 	end
 	table.remove(stack, index)
+	repairStreak = 0
 	UIInput.setEnabled(#stack > 0)
 	if wasTop then
 		local current = selectedObject()
@@ -498,6 +537,7 @@ function Focus.scope(root: GuiObject, options: ScopeOptions?): FocusScope
 		_rememberedPosition = nil,
 		_shoulder = opts.onShoulder,
 		_page = opts.onPage,
+		_stickScroll = opts.stickScroll ~= false,
 		_destroyed = false,
 	}, ScopeClass) :: any
 	return (impl :: any) :: FocusScope
@@ -528,6 +568,15 @@ function ScopeClass.focus(self: ScopeImpl, target: GuiObject?)
 	end
 	local chosen = if target ~= nil and Focus.isSelectable(target, self.root) then target else bestTarget(self)
 	setSelected(chosen)
+end
+
+--- Selects `target` programmatically (no ui_hover tick) when in gamepad mode. Returns true if it was selected.
+function Focus.select(target: GuiObject?): boolean
+	if not gamepadMode() then
+		return false
+	end
+	setSelected(target)
+	return true
 end
 
 function ScopeClass.setInitial(self: ScopeImpl, initial: (GuiObject | () -> GuiObject?)?)
@@ -618,10 +667,11 @@ function Focus.shoulder(direction: number): boolean
 	return true
 end
 
---- Replaces the clock used for the hover-tick rate limit (tests). nil restores os.clock.
+--- Replaces the clock used for the hover-tick rate limit and the repair window (tests). nil restores os.clock.
 function Focus.setClock(fn: (() -> number)?)
 	clock = fn or os.clock
 	lastHoverAt = -math.huge
+	lastRepairAt = -math.huge
 end
 
 local function hoverTick()
@@ -633,14 +683,70 @@ local function hoverTick()
 	Sound.play(Sound.KEYS.hover)
 end
 
--- Selection changes: remember per scope, keep trapped scopes closed, tick the focus sound for player moves.
+-- Lost-focus repair (REG-INP-01: SelectedObject ~= nil in gamepad mode). The engine resets SelectedObject to nil when
+-- the selected element is destroyed, hidden or scrolled off screen; with AutoSelectGuiEnabled = false nothing would
+-- ever select again, stranding a gamepad player. One frame later (so list reconciles and VirtualList re-binds settle)
+-- the top scope's best target is selected: the remembered element if it is still selectable, else its nearest
+-- sibling, else initialFocus, else the first selectable. Bounded: MAX_REPAIRS consecutive repairs without a player
+-- move, and an element the engine keeps dropping is skipped in favour of the scope's first selectable.
+
+local function repairSelection()
+	repairPending = false
+	local top = stack[#stack]
+	if top == nil or not gamepadMode() or selectedObject() ~= nil then
+		return
+	end
+	local now = clock()
+	if now - lastRepairAt > Focus.REPAIR_WINDOW then
+		-- A new incident (e.g. the player removed another row a moment later), not an engine fight.
+		repairStreak = 0
+	end
+	lastRepairAt = now
+	repairStreak += 1
+	if repairStreak > Focus.MAX_REPAIRS then
+		return
+	end
+	local target = bestTarget(top)
+	if target ~= nil and target == lostObject and repairStreak > 1 then
+		-- Still "selectable" but the engine dropped it again (off screen): fall back to the scope's first element.
+		local first = Focus.firstSelectable(top.root)
+		target = if first ~= lostObject then first else nil
+	end
+	if target ~= nil then
+		setSelected(target)
+	end
+end
+
+local function scheduleRepair()
+	if repairPending then
+		return
+	end
+	repairPending = true
+	Motion.loop(function(): boolean?
+		repairSelection()
+		return true
+	end)
+end
+
+-- Selection changes: remember per scope, keep trapped scopes closed, tick the focus sound for player moves, and
+-- repair focus the engine dropped.
 local function onSelectionChanged()
 	local top = stack[#stack]
 	local selected = selectedObject()
 	local programmatic = selected ~= nil and selected == expectedSelection
 	expectedSelection = nil
-	if top == nil or selected == nil then
+	if top == nil then
 		return
+	end
+	if selected == nil then
+		if gamepadMode() then
+			lostObject = top._remembered
+			scheduleRepair()
+		end
+		return
+	end
+	if not programmatic then
+		repairStreak = 0
 	end
 	if Focus.contains(top.root, selected) then
 		remember(top, selected)
@@ -769,6 +875,44 @@ function Focus.page(direction: number): boolean
 	return true
 end
 
+-- Right-stick scrolling state (install wires it).
+local stickAxis = Vector2.zero
+local stopStickLoop: (() -> ())? = nil
+
+local function stickStep(dt: number): boolean?
+	local top = stack[#stack]
+	if not gamepadMode() or top == nil or not top._stickScroll or stickAxis.Magnitude <= Focus.STICK_DEADZONE then
+		stopStickLoop = nil
+		return true
+	end
+	local frame = scrollContainer(top)
+	if frame == nil then
+		stopStickLoop = nil
+		return true
+	end
+	local vertical = frame.ScrollingDirection ~= Enum.ScrollingDirection.X
+	local scale = uiScaleOf(frame)
+	local window, canvas, position =
+		frame.AbsoluteWindowSize / scale, frame.AbsoluteCanvasSize / scale, frame.CanvasPosition
+	if vertical then
+		local y = Focus.stickScrollStep(position.Y, stickAxis.Y, dt, window.Y, canvas.Y)
+		frame.CanvasPosition = Vector2.new(position.X, y)
+	else
+		-- Horizontal regions scroll with the stick's X (right = forward).
+		local x = Focus.stickScrollStep(position.X, -stickAxis.X, dt, window.X, canvas.X)
+		frame.CanvasPosition = Vector2.new(x, position.Y)
+	end
+	return nil
+end
+
+--- Feeds the right-stick position (install does this from UserInputService; tests call it directly).
+function Focus.setStick(axis: Vector2)
+	stickAxis = axis
+	if stopStickLoop == nil and axis.Magnitude > Focus.STICK_DEADZONE then
+		stopStickLoop = Motion.loop(stickStep)
+	end
+end
+
 --- Global wiring (call once at client start): GuiService flags, brand focus ring, selection tracking, input-mode
 --- repair and LB/RB routing. Returns stop().
 function Focus.install(options: InstallOptions?): () -> ()
@@ -817,6 +961,14 @@ function Focus.install(options: InstallOptions?): () -> ()
 	)
 	table.insert(
 		connections,
+		Services.input().InputChanged:Connect(function(input: InputObject)
+			if input.KeyCode == Enum.KeyCode.Thumbstick2 then
+				Focus.setStick(Vector2.new(input.Position.X, input.Position.Y))
+			end
+		end)
+	)
+	table.insert(
+		connections,
 		UIInput.pageNext:Connect(function()
 			Focus.page(1)
 		end)
@@ -839,8 +991,17 @@ end
 --- Clears every scope (tests, full UI teardown).
 function Focus.reset()
 	table.clear(stack)
+	stickAxis = Vector2.zero
+	if stopStickLoop ~= nil then
+		stopStickLoop()
+		stopStickLoop = nil
+	end
 	expectedSelection = nil
 	lastHoverAt = -math.huge
+	repairPending = false
+	repairStreak = 0
+	lastRepairAt = -math.huge
+	lostObject = nil
 	UIInput.setEnabled(false)
 end
 

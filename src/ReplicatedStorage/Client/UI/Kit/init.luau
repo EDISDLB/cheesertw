@@ -8,10 +8,10 @@
 	                  required one by one (`.../Kit/State`) — use that for types (`State.Value<T>`, `Theme.ColorToken`)
 	                  and in kit-internal code (components never require this aggregate, so there are no cycles).
 	                  See docs/systems/ui-kit.md.
+	                  `Kit.start()` starts the engine bindings (input mode, layout, accessibility, KitUI input, focus).
 	Dependencies:     Every Kit module and component.
 	State:            None (re-exports).
 	Validation:       N/A.
-	                  `Kit.start()` starts the engine bindings (input mode, layout, accessibility, KitUI input, focus).
 	Error handling:   N/A.
 	Performance notes: Requiring this loads every component once (all client-side, a few ms).
 ]]
@@ -69,6 +69,8 @@ export type Value<T> = State.Value<T>
 export type CanBeState<T> = State.CanBeState<T>
 export type ColorToken = Theme.ColorToken
 export type TypeRole = Theme.TypeRole
+export type Layer = Theme.Layer
+export type MotionSetting = Theme.MotionSetting
 export type Screen = Router.Screen
 export type ScreenContext = Router.ScreenContext
 export type RouterObject = Router.Router

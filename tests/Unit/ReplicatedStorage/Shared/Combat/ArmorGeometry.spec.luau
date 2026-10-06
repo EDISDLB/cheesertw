@@ -21,12 +21,8 @@ describe("ArmorGeometry", function()
 	describe("raycast", function()
 		it("returns every crossing sorted by distance with face data (head-on, lower front plate)", function()
 			local model = Fixtures.model()
-			local buf, count = ArmorGeometry.raycast(
-				model,
-				Fixtures.pose(),
-				Vector3.new(0, 2.5, -30),
-				Vector3.new(0, 0, 1)
-			)
+			local buf, count =
+				ArmorGeometry.raycast(model, Fixtures.pose(), Vector3.new(0, 2.5, -30), Vector3.new(0, 0, 1))
 			-- hull in (z −9), ammo rack (z −2..2), engine (z 4..8), hull out (z 9)
 			expect(kinds(buf, count)).toEqual({ "1+", "11+", "11-", "9+", "9-", "1-" })
 			local first = buf.items[1]
@@ -63,13 +59,8 @@ describe("ArmorGeometry", function()
 
 		it("normalizes the direction (distances are studs) and honours maxDistance", function()
 			local model = Fixtures.model()
-			local _, count = ArmorGeometry.raycast(
-				model,
-				Fixtures.pose(),
-				Vector3.new(0, 2.5, -30),
-				Vector3.new(0, 0, 7),
-				20.9
-			)
+			local _, count =
+				ArmorGeometry.raycast(model, Fixtures.pose(), Vector3.new(0, 2.5, -30), Vector3.new(0, 0, 7), 20.9)
 			expect(count).toBe(0)
 			local buf2, count2 =
 				ArmorGeometry.raycast(model, Fixtures.pose(), Vector3.new(0, 2.5, -30), Vector3.new(0, 0, 7), 21)
@@ -135,45 +126,49 @@ describe("ArmorGeometry", function()
 			expect(ArmorGeometry.groupFrames(model, pose, out)).toBe(out)
 		end)
 
-		it("orders ties by rank: spaced exit before the armor entry behind it, armor entry before armor exit", function()
-			local model = Fixtures.model()
-			-- track outer x = 6, inner x = 4.5 == hull side
-			local buf, count =
-				ArmorGeometry.raycast(model, Fixtures.pose(), Vector3.new(30, 2, 0), Vector3.new(-1, 0, 0))
-			local seq = kinds(buf, count)
-			expect(seq[1]).toBe("5+")
-			expect(seq[2]).toBe("5-")
-			expect(seq[3]).toBe("1+")
+		it(
+			"orders ties by rank: spaced exit before the armor entry behind it, armor entry before armor exit",
+			function()
+				local model = Fixtures.model()
+				-- track outer x = 6, inner x = 4.5 == hull side
+				local buf, count =
+					ArmorGeometry.raycast(model, Fixtures.pose(), Vector3.new(30, 2, 0), Vector3.new(-1, 0, 0))
+				local seq = kinds(buf, count)
+				expect(seq[1]).toBe("5+")
+				expect(seq[2]).toBe("5-")
+				expect(seq[3]).toBe("1+")
 
-			-- two Armor boxes sharing the face z = 0
-			local shared = {
-				volumes = {
-					Fixtures.box({
-						id = 1,
-						group = "Hull",
-						kind = "Armor",
-						min = Vector3.new(-1, 0, -2),
-						max = Vector3.new(1, 2, 0),
-						thickness = 10,
-						zone = "HullSide",
-					}),
-					Fixtures.box({
-						id = 2,
-						group = "Hull",
-						kind = "Armor",
-						min = Vector3.new(-1, 0, 0),
-						max = Vector3.new(1, 2, 2),
-						thickness = 10,
-						zone = "HullSide",
-					}),
-				},
-				boundsCenter = Vector3.new(0, 1, 0),
-				boundsRadius = 4,
-				pivots = Fixtures.model().pivots,
-			}
-			local b2, c2 = ArmorGeometry.raycast(shared, Fixtures.pose(), Vector3.new(0, 1, -10), Vector3.new(0, 0, 1))
-			expect(kinds(b2, c2)).toEqual({ "1+", "2+", "1-", "2-" })
-		end)
+				-- two Armor boxes sharing the face z = 0
+				local shared = {
+					volumes = {
+						Fixtures.box({
+							id = 1,
+							group = "Hull",
+							kind = "Armor",
+							min = Vector3.new(-1, 0, -2),
+							max = Vector3.new(1, 2, 0),
+							thickness = 10,
+							zone = "HullSide",
+						}),
+						Fixtures.box({
+							id = 2,
+							group = "Hull",
+							kind = "Armor",
+							min = Vector3.new(-1, 0, 0),
+							max = Vector3.new(1, 2, 2),
+							thickness = 10,
+							zone = "HullSide",
+						}),
+					},
+					boundsCenter = Vector3.new(0, 1, 0),
+					boundsRadius = 4,
+					pivots = Fixtures.model().pivots,
+				}
+				local b2, c2 =
+					ArmorGeometry.raycast(shared, Fixtures.pose(), Vector3.new(0, 1, -10), Vector3.new(0, 0, 1))
+				expect(kinds(b2, c2)).toEqual({ "1+", "2+", "1-", "2-" })
+			end
+		)
 
 		it("reports only exits for a ray starting inside a volume, and nothing behind the origin", function()
 			local model = Fixtures.model()
@@ -211,9 +206,11 @@ describe("ArmorGeometry", function()
 		it("reuses the buffer and its records between calls", function()
 			local model = Fixtures.model()
 			local buf = ArmorGeometry.newBuffer()
-			local _, c1 = ArmorGeometry.raycast(model, Fixtures.pose(), Vector3.new(0, 2.5, -30), Vector3.new(0, 0, 1), nil, buf)
+			local _, c1 =
+				ArmorGeometry.raycast(model, Fixtures.pose(), Vector3.new(0, 2.5, -30), Vector3.new(0, 0, 1), nil, buf)
 			local firstRecord = buf.items[1]
-			local _, c2 = ArmorGeometry.raycast(model, Fixtures.pose(), Vector3.new(30, 7.5, 0), Vector3.new(-1, 0, 0), nil, buf)
+			local _, c2 =
+				ArmorGeometry.raycast(model, Fixtures.pose(), Vector3.new(30, 7.5, 0), Vector3.new(-1, 0, 0), nil, buf)
 			expect(c1).toBe(6)
 			expect(buf.count).toBe(c2)
 			local found = false
@@ -239,8 +236,7 @@ describe("ArmorGeometry", function()
 				)
 				local frames = ArmorGeometry.groupFrames(model, pose)
 				local centre = pose.hullCFrame:PointToWorldSpace(Vector3.new(0, 4, 0))
-				local origin = centre
-					+ Vector3.new(rng:normal(0, 1), rng:normal(0, 1), rng:normal(0, 1)).Unit * 40
+				local origin = centre + Vector3.new(rng:normal(0, 1), rng:normal(0, 1), rng:normal(0, 1)).Unit * 40
 				local target = centre + Vector3.new(rng:range(-8, 8), rng:range(-5, 5), rng:range(-12, 12))
 				local _, count = ArmorGeometry.raycast(model, pose, origin, target - origin, nil, buf)
 				local _, again = ArmorGeometry.raycast(model, pose, origin, target - origin, nil, buf2)
@@ -365,7 +361,8 @@ describe("ArmorGeometry", function()
 			local inside = ArmorGeometry.volumesNear(model, Fixtures.pose(), Vector3.new(0, 3, 6), 0.1)
 			expect(inside.count).toBe(1)
 			expect(inside.items[1].distance).toBe(0)
-			local spaced = ArmorGeometry.volumesNear(model, Fixtures.pose(), Vector3.new(6.5, 1, 0), 1, { Spaced = true })
+			local spaced =
+				ArmorGeometry.volumesNear(model, Fixtures.pose(), Vector3.new(6.5, 1, 0), 1, { Spaced = true })
 			expect(spaced.count).toBe(1)
 			expect(spaced.items[1].volume.module).toBe("TrackRight")
 			expect(ArmorGeometry.volumesNear(model, Fixtures.pose(), Vector3.new(0, 3, 6), -1).count).toBe(0)

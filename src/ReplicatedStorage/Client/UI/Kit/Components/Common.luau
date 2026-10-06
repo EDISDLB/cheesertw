@@ -151,6 +151,29 @@ function Common.trackInteraction(button: GuiButton, hoverSound: boolean?): Inter
 	}
 end
 
+-- Buttons whose current touch press became a tooltip long-press (weak keys: destroyed buttons drop out).
+local longPressed: { [Instance]: boolean } = setmetatable({}, { __mode = "k" }) :: any
+
+--- Marks `target`'s current touch press as a tooltip long-press (Tooltip.attach calls this): the Activated event
+--- that ends the press must not trigger the button (ui-ux §1.7: long-press reads the tooltip, it never activates).
+function Common.markLongPress(target: Instance)
+	longPressed[target] = true
+end
+
+--- Clears a stale mark (a new press began).
+function Common.clearLongPress(target: Instance)
+	longPressed[target] = nil
+end
+
+--- True (once) if the press that is activating `target` was a tooltip long-press. Activation handlers call it first.
+function Common.consumeLongPress(target: Instance): boolean
+	if longPressed[target] then
+		longPressed[target] = nil
+		return true
+	end
+	return false
+end
+
 --- Product of the UIScale factors on `instance` and its ancestors (AbsoluteSize px -> layout px).
 function Common.effectiveScale(instance: Instance): number
 	local scale = 1
@@ -192,13 +215,17 @@ local LEGACY_FONTS: { [string]: string } = {
 local AVERAGE_ADVANCE: { [string]: number } = { Oswald = 0.5, BuilderSans = 0.56, BuilderMono = 0.62 }
 
 --- Width in px of `text` set in a typography role (TextService when available, else a per-face estimate).
---- Honors the player's PreferredTextSize through TextService.
+--- Honors the player's PreferredTextSize through TextService. Inside a Computed it depends on the role's size.
 function Common.measureText(text: string, role: Theme.TypeRole): number
 	if text == "" then
 		return 0
 	end
 	local spec = Theme.typography(role)
-	local size = spec.size:peek()
+	-- Tracked reads: a Computed that measures (auto-width buttons, tabs) re-measures when the text scale, layout
+	-- minimums or render scale change the size, and when the player's PreferredTextSize changes (TextService
+	-- measurements include it).
+	local size = spec.size:get()
+	Theme.state.preferredTextSize:get()
 	local family = string.match(spec.font.Family, "families/([%w]+)%.json$") or "BuilderSans"
 	local weight = spec.font.Weight.Name
 	local legacy = LEGACY_FONTS[family .. ":" .. weight] or LEGACY_FONTS[family]

@@ -3,16 +3,20 @@
 	Components/Spinner — indeterminate activity indicator.
 
 	Purpose:          A half-ring arc (UIStroke + gradient mask) turning once per 0.9 s over a faint full ring.
-	                  Reduced motion: the arc stays still (the faint ring + arc still read as "busy").
-	Dependencies:     Kit/Create, Kit/Theme, Kit/Motion, Components/Common.
-	State:            The rotation tween (cancelled when the spinner is destroyed).
+	                  Reduced motion: the arc stays still (the faint ring + arc still read as "busy"); it follows the
+	                  setting live.
+	Dependencies:     Kit/Create, Kit/State, Kit/Theme, Kit/Motion, Components/Common.
+	State:            The rotation tween while spinning; one effect (disconnected when the spinner is destroyed).
 	Validation:       N/A.
 	Error handling:   N/A.
-	Performance notes: Engine tween; 2 Frames.
+	Performance notes: Engine tween; 2 Frames. The tween runs ONLY while the `Visible` prop is true and motion is not
+	                  reduced: every Button carries a hidden spinner for its loading state, so an always-on infinite
+	                  tween would cost one engine tween per button ever built.
 ]]
 
 local Create = require("../Create")
 local Motion = require("../Motion")
+local Theme = require("../Theme")
 local Common = require("./Common")
 local State = require("../State")
 
@@ -78,16 +82,36 @@ function Spinner.new(props: SpinnerProps?): Frame
 	values.BackgroundTransparency = 1
 	values[Create.Children] = { ring("Track", size, color, 0.75, false), arc }
 	local frame = Create.Frame(values)
-	local tween = Motion.tween(
-		arc,
-		{ Rotation = 360 },
-		{ duration = 0.9, easing = "linear", repeatCount = -1, kind = "move" }
-	)
-	if tween ~= nil then
-		Create.onDestroy(frame, function()
+	local tween: Tween? = nil
+	local function stop()
+		if tween ~= nil then
 			tween:Cancel()
-		end)
+			tween = nil
+		end
+		arc.Rotation = 0
 	end
+	local visible: State.CanBeState<boolean> = if opts.Visible == nil then true else opts.Visible
+	local connection = State.effect(function()
+		local spinning = State.get(visible) and not Theme.state.reducedMotion:get()
+		State.untracked(function(): nil
+			if not spinning then
+				stop()
+			elseif tween == nil then
+				arc.Rotation = 0
+				tween = Motion.tween(
+					arc,
+					{ Rotation = 360 },
+					{ duration = 0.9, easing = "linear", repeatCount = -1, kind = "move" }
+				)
+			end
+			return nil
+		end)
+		return nil
+	end, { name = "Spinner.spin" })
+	Create.onDestroy(frame, function()
+		connection:Disconnect()
+		stop()
+	end)
 	return Common.parent(frame, opts)
 end
 

@@ -152,7 +152,10 @@ function Chip.new(props: ChipProps): TextButton
 			AutoButtonColor = false,
 			BackgroundTransparency = 1,
 			Selectable = false,
-			Size = UDim2.fromOffset(20, 20),
+			-- 20 px cross; a 44 px target on touch (the only remove path when the chip also has onActivated).
+			Size = State.map(Common.touchHeight(20), function(px: number): UDim2
+				return UDim2.fromOffset(px, px)
+			end),
 			LayoutOrder = 3,
 			ZIndex = 4,
 			[Create.Children] = {
@@ -185,7 +188,7 @@ function Chip.new(props: ChipProps): TextButton
 	end)
 	values[Create.Children] = children
 	values[Create.On("Activated")] = function()
-		if not interactive then
+		if not interactive or Common.consumeLongPress(chip) then
 			return
 		end
 		if State.peek(disabled) then

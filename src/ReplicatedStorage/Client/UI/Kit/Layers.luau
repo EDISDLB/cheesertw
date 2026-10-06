@@ -8,7 +8,8 @@
 	State:            name -> container map (one active container per layer).
 	Validation:       register requires an Instance.
 	Error handling:   `parentFor` falls back to the anchor's ScreenGui, then nil (caller decides).
-	Performance notes: Table lookups only.
+	Performance notes: Table lookups only. `toLocal` maps screen px into a layer root's content coordinates (its
+	                  UIScale AND its UIPadding — the TV-safe margin), so overlays placed next to an element land on it.
 ]]
 
 local Theme = require("./Theme")
@@ -60,6 +61,29 @@ function Layers.parentFor(name: Layer, anchor: Instance?): Instance?
 		end
 	end
 	return nil
+end
+
+--- Converts a screen-space point (AbsolutePosition px) into offsets for a child of `container`: subtracts the
+--- container's origin and its UIPadding (scale + offset; the layer roots carry the 5 % TV-safe margin) and divides by
+--- its UIScale (layer roots are authored in reference px). Use it for every overlay placed at an element.
+function Layers.toLocal(container: Instance, point: Vector2): Vector2
+	local origin = Vector2.new(0, 0)
+	local size = Vector2.new(0, 0)
+	if container:IsA("GuiBase2d") then
+		origin = (container :: GuiBase2d).AbsolutePosition
+		size = (container :: GuiBase2d).AbsoluteSize
+	end
+	local scale = 1
+	local uiScale = container:FindFirstChildOfClass("UIScale")
+	if uiScale ~= nil and uiScale.Scale > 0 then
+		scale = uiScale.Scale
+	end
+	local padding = container:FindFirstChildOfClass("UIPadding")
+	if padding ~= nil then
+		local left, top = padding.PaddingLeft, padding.PaddingTop
+		origin += Vector2.new(left.Scale * size.X + left.Offset * scale, top.Scale * size.Y + top.Offset * scale)
+	end
+	return (point - origin) / scale
 end
 
 function Layers.clear()

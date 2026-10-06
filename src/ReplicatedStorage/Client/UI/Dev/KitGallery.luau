@@ -908,16 +908,22 @@ local function controls(scope: Trove): Frame
 		InputMode.set(value :: any)
 	end, { scope = scope })
 	-- Layout preview (global on purpose): authored-size and type-minimum checks for Compact and TV without a device.
-	-- The live environment is restored when the gallery closes.
-	local live: Layout.Environment = {
-		viewport = Layout.state.viewport:peek(),
-		tenFoot = Layout.state.tenFoot:peek(),
-	}
+	-- The live environment (viewport, 10-ft flag AND display size, so a Compact preview cannot leave a PC on the
+	-- tablet profile) is captured when a preview starts and restored when it ends or the gallery closes.
+	local live: Layout.Environment = Layout.environment()
 	local previewing = false
 	State.observe(layoutPreview, function(value: string)
 		local preset = LAYOUT_PREVIEWS[value]
+		if preset ~= nil and not previewing then
+			live = Layout.environment()
+		end
+		local wasPreviewing = previewing
 		previewing = preset ~= nil
-		Layout.setEnvironment(if preset ~= nil then preset else live)
+		if preset ~= nil then
+			Layout.setEnvironment(preset)
+		elseif wasPreviewing then
+			Layout.setEnvironment(live)
+		end
 	end, { scope = scope })
 	scope:Add(function()
 		if previewing then

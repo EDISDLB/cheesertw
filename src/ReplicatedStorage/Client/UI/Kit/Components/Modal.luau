@@ -37,6 +37,7 @@ local IconButton = require("./IconButton")
 local Common = require("./Common")
 local Icon = require("../../Icons/Icon")
 local Signal = require("@game/ReplicatedStorage/Shared/Core/Signal")
+local Trove = require("@game/ReplicatedStorage/Shared/Core/Trove")
 
 type CanBeState<T> = State.CanBeState<T>
 
@@ -104,6 +105,9 @@ export type OpenProps = {
 	anchor: Instance?,
 	--- Initial focus override (default: the action with focus = true, else the last action).
 	initialFocus: GuiObject?,
+	--- Lifetime owner (pass the screen's `ctx.scope`): the dialog closes with result nil when it is cleaned, so a
+	--- dialog never outlives the screen that opened it (it would cover the next screen and swallow its Back).
+	scope: Trove.Trove?,
 }
 export type Handle = {
 	close: (result: any?) -> (),
@@ -138,6 +142,10 @@ function Modal.new(props: ModalProps): Frame
 			Icon.new({ key = props.icon :: string, size = 28, color = Theme.color("text.primary"), LayoutOrder = 1 })
 		)
 	end
+	-- The title row grows with the text scale (h3 28 px is 42 px at 150 %), so the header never overlaps the body.
+	local titleHeight = State.map(Theme.textSize("h3"), function(size: number): number
+		return math.max(32, math.ceil(size * Theme.lineHeight("h3")))
+	end)
 	table.insert(
 		header,
 		Text.new({
@@ -145,7 +153,9 @@ function Modal.new(props: ModalProps): Frame
 			text = props.title,
 			role = "h3",
 			LayoutOrder = 2,
-			Size = UDim2.new(1, if dismissible then -(44 + 36) else -36, 0, 32),
+			Size = State.map(titleHeight, function(h: number): UDim2
+				return UDim2.new(1, if dismissible then -(44 + 36) else -36, 0, h)
+			end),
 			truncate = true,
 			wrap = false,
 		})
@@ -153,7 +163,9 @@ function Modal.new(props: ModalProps): Frame
 	local headerFrame = Create.Frame({
 		Name = "Header",
 		BackgroundTransparency = 1,
-		Size = UDim2.new(1, 0, 0, 44),
+		Size = State.map(titleHeight, function(h: number): UDim2
+			return UDim2.new(1, 0, 0, math.max(44, h))
+		end),
 		LayoutOrder = 2,
 		[Create.Children] = header,
 	})
@@ -289,6 +301,8 @@ function Modal.open(props: OpenProps): Handle
 	local dismissible = props.dismissible ~= false
 	local closed = Signal.new() :: Signal.Signal<any>
 	local isClosed = false
+	-- True once the holder is being destroyed by someone else (its layer went away with the Router).
+	local holderGone = false
 	local removeInterceptor: (() -> ())? = nil
 	local scope: Focus.FocusScope? = nil
 	local holder: Frame
@@ -355,8 +369,10 @@ function Modal.open(props: OpenProps): Handle
 			scope:Destroy()
 			scope = nil
 		end
-		Sound.play(Sound.KEYS.close)
-		holder:Destroy()
+		if not holderGone then
+			Sound.play(Sound.KEYS.close)
+			holder:Destroy()
+		end
 		if props.onResult ~= nil then
 			props.onResult(result)
 		end
@@ -376,6 +392,14 @@ function Modal.open(props: OpenProps): Handle
 			initial = dialog:FindFirstChild("Action" .. #actionList, true) :: GuiObject?
 		end
 	end
+	-- Destroyed from outside (router:destroy() on teleport, a cleared layer): still release the Back interceptor and
+	-- the trapped focus scope, or Back stays swallowed and the gamepad focus stays trapped in a dead dialog.
+	holder.Destroying:Connect(function()
+		if not isClosed then
+			holderGone = true
+			close(nil)
+		end
+	end)
 	local focusScope = Focus.scope(dialog, { name = "Modal", trap = true, initial = initial })
 	scope = focusScope
 	focusScope:activate()
@@ -392,6 +416,11 @@ function Modal.open(props: OpenProps): Handle
 	)
 	Motion.pop(dialog, { duration = "base" })
 	Sound.play(Sound.KEYS.open)
+	if props.scope ~= nil then
+		props.scope:Add(function()
+			close(nil)
+		end)
+	end
 
 	return {
 		close = close,

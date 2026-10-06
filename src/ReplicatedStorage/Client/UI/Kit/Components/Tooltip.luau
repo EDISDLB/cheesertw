@@ -7,9 +7,11 @@
 	                  0.6 s after the element gains gamepad focus, or on a touch long-press (hidden again 1.5 s after
 	                  release). Placement priority right -> left -> below -> above, 8 px from the target; the first
 	                  side that fits wins, otherwise it is clamped into the viewport (pure `Tooltip.place`). Disabled
-	                  buttons keep their tooltip reachable so the reason is readable (research 06 A5).
+	                  buttons keep their tooltip reachable so the reason is readable (research 06 A5). A long-press never
+	                  activates the button it explains (Common.markLongPress); activating, hiding or removing the target
+	                  hides its tooltip (it must not linger over the next screen).
 	Dependencies:     Kit/Create, Kit/State, Kit/Theme, Kit/Layers, Kit/Layout, Kit/Services, Kit/Motion,
-	                  Components/Chamfer, Components/Shadow, Components/Text.
+	                  Components/Chamfer, Components/Shadow, Components/Text, Components/Common.
 	State:            The shared view (created on first use in the Tooltip layer), the current owner and a pending
 	                  show token.
 	Validation:       Targets must be GuiObjects.
@@ -27,6 +29,7 @@ local Motion = require("../Motion")
 local Chamfer = require("./Chamfer")
 local Shadow = require("./Shadow")
 local Text = require("./Text")
+local Common = require("./Common")
 
 type CanBeState<T> = State.CanBeState<T>
 
@@ -186,12 +189,21 @@ local function ensureView(anchor: Instance): ViewState?
 	return created
 end
 
-local function scaleOf(parent: Instance): number
-	local scale = parent:FindFirstChildOfClass("UIScale")
-	if scale ~= nil then
-		return scale.Scale
+-- True while `target` is in a ScreenGui and it and its GuiObject ancestors are visible (a covered screen's host is
+-- Visible = false; MouseLeave/SelectionLost do not reliably fire for elements hidden under the pointer/focus).
+local function isShown(target: GuiObject): boolean
+	local node: Instance? = target
+	while node ~= nil do
+		if node:IsA("GuiObject") then
+			if (node :: GuiObject).Visible == false then
+				return false
+			end
+		elseif node:IsA("LayerCollector") then
+			return (node :: LayerCollector).Enabled ~= false
+		end
+		node = node.Parent
 	end
-	return 1
+	return false
 end
 
 function reposition()
@@ -200,16 +212,19 @@ function reposition()
 	if current == nil or target == nil then
 		return
 	end
+	if not isShown(target) then
+		Tooltip.hide(target)
+		return
+	end
 	local parent = current.frame.Parent
 	if parent == nil or not parent:IsA("GuiObject") and not parent:IsA("LayerCollector") then
 		return
 	end
-	local scale = if parent:IsA("GuiObject") then scaleOf(parent) else 1
-	local origin = (parent :: any).AbsolutePosition or Vector2.new(0, 0)
 	local tipSize = current.frame.AbsoluteSize or Vector2.new(0, 0)
 	local viewport = Services.viewportSize()
 	local position = Tooltip.place(target.AbsolutePosition, target.AbsoluteSize, tipSize, viewport, ownerPlacement)
-	local localPosition = (position - origin) / scale
+	-- Layer roots carry a UIScale and (on TV) a UIPadding safe margin: convert into the root's content space.
+	local localPosition = Layers.toLocal(parent, position)
 	current.frame.Position = UDim2.fromOffset(math.floor(localPosition.X + 0.5), math.floor(localPosition.Y + 0.5))
 end
 
@@ -307,8 +322,16 @@ function Tooltip.attach(target: GuiObject, content: Content, options: AttachOpti
 	connect(target.SelectionLost, function()
 		Tooltip.hide(target)
 	end)
+	connect(target.InputBegan, function(input: InputObject)
+		if input.UserInputType == Enum.UserInputType.Touch then
+			-- A new press: forget a long-press mark that no Activated consumed (finger slid off).
+			Common.clearLongPress(target)
+		end
+	end)
 	connect(target.TouchLongPress, function(_positions: { Vector2 }, state: Enum.UserInputState)
 		if state == Enum.UserInputState.Begin then
+			-- The release that ends this press must not activate the button (Button/Card/... consume the mark).
+			Common.markLongPress(target)
 			schedule(0, show)
 		elseif state == Enum.UserInputState.End or state == Enum.UserInputState.Cancel then
 			schedule(Tooltip.TOUCH_HIDE_DELAY, function()
@@ -321,6 +344,15 @@ function Tooltip.attach(target: GuiObject, content: Content, options: AttachOpti
 			reposition()
 		end
 	end)
+	connect(target.AncestryChanged, function()
+		Tooltip.hide(target)
+	end)
+	if target:IsA("GuiButton") then
+		-- Activating usually navigates or opens something: the explanation is no longer wanted.
+		connect((target :: GuiButton).Activated, function()
+			Tooltip.hide(target)
+		end)
+	end
 	local detached = false
 	local function detach()
 		if detached then

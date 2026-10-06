@@ -118,7 +118,21 @@ describe("KitGallery", function()
 		expect(Kit.Theme.state.highContrast:peek()).toBe(true)
 		Support.click(toggles[2])
 		expect(Kit.Theme.state.reducedMotion:peek()).toBe(true)
-		router:pop()
+		-- Layout preview: Compact while the gallery is open, the live layout again after it closes. The live
+		-- environment is the one at preview time (a resize after the gallery opened) and includes the display size,
+		-- so the Compact preview (DisplaySize.Small) cannot leave a PC on the tablet profile.
+		Kit.Layout.setEnvironment({
+			viewport = Vector2.new(1920, 1080),
+			tenFoot = false,
+			displaySize = Enum.DisplaySize.Medium,
+		})
+		Support.click(Support.find(root, "LayoutPreview"))
+		Support.click(Support.find(router:layerRoot("Tooltip"), "Option2"))
+		expect(Kit.Theme.snapshot().layout).toBe("compact")
+		expect(Kit.Layout.isCompact:peek()).toBe(true)
 		router:destroy()
+		expect(Kit.Theme.snapshot().layout).toBe("regular")
+		expect(Kit.Theme.snapshot().platform).toBe("pc")
+		expect(Kit.Layout.state.viewport:peek()).toEqual(Vector2.new(1920, 1080))
 	end)
 end)

@@ -8,7 +8,9 @@
 	                  leading/trailing icons, an input-glyph hint (KeyPrompt), UI sounds (hover/click via Kit/Sound),
 	                  tooltips and hold-to-confirm (`hold`: on gamepad and touch the action fires only after holding
 	                  A / the finger for Theme.state.holdSeconds while a fill sweeps the button; mouse and keyboard
-	                  click as usual — ui-ux §1.6 destructive confirmations). Premium = secondary with a Bullion-gold
+	                  click as usual — ui-ux §1.6 destructive confirmations; with the "Two-step" accessibility setting
+	                  (Theme.state.twoStepConfirm, ui-ux §1.15) the first press arms the button — full fill, label
+	                  `armedText` — and a second press within ARM_WINDOW seconds confirms). Premium = secondary with a Bullion-gold
 	                  border on hover/focus (Bullion purchases). Primary/battle use the dusk vertical gradient
 	                  (#FF8A45 -> #E8641F), lighten to dusk_hi with a 2 px dusk glow on hover, dusk_lo when pressed;
 	                  HULLDOWN-cut chamfers. Heights 56 (large), 44 (medium), 36 (compact; raised to 44 on touch),
@@ -70,6 +72,8 @@ export type ButtonProps = {
 	loadingText: CanBeState<string>?,
 	--- Hold-to-confirm on gamepad/touch: true = Theme.state.holdSeconds (player setting), or seconds.
 	hold: (boolean | number)?,
+	--- Two-step mode label while armed (default "Confirm?").
+	armedText: CanBeState<string>?,
 	onActivated: (() -> ())?,
 	--- px width, "fill" (parent width) or "auto" (measured text, default).
 	width: (number | "fill" | "auto")?,
@@ -81,6 +85,9 @@ export type ButtonProps = {
 local Button = {}
 
 local HEIGHTS: { [string]: number } = { large = 56, medium = 44, compact = 36 }
+
+--- Two-step confirm: seconds an armed button waits for its second press (>= 3 s, ui-ux §1.15 timing rule).
+Button.ARM_WINDOW = 4
 local PADDING: { [string]: number } = { large = 24, medium = 16, compact = 12, battle = 32 }
 
 --- Pure: visual state from interaction flags (disabled wins, then pressed, then hover).
@@ -128,7 +135,8 @@ end
 
 --- Hold-to-confirm for any GuiButton (Button uses it for `hold`): in Gamepad mode, ButtonA held while the button is
 --- GuiService.SelectedObject; in Touch mode, a finger held on it. Completing the hold calls `onComplete` once;
---- releasing early resets. Mouse/keyboard modes are inactive (they click).
+--- releasing early resets. Mouse/keyboard modes are inactive (they click), and so is the "Two-step" setting
+--- (Theme.state.twoStepConfirm: the caller arms on the first activation instead).
 function Button.holdController(
 	target: GuiButton,
 	options: { seconds: CanBeState<number>, enabled: CanBeState<boolean>?, onComplete: () -> () }
@@ -136,7 +144,7 @@ function Button.holdController(
 	local progress = State.Value(0)
 	local active = State.Computed(function(): boolean
 		local mode = InputMode.mode:get()
-		return mode == "Gamepad" or mode == "Touch"
+		return (mode == "Gamepad" or mode == "Touch") and not Theme.state.twoStepConfirm:get()
 	end)
 	local stopLoop: (() -> ())? = nil
 	local function cancel()
@@ -390,10 +398,20 @@ function Button.new(props: ButtonProps): TextButton
 	end
 	table.insert(content, Spinner.new({ size = iconSize, color = color, LayoutOrder = 1, Visible = isLoading }))
 	local labelText: CanBeState<string> = text
-	if props.loadingText ~= nil then
-		local loadingText = props.loadingText :: CanBeState<string>
+	local holdSpec = props.hold
+	local hasHold = holdSpec ~= nil and holdSpec ~= false
+	-- Two-step confirm (accessibility alternative to holding): armed after the first press.
+	local armed = State.Value(false)
+	local armedText: CanBeState<string> = props.armedText or "Confirm?"
+	if props.loadingText ~= nil or hasHold then
+		local loadingText = props.loadingText
 		labelText = State.Computed(function(): string
-			return if State.get(loading) then State.get(loadingText) else State.get(text)
+			if loadingText ~= nil and State.get(loading) then
+				return State.get(loadingText :: CanBeState<string>)
+			elseif armed:get() then
+				return State.get(armedText)
+			end
+			return State.get(text)
 		end)
 	end
 	table.insert(
@@ -473,7 +491,12 @@ function Button.new(props: ButtonProps): TextButton
 			local label = State.get(text)
 			Theme.textSize(role):get()
 			local hintWidth = if props.hint ~= nil and not InputMode.isTouch:get() then 32 + Theme.space(2) else 0
-			local width = Button.computeWidth(variant, h, Common.measureText(label, role), extras + hintWidth)
+			local labelWidth = Common.measureText(label, role)
+			if hasHold then
+				-- Room for the two-step armed label too, so arming never changes the button's width.
+				labelWidth = math.max(labelWidth, Common.measureText(State.get(armedText), role))
+			end
+			local width = Button.computeWidth(variant, h, labelWidth, extras + hintWidth)
 			return UDim2.fromOffset(width, h)
 		end)
 	end
@@ -489,9 +512,32 @@ function Button.new(props: ButtonProps): TextButton
 			props.onActivated()
 		end
 	end
-	local holdSpec = props.hold
 	local holdMode: State<boolean>? = nil
-	if holdSpec ~= nil and holdSpec ~= false then
+	local twoStepMode: State<boolean>? = nil
+	local stopArmTimer: (() -> ())? = nil
+	local function disarm()
+		if stopArmTimer ~= nil then
+			local fn = stopArmTimer
+			stopArmTimer = nil
+			fn()
+		end
+		armed:set(false)
+	end
+	local function arm()
+		armed:set(true)
+		Sound.play(Sound.KEYS.click)
+		local elapsed = 0
+		stopArmTimer = Motion.loop(function(dt: number): boolean?
+			elapsed += dt
+			if elapsed >= Button.ARM_WINDOW then
+				stopArmTimer = nil
+				armed:set(false)
+				return true
+			end
+			return nil
+		end)
+	end
+	if hasHold then
 		local seconds: CanBeState<number> = if type(holdSpec) == "number" then holdSpec else Theme.state.holdSeconds
 		local hold = Button.holdController(button, {
 			seconds = seconds,
@@ -501,6 +547,10 @@ function Button.new(props: ButtonProps): TextButton
 			onComplete = activate,
 		})
 		holdMode = hold.active
+		twoStepMode = State.Computed(function(): boolean
+			local mode = InputMode.mode:get()
+			return (mode == "Gamepad" or mode == "Touch") and Theme.state.twoStepConfirm:get()
+		end)
 		table.insert(
 			children,
 			Create.Frame({
@@ -508,21 +558,35 @@ function Button.new(props: ButtonProps): TextButton
 				BorderSizePixel = 0,
 				BackgroundColor3 = Theme.color(if variant == "danger" then "state.danger" else "accent.dusk"),
 				BackgroundTransparency = 0.6,
-				Size = State.map(hold.progress, function(p: number): UDim2
-					return UDim2.fromScale(p, 1)
+				Size = State.Computed(function(): UDim2
+					return UDim2.fromScale(if armed:get() then 1 else hold.progress:get(), 1)
 				end),
-				Visible = State.map(hold.progress, function(p: number): boolean
-					return p > 0
+				Visible = State.Computed(function(): boolean
+					return armed:get() or hold.progress:get() > 0
 				end),
 				ZIndex = 4,
 			})
 		)
-		values[Create.Cleanup] = hold.stop
+		values[Create.Cleanup] = { hold.stop, disarm }
+		-- Leaving the button (gamepad focus moves on) cancels an armed confirm.
+		values[Create.On("SelectionLost")] = disarm
 	end
 	values[Create.On("Activated")] = function()
+		if Common.consumeLongPress(button) then
+			return
+		end
 		if State.peek(disabled) or State.peek(loading) then
 			if State.peek(disabled) then
 				Sound.play(Sound.KEYS.error)
+			end
+			return
+		end
+		if twoStepMode ~= nil and twoStepMode:peek() then
+			if armed:peek() then
+				disarm()
+				activate()
+			else
+				arm()
 			end
 			return
 		end

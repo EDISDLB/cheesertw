@@ -5,16 +5,22 @@
 	Purpose:          Implements the scale decisions (00-DECISIONS §16, brand-art §4.1): screens are authored at a
 	                  reference canvas and a root UIScale maps it to the viewport —
 	                    Regular (viewport height >= 600): scale = clamp(vh / 1080, 0.75, 1.5), x1.25 on TV (10-ft UI),
-	                                                      capped at 1.2 on tablets
-	                    Compact (viewport height <  600): authored at 844x390, scale = clamp(vh / 390, 0.92, 1.25)
-	                  both multiplied by the player's UI-scale setting (0.8-1.2, Theme). TV = console, a Large display
-	                  or a gamepad on a display >= 1600 px wide (ui-ux §1.1); it gets a 5 % safe margin.
+	                                                      capped at 1.2 on tablets, x the player's UI scale (0.8-1.2;
+	                                                      1.0-1.2 on touch), lowered so the canvas stays >= 1280x800
+	                                                      ("Limited by this display", ui-ux §1.1.1 / §1.15)
+	                    Compact (viewport height <  600): authored at 844x390, scale = clamp(vh / 390, 0.92, 1.25),
+	                                                      never the UI scale (fixed 100 %, ui-ux §1.1)
+	                  TV = GuiService:IsTenFootInterface() only (ui-ux §1.1 / §5.4 #3: a PC with a gamepad or on a big
+	                  display stays Regular, so switching mouse <-> pad never rescales the UI); it gets a 5 % margin.
+	                  Battle HUD layers use their own root scale (ui-ux §1.1.1, §S31): Regular = the device scale x the
+	                  `hud.scale` setting, capped so the HUD canvas stays >= 1360x720 (1448 wide with event abilities);
+	                  Compact = min(1.25, vh / 390); touch on a Regular display (tablets) = vh / 700.
 	                  Also derives the text-size platform profile (pc/console/phone/tablet) and pushes renderScale +
 	                  platform into Theme so text minimums hold after scaling. Helpers build UIPadding / UIListLayout
 	                  (incl. flex) / UIGridLayout / UIFlexItem / constraints from tokens.
 	Dependencies:     Kit/State, Kit/Theme, Kit/Create, Kit/InputMode, Kit/Services (engine reads in `start` only).
 	State:            Module-level Values: viewport, tenFoot, displaySize, gamepad; Computeds: breakpoint, tv, scale,
-	                  platform.
+	                  platform, scaleLimited.
 	Validation:       Viewport sizes <= 0 fall back to the reference size; helper options are checked.
 	Error handling:   `start` tolerates a missing camera (waits for CurrentCamera) and missing engine properties.
 	Performance notes: Recomputes only when the viewport/display/UI-scale changes; one UIScale per layer root.
@@ -36,7 +42,7 @@ export type Platform = Theme.Platform
 export type ScaleOptions = {
 	--- TV layout (×1.25 on Regular).
 	tenFoot: boolean?,
-	--- Tablet profile: Regular scale capped at TABLET_SCALE_MAX (ui-ux §1.14).
+	--- Tablet profile: Regular scale capped at TABLET_SCALE_MAX (ui-ux §1.14); the UI scale never goes below 1.0.
 	tablet: boolean?,
 	userScale: number?,
 }
@@ -45,7 +51,7 @@ export type Environment = {
 	--- GuiService:IsTenFootInterface() (console).
 	tenFoot: boolean?,
 	displaySize: EnumItem?,
-	--- Gamepad is the preferred input (InputMode).
+	--- Gamepad is the preferred input (InputMode; informational, the TV rule ignores it).
 	gamepad: boolean?,
 }
 export type PaddingSpec = number | {
@@ -93,8 +99,17 @@ Layout.CONFIG = table.freeze({
 	TV_SAFE_MARGIN = 0.05,
 	--- Tablets stay Regular with the root scale capped (ui-ux §1.14).
 	TABLET_SCALE_MAX = 1.2,
-	--- A gamepad on a display at least this wide counts as a 10-ft TV setup (ui-ux §1.1, O).
-	TV_GAMEPAD_MIN_WIDTH = 1600,
+	--- Touch devices on Regular: the UI-scale setting runs 1.0-1.2 (ui-ux §1.1).
+	TOUCH_USER_SCALE_MIN = 1.0,
+	--- Smallest Regular menu canvas (reference px) the UI scale may produce (ui-ux §1.1.1).
+	MIN_CANVAS = Vector2.new(1280, 800),
+	--- Smallest battle HUD canvas (W x E) the HUD scale may produce; wider with event abilities (ui-ux §1.1.1).
+	HUD_MIN_CANVAS = Vector2.new(1360, 720),
+	HUD_MIN_CANVAS_ABILITIES = Vector2.new(1448, 720),
+	--- Compact battle root: min(HUD_COMPACT_SCALE_MAX, vh / 390), so the HUD canvas is never under 390 tall.
+	HUD_COMPACT_SCALE_MAX = 1.25,
+	--- Touch HUD on a Regular display (tablets): a fixed 700-tall canvas.
+	HUD_TOUCH_CANVAS_HEIGHT = 700,
 })
 
 local function validViewport(viewport: Vector2?): Vector2
@@ -110,28 +125,91 @@ function Layout.breakpointFor(viewport: Vector2): Breakpoint
 	return if size.Y < Layout.CONFIG.COMPACT_HEIGHT then "Compact" else "Regular"
 end
 
---- Root UIScale for a viewport (pure).
+-- Device scale before the player's UI scale.
+local function baseScale(size: Vector2, opts: ScaleOptions): number
+	local config = Layout.CONFIG
+	if Layout.breakpointFor(size) == "Compact" then
+		return math.clamp(size.Y / Layout.COMPACT_REFERENCE.Y, config.COMPACT_SCALE_MIN, config.COMPACT_SCALE_MAX)
+	end
+	local scale = math.clamp(size.Y / Layout.REFERENCE.Y, config.SCALE_MIN, config.SCALE_MAX)
+	if opts.tablet then
+		scale = math.min(scale, config.TABLET_SCALE_MAX)
+	end
+	if opts.tenFoot then
+		scale *= config.TV_MULTIPLIER
+	end
+	return scale
+end
+
+--- Pure: the UI-scale factor actually applied and whether the display limited it (the settings slider then says
+--- "Limited by this display", ui-ux §1.15). Compact ignores the setting (1); touch devices use 1.0-1.2; Regular lowers
+--- it (never below the setting's minimum) until the canvas is at least CONFIG.MIN_CANVAS.
+function Layout.effectiveUserScale(viewport: Vector2, options: ScaleOptions?): (number, boolean)
+	local opts: ScaleOptions = options or {}
+	local size = validViewport(viewport)
+	if Layout.breakpointFor(size) == "Compact" then
+		return 1, false
+	end
+	local minimum = if opts.tablet then Layout.CONFIG.TOUCH_USER_SCALE_MIN else Theme.UI_SCALE_MIN
+	local requested = opts.userScale or 1
+	if requested ~= requested then
+		requested = 1
+	end
+	requested = math.clamp(requested, minimum, Theme.UI_SCALE_MAX)
+	local base = baseScale(size, opts)
+	local canvasMin = Layout.CONFIG.MIN_CANVAS
+	local fit = math.min(size.X / canvasMin.X, size.Y / canvasMin.Y) / base
+	if requested > fit + 1e-9 then
+		local limited = math.max(minimum, fit)
+		return limited, limited < requested - 1e-9
+	end
+	return requested, false
+end
+
+--- Root UIScale for a viewport (pure): the device scale × the effective UI scale.
 function Layout.computeScale(viewport: Vector2, options: ScaleOptions?): number
 	local opts: ScaleOptions = options or {}
 	local size = validViewport(viewport)
+	local user = Layout.effectiveUserScale(size, opts)
+	return baseScale(size, opts) * user
+end
+
+export type HudScaleOptions = {
+	tenFoot: boolean?,
+	--- Touch on a Regular display (the tablet profile): fixed 700-tall canvas.
+	tablet: boolean?,
+	--- The `hud.scale` setting (0.8-1.5).
+	hudScale: number?,
+	--- Event modes with abilities need the wider minimum canvas.
+	abilities: boolean?,
+}
+
+--- Pure: the battle HUD root scale and whether the display capped the player's `hud.scale` (ui-ux §1.1.1, §S31).
+--- Compact: min(1.25, vh / 390) (the touch layout of §S39; `hud.scale` never shrinks touch controls). Tablets:
+--- vh / 700. Regular: the device scale (incl. TV x1.25) x `hud.scale`, lowered so W >= 1360 (1448 with abilities)
+--- and E >= 720 — e.g. 1080p at 150 % is capped to ~141 % (1360 x 765).
+function Layout.computeHudScale(viewport: Vector2, options: HudScaleOptions?): (number, boolean)
+	local opts: HudScaleOptions = options or {}
+	local size = validViewport(viewport)
 	local config = Layout.CONFIG
-	local scale
 	if Layout.breakpointFor(size) == "Compact" then
-		scale = math.clamp(size.Y / Layout.COMPACT_REFERENCE.Y, config.COMPACT_SCALE_MIN, config.COMPACT_SCALE_MAX)
-	else
-		scale = math.clamp(size.Y / Layout.REFERENCE.Y, config.SCALE_MIN, config.SCALE_MAX)
-		if opts.tablet then
-			scale = math.min(scale, config.TABLET_SCALE_MAX)
-		end
-		if opts.tenFoot then
-			scale *= config.TV_MULTIPLIER
-		end
+		return math.min(config.HUD_COMPACT_SCALE_MAX, size.Y / Layout.COMPACT_REFERENCE.Y), false
 	end
-	local user = opts.userScale or 1
-	if user ~= user then
-		user = 1
+	if opts.tablet then
+		return size.Y / config.HUD_TOUCH_CANVAS_HEIGHT, false
 	end
-	return scale * math.clamp(user, Theme.UI_SCALE_MIN, Theme.UI_SCALE_MAX)
+	local base = baseScale(size, { tenFoot = opts.tenFoot })
+	local requested = opts.hudScale or 1
+	if requested ~= requested then
+		requested = 1
+	end
+	requested = math.clamp(requested, Theme.HUD_SCALE_MIN, Theme.HUD_SCALE_MAX)
+	local minimum = if opts.abilities then config.HUD_MIN_CANVAS_ABILITIES else config.HUD_MIN_CANVAS
+	local fit = math.min(size.X / minimum.X, size.Y / minimum.Y) / base
+	if requested > fit + 1e-9 then
+		return base * fit, true
+	end
+	return base * requested, false
 end
 
 --- Logical canvas size (reference px) that fills the viewport at `scale`.
@@ -140,9 +218,9 @@ function Layout.canvasSize(viewport: Vector2, scale: number): Vector2
 	return Vector2.new(size.X / scale, size.Y / scale)
 end
 
---- Text-size platform profile (brand-art §4.2).
+--- Text-size platform profile (brand-art §4.2): console minimums only on the 10-ft UI (`tenFoot` = Layout.isTv).
 function Layout.platformFor(viewport: Vector2, displaySize: EnumItem?, tenFoot: boolean): Platform
-	if tenFoot or displaySize == Enum.DisplaySize.Large then
+	if tenFoot then
 		return "console"
 	end
 	if displaySize == Enum.DisplaySize.Small then
@@ -151,13 +229,11 @@ function Layout.platformFor(viewport: Vector2, displaySize: EnumItem?, tenFoot: 
 	return "pc"
 end
 
---- TV (10-ft) layout: a console (IsTenFootInterface), a Large display (TVs), or a gamepad as the preferred input on
---- a display at least TV_GAMEPAD_MIN_WIDTH px wide (ui-ux §1.1). Pure.
-function Layout.isTv(tenFootInterface: boolean, displaySize: EnumItem?, gamepad: boolean, viewport: Vector2): boolean
-	if tenFootInterface or displaySize == Enum.DisplaySize.Large then
-		return true
-	end
-	return gamepad and validViewport(viewport).X >= Layout.CONFIG.TV_GAMEPAD_MIN_WIDTH
+--- TV (10-ft) layout: GuiService:IsTenFootInterface() only (ui-ux §1.1 and §5.4 #3). A PC with a gamepad, or one on a
+--- `DisplaySize.Large` screen, stays Regular: PreferredInput flips between mouse and pad, and the whole UI must not
+--- rescale by 1.25 and grow TV margins each time it does. Pure.
+function Layout.isTv(tenFootInterface: boolean): boolean
+	return tenFootInterface == true
 end
 
 --- Extra inner margin (fraction of the screen per side) for TV-safe areas; 0 elsewhere.
@@ -179,19 +255,54 @@ local breakpointComputed: State<Breakpoint> = State.Computed(function(): Breakpo
 end) :: any
 
 local tvComputed = State.Computed(function(): boolean
-	return Layout.isTv(tenFootValue:get(), displaySizeValue:get(), gamepadValue:get(), viewportValue:get())
+	return Layout.isTv(tenFootValue:get())
 end)
 
 local platformComputed: State<Platform> = State.Computed(function(): Platform
 	return Layout.platformFor(viewportValue:get(), displaySizeValue:get(), tvComputed:get())
 end) :: any
 
-local scaleComputed = State.Computed(function(): number
-	return Layout.computeScale(viewportValue:get(), {
+local function scaleOptions(): ScaleOptions
+	return {
 		tenFoot = tvComputed:get(),
 		tablet = platformComputed:get() == "tablet",
 		userScale = Theme.state.uiScale:get(),
-	})
+	}
+end
+
+local scaleComputed = State.Computed(function(): number
+	return Layout.computeScale(viewportValue:get(), scaleOptions())
+end)
+
+local scaleLimitedComputed = State.Computed(function(): boolean
+	local _, limited = Layout.effectiveUserScale(viewportValue:get(), scaleOptions())
+	return limited
+end)
+
+local hudAbilitiesValue = State.Value(false)
+
+local function hudOptions(): HudScaleOptions
+	return {
+		tenFoot = tvComputed:get(),
+		tablet = platformComputed:get() == "tablet",
+		hudScale = Theme.state.hudScale:get(),
+		abilities = hudAbilitiesValue:get(),
+	}
+end
+
+local hudScaleComputed = State.Computed(function(): number
+	local scale = Layout.computeHudScale(viewportValue:get(), hudOptions())
+	return scale
+end)
+
+local hudLimitedComputed = State.Computed(function(): boolean
+	local _, limited = Layout.computeHudScale(viewportValue:get(), hudOptions())
+	return limited
+end)
+
+local hudInverseScaleSize = State.Computed(function(): UDim2
+	local scale = hudScaleComputed:get()
+	return UDim2.fromScale(1 / scale, 1 / scale)
 end)
 
 local inverseScaleSize = State.Computed(function(): UDim2
@@ -207,13 +318,24 @@ Layout.state = {
 	viewport = State.readonly(viewportValue),
 	--- The engine's IsTenFootInterface flag.
 	tenFoot = State.readonly(tenFootValue),
+	--- Gamepad is the preferred input (informational; it does not change the layout).
 	gamepad = State.readonly(gamepadValue),
 	--- TV layout active (Layout.isTv).
 	tv = tvComputed,
 	breakpoint = breakpointComputed,
 	scale = scaleComputed,
 	platform = platformComputed,
+	--- True while the display lowers the player's UI scale (settings slider: "Limited by this display").
+	scaleLimited = scaleLimitedComputed,
+	--- Root scale of the battle HUD layers (HUD, HUDInput) and whether the display caps `hud.scale`.
+	hudScale = hudScaleComputed,
+	hudLimited = hudLimitedComputed,
 }
+
+--- Event modes with abilities widen the HUD's minimum canvas to 1448 (ui-ux §1.1.1); the battle client sets it.
+function Layout.setHudAbilities(enabled: boolean)
+	hudAbilitiesValue:set(enabled == true)
+end
 
 --- True while the Compact layout is active (bind visibility/sizes to it).
 Layout.isCompact = State.Computed(function(): boolean
@@ -257,8 +379,18 @@ function Layout.setEnvironment(env: Environment)
 	pushToTheme()
 end
 
---- Follows the camera viewport, GuiService display size / 10-ft mode, the gamepad input mode (TV rule) and the
---- UI-scale setting. Returns stop().
+--- Snapshot of the current environment (previews restore it with setEnvironment afterwards).
+function Layout.environment(): Environment
+	return {
+		viewport = viewportValue:peek(),
+		tenFoot = tenFootValue:peek(),
+		displaySize = displaySizeValue:peek(),
+		gamepad = gamepadValue:peek(),
+	}
+end
+
+--- Follows the camera viewport, GuiService display size / 10-ft mode, the gamepad input mode (Layout.state.gamepad)
+--- and the UI-scale setting. Returns stop().
 function Layout.start(): () -> ()
 	local connections: { RBXScriptConnection } = {}
 	local cameraConnection: RBXScriptConnection? = nil
@@ -324,25 +456,32 @@ end
 --------------------------------------------------------------------------------
 
 --- Scaled root for a ScreenGui layer: a full-screen Frame (size compensated by 1/scale so it still fills the
---- screen) with the shared UIScale and, when `safeArea` is true, the TV-safe padding. Children are authored in
---- reference px.
-export type RootProps = { Name: string?, safeArea: boolean?, [any]: any }
+--- screen) with the shared UIScale (the menu scale, or the battle HUD scale with `scale = "hud"`) and, when
+--- `safeArea` is true, the TV-safe padding. Children are authored in reference px.
+export type RootProps = {
+	Name: string?,
+	safeArea: boolean?,
+	--- "menu" (default: Layout.state.scale) or "hud" (Layout.state.hudScale, battle HUD layers).
+	scale: ("menu" | "hud")?,
+	[any]: any,
+}
 
 function Layout.root(props: RootProps?): Frame
 	local opts: RootProps = props or {}
 	local extra: { [any]: any } = {}
 	for key, value in opts do
-		if key ~= "safeArea" then
+		if key ~= "safeArea" and key ~= "scale" then
 			extra[key] = value
 		end
 	end
+	local hud = opts.scale == "hud"
 	extra.Name = opts.Name or "Root"
 	extra.BackgroundTransparency = 1
-	extra.Size = inverseScaleSize
+	extra.Size = if hud then hudInverseScaleSize else inverseScaleSize
 	extra.Position = UDim2.new()
 	extra.AnchorPoint = Vector2.new(0, 0)
 	local children: { Instance } = {
-		Create("UIScale", { Name = "RootScale", Scale = scaleComputed }),
+		Create("UIScale", { Name = "RootScale", Scale = if hud then hudScaleComputed else scaleComputed }),
 	}
 	if opts.safeArea then
 		table.insert(

@@ -139,18 +139,38 @@ function Format.compact(n: number): string
 		return Format.INVALID
 	end
 	local abs = math.abs(n)
-	for _, unit in COMPACT_UNITS do
+	-- Index into COMPACT_UNITS (largest first); #COMPACT_UNITS + 1 = plain number.
+	local index = #COMPACT_UNITS + 1
+	for i, unit in COMPACT_UNITS do
 		if abs >= unit.value then
-			local scaled = abs / unit.value
-			local decimals = if scaled < 10 then 2 elseif scaled < 100 then 1 else 0
-			local text = Format.number(scaled, decimals)
-			if decimals > 0 then
-				text = string.gsub(string.gsub(text, "0+$", ""), "%.$", "")
-			end
-			return (if n < 0 then Format.MINUS else "") .. text .. unit.suffix
+			index = i
+			break
 		end
 	end
-	return Format.integer(n)
+	while true do
+		local unit = COMPACT_UNITS[index]
+		if unit == nil then
+			-- Plain amounts: 999.5 would round to "1,000"; show "1K" instead.
+			if math.floor(abs + 0.5) >= 1000 then
+				index -= 1
+				continue
+			end
+			return Format.integer(n)
+		end
+		local scaled = abs / unit.value
+		local decimals = if scaled < 10 then 2 elseif scaled < 100 then 1 else 0
+		local factor = 10 ^ decimals
+		-- Rounding can carry into the next unit (999,950 -> "1,000K"): step up to "1M".
+		if math.floor(scaled * factor + 0.5) / factor >= 1000 and index > 1 then
+			index -= 1
+			continue
+		end
+		local text = Format.number(scaled, decimals)
+		if decimals > 0 then
+			text = string.gsub(string.gsub(text, "0+$", ""), "%.$", "")
+		end
+		return (if n < 0 then Format.MINUS else "") .. text .. unit.suffix
+	end
 end
 
 --- 0.125 -> "13%" (decimals default 0). Input is a fraction.

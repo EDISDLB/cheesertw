@@ -600,7 +600,7 @@ function ShotResolver.resolve(target: ShotTarget, input: ShotInput, rng: RNG, ou
 			o.result = "NonPenetration"
 		end
 	end
-	o.penetrationRemainingMm = if isFinite(penNow) then penNow else 0
+	o.penetrationRemainingMm = if isFinite(penNow) and penNow > 0 then penNow else 0
 	if not isFinite(o.damage) or o.damage < 0 then
 		o.damage = 0
 	end
@@ -624,6 +624,33 @@ function ShotResolver.burst(
 	local alpha = damage or Penetration.rollDamage(shell.damage, rng, spread)
 	splashAt(shell, point, alpha, nearby, out)
 	return out
+end
+
+--- The candidate a ray strikes first within `maxDistance` studs: (index, distance) or nil. Candidates listed in
+--- `skip` (e.g. the shooter) are ignored. Ties keep the lower index (callers pass candidates in a stable order).
+function ShotResolver.nearestTarget(
+	candidates: { ShotTarget },
+	origin: Vector3,
+	direction: Vector3,
+	maxDistance: number?,
+	skip: { [ShotTarget]: boolean }?
+): (number?, number?)
+	local bestIndex: number? = nil
+	local bestDistance = math.huge
+	for index, candidate in candidates do
+		if skip ~= nil and skip[candidate] then
+			continue
+		end
+		local d = ArmorGeometry.firstHitDistance(candidate.armor, candidate.pose, origin, direction, maxDistance)
+		if d ~= nil and d < bestDistance then
+			bestIndex = index
+			bestDistance = d
+		end
+	end
+	if bestIndex == nil then
+		return nil, nil
+	end
+	return bestIndex, bestDistance
 end
 
 --- The ledger / HUD result kind (Types/Battle ShotResultKind) of an outcome; nil for a Miss. Ally and splash-only

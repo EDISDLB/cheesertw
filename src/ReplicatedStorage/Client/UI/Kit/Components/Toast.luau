@@ -29,6 +29,7 @@ local Chamfer = require("./Chamfer")
 local Text = require("./Text")
 local Button = require("./Button")
 local IconButton = require("./IconButton")
+local Common = require("./Common")
 local Icon = require("../../Icons/Icon")
 
 type CanBeState<T> = State.CanBeState<T>
@@ -183,10 +184,15 @@ function Toast.new(spec: Spec, onDismiss: (() -> ())?): TextButton
 	end
 	local action = spec.action
 	local iconSize = if reward ~= nil then 32 else 24
-	local reserved = iconSize
-		+ CLOSE_SIZE
-		+ 2 * Theme.space(3)
-		+ (if action ~= nil then ACTION_WIDTH + Theme.space(3) else 0)
+	-- The close button's hit area grows to the touch minimum on touch (IconButton): reserve what it really takes.
+	local closeWidth = Common.touchHeight(CLOSE_SIZE)
+	local textsWidth = State.map(closeWidth, function(close: number): UDim2
+		local reserved = iconSize
+			+ close
+			+ 2 * Theme.space(3)
+			+ (if action ~= nil then ACTION_WIDTH + Theme.space(3) else 0)
+		return UDim2.new(1, -reserved, 0, 0)
+	end)
 	local row: { Instance } = {
 		Layout.list({ direction = "x", gap = Theme.space(3), align = "center" }),
 		Layout.padding({ left = Theme.space(4), right = Theme.space(2), y = Theme.space(3) }),
@@ -200,7 +206,7 @@ function Toast.new(spec: Spec, onDismiss: (() -> ())?): TextButton
 		Create.Frame({
 			Name = "Texts",
 			BackgroundTransparency = 1,
-			Size = UDim2.new(1, -reserved, 0, 0),
+			Size = textsWidth,
 			AutomaticSize = Enum.AutomaticSize.Y,
 			LayoutOrder = 2,
 			[Create.Children] = texts,
@@ -280,6 +286,13 @@ function Toast.new(spec: Spec, onDismiss: (() -> ())?): TextButton
 	local card = Create.TextButton(values)
 	if reward ~= nil then
 		shimmer().Parent = card
+	end
+	-- Toasts never take gamepad focus (ui-ux §1.5): their buttons stay out of directional navigation, which would
+	-- otherwise escape a screen's SelectionGroup into the Toasts layer and lose focus when the toast expires.
+	for _, descendant in card:GetDescendants() do
+		if descendant:IsA("GuiButton") then
+			(descendant :: GuiButton).Selectable = false
+		end
 	end
 	return card
 end

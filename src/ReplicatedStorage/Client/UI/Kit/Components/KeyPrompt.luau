@@ -130,6 +130,15 @@ function KeyPrompt.new(props: KeyPromptProps): Frame
 	return Common.parent(Create.Frame(values), props)
 end
 
+--- True while a hint bar with this `keyboard` setting is visible (gamepad, or mouse/keyboard when `keyboard`). Screens
+--- bind their bottom 48 px reservation to it (ui-ux §1.12: the bar never covers interactive content).
+function KeyPrompt.hintBarShown(keyboard: CanBeState<boolean>?): State.State<boolean>
+	return State.Computed(function(): boolean
+		local mode = InputMode.mode:get()
+		return mode == "Gamepad" or (mode == "MouseKeyboard" and State.get(keyboard or false))
+	end)
+end
+
 --- Footer hint row: one KeyPrompt + label per hint. Gamepad only by default (`keyboard` adds mouse/keyboard); never
 --- on touch. Screens reserve its 48 px at the bottom while it is visible (ui-ux §1.12).
 function KeyPrompt.hintBar(props: HintBarProps): Frame
@@ -139,11 +148,7 @@ function KeyPrompt.hintBar(props: HintBarProps): Frame
 		else "end"
 	local values: { [any]: any } = Common.layout(props, {}, { Name = "HintBar", Size = UDim2.new(1, 0, 0, 48) })
 	values.BackgroundTransparency = 1
-	local keyboard: CanBeState<boolean> = props.keyboard or false
-	local shown = State.Computed(function(): boolean
-		local mode = InputMode.mode:get()
-		return mode == "Gamepad" or (mode == "MouseKeyboard" and State.get(keyboard))
-	end)
+	local shown = KeyPrompt.hintBarShown(props.keyboard or false)
 	local callerVisible = props.Visible
 	values.Visible = if callerVisible == nil
 		then shown

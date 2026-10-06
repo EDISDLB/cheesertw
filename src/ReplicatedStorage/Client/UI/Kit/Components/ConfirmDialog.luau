@@ -20,6 +20,7 @@ local State = require("../State")
 local Theme = require("../Theme")
 local Modal = require("./Modal")
 local Common = require("./Common")
+local Trove = require("@game/ReplicatedStorage/Shared/Core/Trove")
 
 type CanBeState<T> = State.CanBeState<T>
 
@@ -37,6 +38,8 @@ export type ConfirmProps = {
 	onConfirm: (() -> ())?,
 	onCancel: (() -> ())?,
 	anchor: Instance?,
+	--- Lifetime owner (the screen's `ctx.scope`): cleaning it cancels the dialog (see Modal.open).
+	scope: Trove.Trove?,
 }
 
 local ConfirmDialog = {}
@@ -132,6 +135,7 @@ function ConfirmDialog.open(props: ConfirmProps): Modal.Handle
 		size = size,
 		children = props.children,
 		anchor = props.anchor,
+		scope = props.scope,
 		banner = if destructive then ConfirmDialog.hazardBand(Modal.width(size) - 2 * Theme.space(5)) else nil,
 		actions = actions,
 		onResult = function(result: any)

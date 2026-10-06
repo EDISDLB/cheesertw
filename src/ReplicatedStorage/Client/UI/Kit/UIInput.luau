@@ -7,7 +7,7 @@
 	                  ui-ux §1.12 (Back = Backspace/ButtonB, TabPrev/TabNext = Q/E/LB/RB, PagePrev/PageNext =
 	                  Z/C/LT/RT, Secondary = F/X, Tertiary = G/Y) and re-emits them as Signals: Router listens to Back,
 	                  Focus to the shoulders and triggers (tab switching, paging), screens to Secondary/Tertiary
-	                  (`UIInput.on("Secondary", fn)`). Confirm stays with the engine (A activates the selected
+	                  (`ctx.on("Secondary", fn)` via the Router). Confirm stays with the engine (A activates the selected
 	                  GuiButton; Enter/click activate buttons natively), so it is not bound here. The context is enabled only while a focus scope is
 	                  active (Focus toggles it), never sinks input, and ignores presses while a TextBox has focus.
 	                  If the engine refuses to create IAS instances, it falls back to UserInputService.InputBegan.
@@ -89,7 +89,8 @@ function UIInput.signal(name: ActionName): Signal.Signal<>
 	return signal
 end
 
---- Connects `fn` to a KitUI action (use the screen scope: `ctx.scope:Add(UIInput.on("Secondary", openDetails))`).
+--- Connects `fn` to a KitUI action. GLOBAL: it fires whatever is on screen. Router screens use `ctx.on(name, fn)`
+--- instead, which fires only while that screen is the active one (not covered by a drill-in, modal or popup).
 function UIInput.on(name: ActionName, fn: () -> ()): Signal.Connection
 	return UIInput.signal(name):Connect(fn)
 end

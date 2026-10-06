@@ -6,7 +6,7 @@
 	                  TopBar, Modals, Toasts, Tooltip, Debug — DisplayOrder from Theme, ResetOnSpawn off, Sibling
 	                  ZIndex, SafeAreaCompatibility None; CoreUISafeInsets for interactive layers, TopbarSafeInsets for
 	                  TopBar, DeviceSafeInsets for the HUD gauges, None + IgnoreGuiInset for Background3D/Debug) with a
-	                  scaled Layout root each, and a stack of screens. A screen module is `{ new(ctx) -> Screen }`;
+	                  scaled Layout root each (HUD and HUDInput use the battle HUD scale), and a stack of screens. A screen module is `{ new(ctx) -> Screen }`;
 	                  Screen = { mount(parent), show(params, info), hide(), destroy(), onBack()? }. push/pop/replace/
 	                  reset/openModal/closeModal/back/navigate drive the lifecycle:
 	                    create (new) -> mount (once, into a host Frame) -> show (each time it becomes visible)
@@ -56,6 +56,13 @@ export type ScreenContext = {
 	scope: Trove,
 	--- App-wide context passed to Router.new (controllers, client store, net...).
 	app: any,
+	--- Screen-level KitUI action (Secondary X/F, Tertiary Y/G, ...): `ctx.on("Secondary", openDetails)`. Fires only
+	--- while this screen is the active one — the top of the stack and the owner of gamepad focus (not covered by a
+	--- drill-in, a modal, a Modal.open dialog or an open dropdown; its own drawers count as the screen). Lives as long
+	--- as the screen (ctx.scope).
+	on: (name: UIInput.ActionName, fn: () -> ()) -> Signal.Connection,
+	--- True while this screen is the active one (see `on`).
+	isActive: () -> boolean,
 }
 
 --- The interface screens implement (self is `any` so any class shape fits).
@@ -85,10 +92,13 @@ export type ScreenOptions = {
 	dismissible: boolean?,
 	--- Keep the instance after pop and reuse it on the next push (expensive screens: garage, tech tree).
 	keepAlive: boolean?,
-	--- Entrance transition (default "slide" for screens, "pop" for modals; "sheet" slides a Compact modal up).
+	--- Entrance transition (default: "slide" for pushed drill-ins, "fade" when the screen is the `reset` root, "pop" for
+	--- modals; "sheet" slides a Compact modal up). Register rail sections with "fade" (ui-ux §1.3: sections never slide).
 	transition: ("slide" | "fade" | "pop" | "sheet" | "none")?,
 	--- Manage gamepad focus (default true).
 	focus: boolean?,
+	--- Right stick scrolls the focused region (default true; false on screens where it orbits the camera).
+	stickScroll: boolean?,
 }
 
 export type Entry = {
@@ -281,7 +291,9 @@ local function createLayer(self: RouterImpl, name: Layer, parent: Instance?, pre
 	-- in a fixed order with ScreenInsets last instead of through a props table (hash order is unspecified).
 	gui.IgnoreGuiInset = ignoreInset
 	gui.ScreenInsets = insets
-	local root = Layout.root({ Name = "Root", safeArea = safeArea })
+	-- Battle HUD layers scale with `hud.scale` (Layout.state.hudScale), never with the menu UI scale (ui-ux §1.1.1).
+	local hudLayer = name == "HUD" or name == "HUDInput"
+	local root = Layout.root({ Name = "Root", safeArea = safeArea, scale = if hudLayer then "hud" else "menu" })
 	root.Parent = gui
 	gui.Parent = parent
 	self._guis[name] = gui
@@ -419,8 +431,21 @@ local function updateScrim(self: RouterImpl)
 	end
 end
 
+--- Pure: the entrance transition for an entry (ui-ux §1.3): the registered one, else modals pop, a root `reset`
+--- fades (roots and sections never slide) and pushed drill-ins slide.
+function Router.transitionFor(options: ScreenOptions, modal: boolean, reason: ShowReason): string
+	if options.transition ~= nil then
+		return options.transition
+	elseif modal then
+		return "pop"
+	elseif reason == "reset" then
+		return "fade"
+	end
+	return "slide"
+end
+
 local function playEntrance(entry: EntryImpl, reason: ShowReason)
-	local transition = entry.options.transition or (if entry.modal then "pop" else "slide")
+	local transition = Router.transitionFor(entry.options, entry.modal, reason)
 	if transition == "none" then
 		return
 	end
@@ -480,8 +505,13 @@ local function destroyEntry(self: RouterImpl, entry: EntryImpl)
 		entry.focus = nil
 	end
 	if entry.options.keepAlive and not self._destroyed then
-		self._alive[entry.name] = entry
-		return
+		local cached = self._alive[entry.name]
+		if cached == nil or cached == entry then
+			self._alive[entry.name] = entry
+			return
+		end
+		-- One cached instance per name: a keepAlive screen pushed while already on the stack has a second instance;
+		-- keep the one already cached and really destroy this one (overwriting the cache would leak the other).
 	end
 	if self._alive[entry.name] == entry then
 		self._alive[entry.name] = nil
@@ -499,6 +529,7 @@ local function makeFocusScope(entry: EntryImpl): Focus.FocusScope?
 	return Focus.scope(entry.host, {
 		name = entry.name,
 		trap = entry.modal,
+		stickScroll = entry.options.stickScroll,
 		initial = function(): GuiObject?
 			local initialFocus = screen.initialFocus
 			if initialFocus == nil then
@@ -507,12 +538,16 @@ local function makeFocusScope(entry: EntryImpl): Focus.FocusScope?
 			local ok, result = pcall(initialFocus, screen)
 			return if ok then result else nil
 		end,
-		onShoulder = function(direction: number)
-			local handler = screen.onShoulder
-			if handler ~= nil then
-				handler(screen, direction)
+		-- Only screens that define onShoulder get a scope handler: otherwise LB/RB must fall through to the TabBar
+		-- registered inside the screen (Focus.registerShoulder), which a no-op wrapper would shadow.
+		onShoulder = if screen.onShoulder ~= nil
+			then function(direction: number)
+				local handler = screen.onShoulder
+				if handler ~= nil then
+					handler(screen, direction)
+				end
 			end
-		end,
+			else nil,
 		onPage = if screen.onPage ~= nil
 			then function(direction: number)
 				local handler = screen.onPage
@@ -556,6 +591,19 @@ local function createEntry(self: RouterImpl, name: string, params: any): EntryIm
 	})
 	local scope = Trove.new()
 	local router = (self :: any) :: Router
+	-- The entry this context belongs to (set below, once the screen is built).
+	local owner: EntryImpl? = nil
+	local function isActive(): boolean
+		local current = owner
+		if current == nil or topEntry(self) ~= current or not current.visible then
+			return false
+		end
+		-- A self-managed overlay in another layer (Modal.open, a Dropdown list) owns input while open; a scope inside
+		-- the screen itself (a drawer) is still this screen.
+		local focusScope = current.focus
+		local top = Focus.top()
+		return focusScope == nil or top == nil or top == focusScope or Focus.contains(current.host, top.root)
+	end
 	local ctx: ScreenContext = {
 		router = router,
 		name = name,
@@ -563,6 +611,16 @@ local function createEntry(self: RouterImpl, name: string, params: any): EntryIm
 		params = State.Value(params, { scope = scope }),
 		scope = scope,
 		app = self._app,
+		on = function(actionName: UIInput.ActionName, fn: () -> ()): Signal.Connection
+			local connection = UIInput.on(actionName, function()
+				if isActive() then
+					fn()
+				end
+			end)
+			scope:Add(connection)
+			return connection
+		end,
+		isActive = isActive,
 	}
 	local okNew, screen = safe("new", name, registration.module.new, ctx)
 	if not okNew or type(screen) ~= "table" then
@@ -589,6 +647,7 @@ local function createEntry(self: RouterImpl, name: string, params: any): EntryIm
 		focus = nil,
 		visible = false,
 	}
+	owner = entry
 	entry.focus = makeFocusScope(entry)
 	return entry
 end

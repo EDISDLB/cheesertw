@@ -1,0 +1,178 @@
+local Test = require("@tests/Harness/Test")
+local describe, it, expect = Test.describe, Test.it, Test.expect
+
+local Config = require("@game/ReplicatedStorage/Shared/Config")
+local Freeze = require("@game/ReplicatedStorage/Shared/Core/Freeze")
+local ModeRules = require("@game/ReplicatedStorage/Shared/Battle/Rules/ModeRules")
+
+Test.afterEach(function()
+	Config.resetOverrides()
+end)
+
+describe("ModeRules.resolve (00-DECISIONS §9)", function()
+	it("Random Standard uses the decided lifecycle and capture values", function()
+		local s = ModeRules.defaults("Random", "Standard")
+		expect(s.mode).toBe("Random")
+		expect(s.battleType).toBe("Standard")
+		expect(s.durationS).toBe(720)
+		expect(s.countdownS).toBe(20)
+		expect(s.loadTimeoutS).toBe(30)
+		expect(s.arrivalWindowS).toBe(45)
+		expect(s.endBannerS).toBe(6)
+		expect(s.minHumans).toBe(1)
+		expect(s.earlyStart).toBe(true)
+		expect(s.wipeVictory).toBe(true)
+		expect(s.captureEnabled).toBe(true)
+		expect(s.timeoutResult).toBe("Draw")
+		expect(s.capture.points).toBe(100)
+		expect(s.capture.radiusM).toBe(50)
+		expect(s.capture.maxCounted).toBe(3)
+		expect(s.capture.rate).toBe(1)
+		expect(s.capture.contestedFreezes).toBe(false)
+		expect(s.capture.resetOnHpDamage).toBe(true)
+		expect(s.capture.resetOnModuleCrit).toBe(true)
+		expect(s.capture.resetOnStun).toBe(false)
+		expect(s.capture.leaveGraceS).toBe(1)
+		expect(s.disconnectBotDelayS).toBe(5)
+		expect(s.afkEnabled).toBe(true)
+		expect(s.afkWarnS).toBe(60)
+		expect(s.afkTakeoverS).toBe(90)
+		expect(s.assistSpotWindowS).toBe(10)
+		expect(s.firstContactWindowS).toBe(180)
+	end)
+
+	it("Encounter: 12 min, half rate, frozen when contested, draw on timeout", function()
+		local s = ModeRules.defaults("Random", "Encounter")
+		expect(s.durationS).toBe(720)
+		expect(s.capture.rate).toBe(0.5)
+		expect(s.capture.contestedFreezes).toBe(true)
+		expect(s.timeoutResult).toBe("Draw")
+	end)
+
+	it("Assault: 8 min, defender wins on timeout", function()
+		local s = ModeRules.defaults("Random", "Assault")
+		expect(s.durationS).toBe(480)
+		expect(s.capture.rate).toBe(1)
+		expect(s.timeoutResult).toBe("DefenderWin")
+	end)
+
+	it("per-mode overrides: Training, Bootcamp, Practice, Event", function()
+		local training = ModeRules.defaults("Training", "Standard")
+		expect(training.loadTimeoutS).toBe(45)
+		expect(training.afkEnabled).toBe(false)
+		expect(training.durationS).toBe(720)
+
+		local bootcamp = ModeRules.defaults("Bootcamp")
+		expect(bootcamp.battleType).toBe("Standard")
+		expect(bootcamp.countdownS).toBe(10)
+		expect(bootcamp.durationS).toBe(600)
+		expect(bootcamp.afkEnabled).toBe(false)
+		expect(bootcamp.wipeVictory).toBe(true)
+
+		local practice = ModeRules.defaults("Practice")
+		expect(practice.countdownS).toBe(3)
+		expect(practice.durationS).toBe(1800)
+		expect(practice.wipeVictory).toBe(false)
+		expect(practice.captureEnabled).toBe(false)
+		expect(practice.afkEnabled).toBe(false)
+
+		local event = ModeRules.defaults("Event", "Assault")
+		expect(event.durationS).toBe(480)
+		local eventOwn = ModeRules.defaults("Event", "Standard", { durationS = 300 })
+		expect(eventOwn.durationS).toBe(300)
+	end)
+
+	it("knows every Content BattleMode and BattleType", function()
+		expect(ModeRules.MODES).toEqual({ "Random", "Training", "Bootcamp", "Practice", "Event" })
+		expect(ModeRules.BATTLE_TYPES).toEqual({ "Standard", "Encounter", "Assault" })
+		for _, mode in ModeRules.MODES do
+			for _, bt in ModeRules.BATTLE_TYPES do
+				expect(ModeRules.resolve(mode, bt)).toBeOk()
+			end
+		end
+	end)
+
+	it("rejects unknown modes, battle types and bad duration overrides", function()
+		expect(ModeRules.resolve("Ranked", "Standard")).toBeErr("INVALID_ARGS")
+		expect(ModeRules.resolve("Random", "Domination")).toBeErr("INVALID_ARGS")
+		for _, bad in { 0, -5, 0 / 0, math.huge } do
+			expect(ModeRules.resolve("Event", "Standard", { durationS = bad })).toBeErr("INVALID_ARGS")
+		end
+		expect(function()
+			ModeRules.defaults("Nope")
+		end).toThrow("INVALID_ARGS")
+	end)
+
+	it("returns a deep-frozen snapshot that live overrides do not change", function()
+		local before = ModeRules.defaults("Random", "Standard")
+		expect(Freeze.isDeepFrozen(before)).toBe(true)
+		expect(Config.applyOverrides({
+			Battle = { TIMER_S = { Standard = 900 }, CAPTURE = { RATE = { Standard = 1.25 } } },
+		})).toBeOk()
+		local after = ModeRules.defaults("Random", "Standard")
+		expect(after.durationS).toBe(900)
+		expect(after.capture.rate).toBe(1.25)
+		expect(before.durationS).toBe(720)
+		expect(before.capture.rate).toBe(1)
+	end)
+
+	it("keeps the AFK warning at or below the takeover after overrides", function()
+		expect(Config.applyOverrides({ Battle = { AFK_WARN_S = 120, AFK_TAKEOVER_S = 80 } })).toBeOk()
+		local s = ModeRules.defaults("Random", "Standard")
+		expect(s.afkTakeoverS).toBe(80)
+		expect(s.afkWarnS).toBe(80)
+	end)
+
+	it("with() returns a frozen copy and merges capture fields", function()
+		local base = ModeRules.defaults("Random", "Standard")
+		local custom = ModeRules.with(base, { earlyStart = false, capture = { rate = 2 } })
+		expect(custom.earlyStart).toBe(false)
+		expect(custom.capture.rate).toBe(2)
+		expect(custom.capture.points).toBe(100)
+		expect(base.earlyStart).toBe(true)
+		expect(Freeze.isDeepFrozen(custom)).toBe(true)
+	end)
+end)
+
+describe("Config.Battle", function()
+	it("keeps the pre-existing keys and declares every bound inside its default", function()
+		local B = Config.Battle
+		expect(B.TICK_RATE).toBe(30)
+		expect(B.SNAPSHOT_RATE).toBe(20)
+		expect(B.TEAM_SIZE).toBe(15)
+		expect(B.DURATION_S).toBe(720)
+		expect(B.COUNTDOWN_S).toBe(20)
+		expect(B.INTERPOLATION_DELAY_S).toBe(0.1)
+		local problems = {}
+		for _, p in Config.validateBounds() do
+			if string.sub(p, 1, 7) == "Battle." then
+				table.insert(problems, p)
+			end
+		end
+		expect(problems).toEqual({})
+	end)
+
+	it("matches the decided values (00-DECISIONS §9, §21 #22)", function()
+		local B = Config.Battle
+		expect(B.TIMER_S).toEqual({ Standard = 720, Encounter = 720, Assault = 480 })
+		expect(B.ARRIVAL_WINDOW_S).toBe(45)
+		expect(B.LOAD_TIMEOUT_S).toBe(30)
+		expect(B.END_BANNER_S).toBe(6)
+		expect(B.CAPTURE.RATE).toEqual({ Standard = 1, Encounter = 0.5, Assault = 1 })
+		expect(B.TIMEOUT_RESULT).toEqual({ Standard = "Draw", Encounter = "Draw", Assault = "DefenderWin" })
+		expect(B.DISCONNECT_BOT_DELAY_S).toBe(5)
+		expect(B.AFK_WARN_S).toBe(60)
+		expect(B.AFK_TAKEOVER_S).toBe(90)
+		expect(B.AFK_STRIKE_LOCK_S).toEqual({ 0, 600, 3600 })
+		-- The Hub's teleport deadline (40 s) must stay inside the arrival window.
+		expect(B.ARRIVAL_WINDOW_S).toBeGreaterThan(40)
+	end)
+
+	it("rejects out-of-range live overrides of the new keys", function()
+		expect(Config.applyOverrides({ Battle = { CAPTURE = { MAX_COUNTED = 2.5 } } })).toBeErr("INVALID_ARGS")
+		expect(Config.applyOverrides({ Battle = { TIMER_S = { Assault = 10 } } })).toBeErr("INVALID_ARGS")
+		expect(Config.applyOverrides({ Battle = { LEDGER = { ASSIST_SPOT_WINDOW_S = -1 } } })).toBeErr("INVALID_ARGS")
+		expect(Config.applyOverrides({ Battle = { MODES = { Practice = { DURATION_S = 900 } } } })).toBeOk()
+		expect(ModeRules.defaults("Practice").durationS).toBe(900)
+	end)
+end)

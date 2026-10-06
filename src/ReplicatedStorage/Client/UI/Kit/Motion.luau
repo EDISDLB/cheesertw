@@ -201,13 +201,16 @@ function Motion.onComplete(tween: Tween?, fn: () -> ())
 	end)
 end
 
---- Small scale-up entrance (0.92 -> 1). Reduced motion: none.
+--- Start scale of the modal `pop` entrance (ui-ux §1.3: scale 0.98 -> 1 + fade).
+Motion.POP_FROM = 0.98
+
+--- Small scale-up entrance (POP_FROM -> 1). Reduced motion: none.
 function Motion.pop(guiObject: GuiObject, spec: Spec?): Tween?
 	if Motion.isReduced() then
 		return nil
 	end
 	local scale = Motion.scaleOf(guiObject)
-	scale.Scale = 0.92
+	scale.Scale = Motion.POP_FROM
 	local opts: Spec = if spec then table.clone(spec) else {}
 	opts.kind = "scale"
 	opts.easing = opts.easing or "emphasized"

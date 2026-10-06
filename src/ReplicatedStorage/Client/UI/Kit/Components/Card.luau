@@ -140,6 +140,9 @@ function Card.new(props: CardProps): TextButton
 		}),
 	}
 	values[Create.On("Activated")] = function()
+		if Common.consumeLongPress(button) then
+			return
+		end
 		if State.peek(disabled) then
 			Sound.play(Sound.KEYS.error)
 			return

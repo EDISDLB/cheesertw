@@ -443,6 +443,17 @@ end
 -- Time: fire, repairs, stun
 --------------------------------------------------------------------------------
 
+local crewScratch: CrewEffects.CrewMultipliers = {
+	reloadTime = 1,
+	aimTime = 1,
+	dispersion = 1,
+	turretTraverse = 1,
+	hullTraverse = 1,
+	viewRange = 1,
+	repairTime = 1,
+	sixthSense = true,
+}
+
 local FIRE_BAY: { InternalModuleKind } = { "Engine", "FuelTank" }
 local TRACK_SIDES: { InternalModuleKind } = { "TrackLeft", "TrackRight" }
 
@@ -523,7 +534,7 @@ function DamageModel.update(state: VehicleCombatState, dt: number, rng: RNG, eve
 	local repairMul = 1
 	for _, member in state.crew do
 		if member.injured then
-			repairMul = CrewEffects.multipliers(state.crew, state.crewLevels).repairTime
+			repairMul = CrewEffects.multipliers(state.crew, state.crewLevels, crewScratch).repairTime
 			break
 		end
 	end
@@ -618,16 +629,10 @@ end
 -- Effects (multipliers for the systems that own each stat)
 --------------------------------------------------------------------------------
 
-local crewScratch: CrewEffects.CrewMultipliers = {
-	reloadTime = 1,
-	aimTime = 1,
-	dispersion = 1,
-	turretTraverse = 1,
-	hullTraverse = 1,
-	viewRange = 1,
-	repairTime = 1,
-	sixthSense = true,
-}
+local function stateOf(modules: { [InternalModuleKind]: ModuleCombatState }, kind: InternalModuleKind): string
+	local mod = modules[kind]
+	return if mod ~= nil then mod.state else "Ok"
+end
 
 --- An EffectMultipliers record with every multiplier at 1.
 function DamageModel.newEffects(): EffectMultipliers
@@ -658,15 +663,11 @@ function DamageModel.effects(state: VehicleCombatState, out: EffectMultipliers?)
 	local e = out or DamageModel.newEffects()
 	local crew = CrewEffects.multipliers(state.crew, state.crewLevels, crewScratch)
 	local m = state.modules
-	local function st(kind: InternalModuleKind): string
-		local mod = m[kind]
-		return if mod ~= nil then mod.state else "Ok"
-	end
-	e.enginePowerMul = if st("Engine") == "Damaged" then C.ENGINE_DAMAGED_POWER_MUL else 1
+	e.enginePowerMul = if stateOf(m, "Engine") == "Damaged" then C.ENGINE_DAMAGED_POWER_MUL else 1
 	e.topSpeedMul = 1
-	e.canMove = st("Engine") ~= "Destroyed"
+	e.canMove = stateOf(m, "Engine") ~= "Destroyed"
 	for _, side: InternalModuleKind in TRACK_SIDES do
-		if st(side) == "Destroyed" then
+		if stateOf(m, side) == "Destroyed" then
 			if state.wheeled then
 				e.topSpeedMul *= C.WHEELED_LOST_SIDE_SPEED_MUL
 			else
@@ -674,25 +675,25 @@ function DamageModel.effects(state: VehicleCombatState, out: EffectMultipliers?)
 			end
 		end
 	end
-	local ring = st("TurretRing")
+	local ring = stateOf(m, "TurretRing")
 	e.turretTraverseMul = (
 		if ring == "Destroyed" then 0 elseif ring == "Damaged" then C.RING_DAMAGED_TRAVERSE_MUL else 1
 	) * crew.turretTraverse
 	e.hullTraverseMul = crew.hullTraverse
-	local gun = st("Gun")
+	local gun = stateOf(m, "Gun")
 	e.canFire = gun ~= "Destroyed"
 	e.gunDamaged = gun ~= "Ok"
 	e.aimTimeMul = (if gun ~= "Ok" then C.GUN_DAMAGED_AIM_MUL else 1) * crew.aimTime
 	e.dispersionMul = crew.dispersion
-	e.reloadTimeMul = (if st("AmmoRack") ~= "Ok" then C.AMMO_DAMAGED_RELOAD_MUL else 1) * crew.reloadTime
-	local optics = st("Optics")
+	e.reloadTimeMul = (if stateOf(m, "AmmoRack") ~= "Ok" then C.AMMO_DAMAGED_RELOAD_MUL else 1) * crew.reloadTime
+	local optics = stateOf(m, "Optics")
 	e.viewRangeMul = (
 		if optics == "Destroyed"
 			then C.OPTICS_DESTROYED_VR_MUL
 			elseif optics == "Damaged" then C.OPTICS_DAMAGED_VR_MUL
 			else 1
 	) * crew.viewRange
-	e.fireChanceMul = if st("FuelTank") ~= "Ok" then C.FUEL_DAMAGED_FIRE_MUL else 1
+	e.fireChanceMul = if stateOf(m, "FuelTank") ~= "Ok" then C.FUEL_DAMAGED_FIRE_MUL else 1
 	e.repairTimeMul = crew.repairTime
 	e.sixthSense = crew.sixthSense
 	e.burning = state.fire.burning

@@ -340,6 +340,15 @@ local function recompute(node: Node)
 		return
 	end
 	if node._hasValue and node._equals(node._value, result) then
+		-- The new result is discarded (the old one stays published): it still owns whatever it holds (e.g.
+		-- instances built by the compute function), so it gets the cleanup the published value would get.
+		local discardCleanup = node._cleanup
+		if discardCleanup ~= nil and not rawequal(node._value, result) then
+			local okCleanup, err = safeCall(discardCleanup, result)
+			if not okCleanup then
+				log:error("Computed %s cleanup failed: %s", label(node), tostring(err))
+			end
+		end
 		return
 	end
 	local old, hadValue = node._value, node._hasValue

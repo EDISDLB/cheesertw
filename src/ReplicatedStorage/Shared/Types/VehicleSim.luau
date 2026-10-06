@@ -105,12 +105,17 @@ export type VehicleSimModifiers = {
 --- Phases: "Off" → "Engaging" → "On" → "Disengaging" → "Off" (toggles: SiegeMode, Wheeled);
 ---         "Off" → "On" (duration) → "Cooldown" → "Off" (Turbo, RocketBoost).
 export type MechanicPhase = "Off" | "Engaging" | "On" | "Disengaging" | "Cooldown"
+--- `external = true` hands the machine to an outside owner (Vehicle/Mechanics state machines): VehicleSim then
+--- neither reads the mechanic key nor advances timers, and applies the mobility effects of the `phase` (and of
+--- `hydroActive` for Hydropneumatic) the owner writes every tick.
 export type MechanicRuntime = {
 	kind: string, -- Content.MechanicKind of the keyed mechanic ("" when the vehicle has none)
 	phase: MechanicPhase,
 	timer: number, -- seconds left in the current timed phase
 	charges: number, -- RocketBoost charges left (math.huge for unlimited mechanics)
 	lastInput: boolean, -- previous InputCommand.mechanic (edge detection)
+	external: boolean, -- phase driven by an outside state machine (see above)
+	hydroActive: boolean, -- external mode: Hydropneumatic settled (gun bonuses apply)
 }
 
 --- Optional per-vehicle construction data (newState). Geometry defaults derive from VehicleStats.dimensionsM.
@@ -139,6 +144,7 @@ export type VehicleSimState = {
 	traction: number, -- effective μ under the tracks
 	material: string, -- material under the hull centre
 	waterDepthM: number, -- water depth over the hull bottom (m)
+	submerged: boolean, -- water at or over the drown depth (turret roof): DamageModel.updateDrowning input
 	-- timers (s)
 	airborneTime: number,
 	submergedTime: number, -- time with water at or over the drown depth (resets on exit)
@@ -180,14 +186,28 @@ export type VehicleSimState = {
 	_resting: boolean,
 	_restPosition: Vector3,
 	_restYaw: number,
-	_hydroSettle: number,
+	_checkOverlap: boolean, -- run the obstacle overlap check even without motion (spawn, pushes, depenetration)
 	_mechanicIndex: number, -- index into VehicleStats.mechanics of the keyed mechanic (0 = none)
 	_hydroIndex: number, -- index of the Hydropneumatic mechanic (0 = none)
+}
+
+--- The mobility part of Types/Combat.EffectMultipliers (DamageModel.effects): module, crew and stun multipliers
+--- already combined. Structural, so the combat record is accepted as is (VehicleSim.applyEffects).
+export type MobilityEffects = {
+	enginePowerMul: number,
+	topSpeedMul: number,
+	canMove: boolean,
+	hullTraverseMul: number,
 }
 
 --------------------------------------------------------------------------------
 -- Turret and gun (TurretSim)
 --------------------------------------------------------------------------------
+
+--- The turret part of Types/Combat.EffectMultipliers (TurretSim.applyEffects).
+export type TurretEffects = {
+	turretTraverseMul: number,
+}
 
 --- Runtime effects on the turret/gun, written by their owners (DamageModel, crew, mechanics, ammo selection).
 export type TurretSimModifiers = {

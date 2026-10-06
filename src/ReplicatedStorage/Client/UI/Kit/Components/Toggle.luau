@@ -37,7 +37,8 @@ export type ToggleProps = {
 	Parent: Instance?,
 	--- Two-way bound value (wins over checked).
 	value: State.Value<boolean>?,
-	--- Controlled value (use with onChanged).
+	--- A State = controlled (the owner updates it from onChanged); a plain boolean = the initial value of an internal
+	--- state that the toggle flips itself.
 	checked: CanBeState<boolean>?,
 	onChanged: ((checked: boolean) -> ())?,
 	label: CanBeState<string>?,
@@ -51,9 +52,11 @@ local KNOB = Vector2.new(20, 18)
 
 function Toggle.new(props: ToggleProps): TextButton
 	local internal: State.Value<boolean> = props.value or State.Value(State.peek(props.checked or false))
+	-- Only a State `checked` is controlled; a constant would freeze the switch and report the same value forever.
+	local controlled = props.value == nil and State.isState(props.checked)
 	local checked: CanBeState<boolean> = if props.value ~= nil
 		then props.value
-		elseif props.checked ~= nil then props.checked
+		elseif controlled then props.checked :: CanBeState<boolean>
 		else internal
 	local disabled = props.disabled or false
 	local button = Create.TextButton({
@@ -145,6 +148,9 @@ function Toggle.new(props: ToggleProps): TextButton
 	end
 	values[Create.Children] = children
 	values[Create.On("Activated")] = function()
+		if Common.consumeLongPress(button) then
+			return
+		end
 		if State.peek(disabled) then
 			Sound.play(Sound.KEYS.error)
 			return
@@ -154,7 +160,7 @@ function Toggle.new(props: ToggleProps): TextButton
 		local bound = props.value
 		if bound ~= nil then
 			bound:set(nextValue)
-		elseif props.checked == nil then
+		elseif not controlled then
 			internal:set(nextValue)
 		end
 		if props.onChanged ~= nil then

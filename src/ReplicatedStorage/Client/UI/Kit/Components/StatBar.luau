@@ -61,6 +61,11 @@ export type Segments = {
 
 local StatBar = {}
 
+-- Text row height at 100 % text, gap above the bar, bar thickness (px).
+local ROW_HEIGHT = 20
+local BAR_GAP = 6
+local BAR_HEIGHT = 4
+
 --- Pure: bar segments for a value, optional comparison and scale.
 function StatBar.segments(value: number, compare: number?, max: number): Segments
 	local scale = if max > 0 and max == max then max else 1
@@ -116,6 +121,12 @@ function StatBar.new(props: StatBarProps): Frame
 		return StatBar.segments(State.get(props.value), State.get(compare), State.get(max))
 	end)
 	local showBar = props.bar ~= false
+	-- The text row grows with the text scale (20 px at 100 %; body.s/title.s at 150 % need 24+), and the bar and the
+	-- whole stat move down with it, so nothing overlaps at the largest text settings (ui-ux §1.15).
+	local rowHeight = State.Computed(function(): number
+		local size = math.max(Theme.textSize("body.s"):get(), Theme.textSize("title.s"):get())
+		return math.max(ROW_HEIGHT, math.ceil(size * 1.2))
+	end)
 	local children: { Instance } = {
 		Text.new({
 			Name = "Label",
@@ -123,7 +134,9 @@ function StatBar.new(props: StatBarProps): Frame
 			role = "body.s",
 			color = "text.secondary",
 			Position = UDim2.fromOffset(0, 0),
-			Size = UDim2.new(0.55, 0, 0, 20),
+			Size = State.map(rowHeight, function(h: number): UDim2
+				return UDim2.new(0.55, 0, 0, h)
+			end),
 			truncate = true,
 		}),
 		Create.Frame({
@@ -131,7 +144,9 @@ function StatBar.new(props: StatBarProps): Frame
 			BackgroundTransparency = 1,
 			AnchorPoint = Vector2.new(1, 0),
 			Position = UDim2.fromScale(1, 0),
-			Size = UDim2.new(0.45, 0, 0, 20),
+			Size = State.map(rowHeight, function(h: number): UDim2
+				return UDim2.new(0.45, 0, 0, h)
+			end),
 			[Create.Children] = {
 				Layout.list({ direction = "x", gap = Theme.space(2), align = "center", justify = "end" }) :: Instance,
 				Text.new({
@@ -164,8 +179,10 @@ function StatBar.new(props: StatBarProps): Frame
 				Name = "Bar",
 				BorderSizePixel = 0,
 				BackgroundColor3 = Theme.color("bg.inset"),
-				Position = UDim2.fromOffset(0, 26),
-				Size = UDim2.new(1, 0, 0, 4),
+				Position = State.map(rowHeight, function(h: number): UDim2
+					return UDim2.fromOffset(0, h + BAR_GAP)
+				end),
+				Size = UDim2.new(1, 0, 0, BAR_HEIGHT),
 				[Create.Children] = {
 					Create.Frame({
 						Name = "Base",
@@ -197,7 +214,9 @@ function StatBar.new(props: StatBarProps): Frame
 	end
 	local values: { [any]: any } = Common.layout(props, {}, {
 		Name = "StatBar",
-		Size = UDim2.new(1, 0, 0, if showBar then 32 else 20),
+		Size = State.map(rowHeight, function(h: number): UDim2
+			return UDim2.new(1, 0, 0, if showBar then h + BAR_GAP + BAR_HEIGHT + 2 else h)
+		end),
 	})
 	values.BackgroundTransparency = 1
 	values[Create.Children] = children

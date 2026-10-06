@@ -328,6 +328,40 @@ local function build(config: EngineConfig): (ScrollingFrame, Controller)
 		end
 	end
 
+	-- Re-binds the slots of the current window. Defined once with a reused `used` set: refresh runs every frame
+	-- while the list scrolls, so it allocates nothing per call (ARCHITECTURE §3.11).
+	local used: { [number]: boolean } = {}
+	local pendingResize = false
+	local function assignWindow()
+		table.clear(used)
+		for index = first, last do
+			local slotNumber = VirtualList.slotIndex(index, poolCount)
+			local slot = pool[slotNumber]
+			used[slotNumber] = true
+			if slot == nil then
+				slot = newSlot(items[index], index)
+				pool[slotNumber] = slot
+			elseif slot.assigned ~= index or pendingResize then
+				slot.assigned = index
+				slot.item:set(items[index])
+				slot.index:set(index)
+				slot.gui:SetAttribute("VirtualIndex", index)
+			elseif slot.item:peek() ~= items[index] then
+				slot.item:set(items[index])
+			end
+			local placed = slot :: Slot
+			place(placed, index)
+			placed.gui.Visible = true
+		end
+		for slotNumber, slot in pool do
+			if not used[slotNumber] and slot.assigned ~= nil then
+				slot.assigned = nil
+				slot.gui.Visible = false
+				slot.gui:SetAttribute("VirtualIndex", nil)
+			end
+		end
+	end
+
 	local function refresh()
 		if refreshing then
 			return
@@ -358,35 +392,8 @@ local function build(config: EngineConfig): (ScrollingFrame, Controller)
 		if last - first + 1 > poolCount then
 			last = first + poolCount - 1
 		end
-		local used: { [number]: boolean } = {}
-		State.batch(function()
-			for index = first, last do
-				local slotNumber = VirtualList.slotIndex(index, poolCount)
-				local slot = pool[slotNumber]
-				used[slotNumber] = true
-				if slot == nil then
-					slot = newSlot(items[index], index)
-					pool[slotNumber] = slot
-				elseif slot.assigned ~= index or resized then
-					slot.assigned = index
-					slot.item:set(items[index])
-					slot.index:set(index)
-					slot.gui:SetAttribute("VirtualIndex", index)
-				elseif slot.item:peek() ~= items[index] then
-					slot.item:set(items[index])
-				end
-				local placed = slot :: Slot
-				place(placed, index)
-				placed.gui.Visible = true
-			end
-			for slotNumber, slot in pool do
-				if not used[slotNumber] and slot.assigned ~= nil then
-					slot.assigned = nil
-					slot.gui.Visible = false
-					slot.gui:SetAttribute("VirtualIndex", nil)
-				end
-			end
-		end)
+		pendingResize = resized
+		State.batch(assignWindow)
 		refreshing = false
 	end
 
@@ -450,10 +457,9 @@ local function build(config: EngineConfig): (ScrollingFrame, Controller)
 			revealIndex(index, false)
 			refresh()
 			local gui = slotFor(index)
-			if gui ~= nil and InputMode.mode:peek() == "Gamepad" then
-				pcall(function()
-					Services.gui().SelectedObject = gui
-				end)
+			if gui ~= nil then
+				-- Programmatic selection (no hover tick); Focus ignores it outside gamepad mode.
+				Focus.select(gui)
 			end
 			return gui
 		end,

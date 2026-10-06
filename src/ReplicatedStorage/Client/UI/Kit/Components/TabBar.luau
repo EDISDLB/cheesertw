@@ -332,7 +332,12 @@ function TabBar.new(props: TabBarProps): Frame
 	end
 	local values: { [any]: any } = Common.layout(props, {}, {
 		Name = "TabBar",
-		Size = UDim2.new(1, 0, 0, if segmented then 36 else Theme.sizes.tabHeight),
+		-- Segments are 36 px, raised to the touch minimum on touch (top tabs are 48 already).
+		Size = if segmented
+			then State.map(Common.touchHeight(36), function(h: number): UDim2
+				return UDim2.new(1, 0, 0, h)
+			end)
+			else UDim2.new(1, 0, 0, Theme.sizes.tabHeight),
 	})
 	values.BackgroundTransparency = 1
 	values[Create.Children] = children

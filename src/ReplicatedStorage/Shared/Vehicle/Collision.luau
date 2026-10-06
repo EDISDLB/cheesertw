@@ -94,18 +94,88 @@ end
 --- Face of a box with heading `yaw` hit from world direction `towardOther` (unit, from the box toward the contact).
 Collision.faceOf = faceOf
 
--- Half extent of a box (half width hw along right r, half length hl along forward f) projected on unit axis u.
-local function extent(
-	hw: number,
-	hl: number,
-	rx: number,
-	rz: number,
-	fx: number,
-	fz: number,
-	ux: number,
-	uz: number
-): number
-	return hw * abs(rx * ux + rz * uz) + hl * abs(fx * ux + fz * uz)
+-- Scratch polygons for footprint clipping (allocation-free; ≤ 8 vertices for two rectangles).
+local polyX: { number } = table.create(16, 0)
+local polyZ: { number } = table.create(16, 0)
+local nextX: { number } = table.create(16, 0)
+local nextZ: { number } = table.create(16, 0)
+
+-- Clips the polygon (polyX/polyZ, n vertices) to the half-plane lx·x + lz·z <= d. Returns the new vertex count.
+local function clipHalfPlane(n: number, lx: number, lz: number, d: number): number
+	local m = 0
+	if n == 0 then
+		return 0
+	end
+	local px, pz = polyX[n], polyZ[n]
+	local pIn = lx * px + lz * pz <= d
+	for i = 1, n do
+		local qx, qz = polyX[i], polyZ[i]
+		local qIn = lx * qx + lz * qz <= d
+		if qIn ~= pIn then
+			local dp = lx * px + lz * pz - d
+			local dq = lx * qx + lz * qz - d
+			local t = dp / (dp - dq)
+			m += 1
+			nextX[m] = px + (qx - px) * t
+			nextZ[m] = pz + (qz - pz) * t
+		end
+		if qIn then
+			m += 1
+			nextX[m] = qx
+			nextZ[m] = qz
+		end
+		px, pz, pIn = qx, qz, qIn
+	end
+	for i = 1, m do
+		polyX[i] = nextX[i]
+		polyZ[i] = nextZ[i]
+	end
+	return m
+end
+
+-- Vertex average of the intersection of the two footprints (falls back to the midpoint of the centres).
+local function footprintIntersectionCentre(
+	a: CollisionBody,
+	b: CollisionBody,
+	arx: number,
+	arz: number,
+	afx: number,
+	afz: number,
+	haw: number,
+	hal: number,
+	brx: number,
+	brz: number,
+	bfx: number,
+	bfz: number,
+	hbw: number,
+	hbl: number
+): (number, number)
+	local ax, az = a.position.X, a.position.Z
+	local k = 0
+	for sx = -1, 1, 2 do
+		for sf = -1, 1, 2 do
+			k += 1
+			local f = if sx > 0 then sf else -sf -- consistent winding
+			polyX[k] = ax + arx * haw * sx + afx * hal * f
+			polyZ[k] = az + arz * haw * sx + afz * hal * f
+		end
+	end
+	local bx, bz = b.position.X, b.position.Z
+	local bR = bx * brx + bz * brz
+	local bF = bx * bfx + bz * bfz
+	local n = clipHalfPlane(4, brx, brz, bR + hbw)
+	n = clipHalfPlane(n, -brx, -brz, -bR + hbw)
+	n = clipHalfPlane(n, bfx, bfz, bF + hbl)
+	n = clipHalfPlane(n, -bfx, -bfz, -bF + hbl)
+	if n == 0 then
+		return (ax + bx) / 2, (az + bz) / 2
+	end
+	local sx, sz = 0, 0
+	for i = 1, n do
+		sx += polyX[i]
+		sz += polyZ[i]
+	end
+	return sx / n, sz / n
 end
 
 local function validBody(b: CollisionBody): boolean
@@ -171,8 +241,11 @@ function Collision.test(a: CollisionBody, b: CollisionBody, out: CollisionContac
 	end
 	c.overlapping = true
 	local midY = (max(aBottom, bBottom) + min(aTop, bTop)) / 2
-	if vOverlap < best then
-		-- Stacked (landing on a tank): vertical normal from A toward B.
+	-- Stacked (landing on a tank): one box's bottom above the other's mid-height and the vertical overlap the
+	-- shallower one. Boxes side by side always separate horizontally, however deep the overlap.
+	local stacked = bBottom >= aBottom + a.size.Y / 2 or aBottom >= bBottom + b.size.Y / 2
+	if stacked and vOverlap < best then
+		-- Vertical normal from A toward B.
 		local up = if (bBottom + bTop) >= (aBottom + aTop) then 1 else -1
 		c.normal = Vector3.new(0, up, 0)
 		c.depth = vOverlap
@@ -181,18 +254,9 @@ function Collision.test(a: CollisionBody, b: CollisionBody, out: CollisionContac
 	else
 		c.normal = Vector3.new(nx, 0, nz)
 		c.depth = best
-		-- Contact point: middle of the overlap along the normal and along the tangent, at mid overlap height.
-		local tx, tz = -nz, nx
-		local aN = a.position.X * nx + a.position.Z * nz + extent(haw, hal, arx, arz, afx, afz, nx, nz)
-		local bN = b.position.X * nx + b.position.Z * nz - extent(hbw, hbl, brx, brz, bfx, bfz, nx, nz)
-		local midN = (aN + bN) / 2
-		local aT = a.position.X * tx + a.position.Z * tz
-		local bT = b.position.X * tx + b.position.Z * tz
-		local aTe = extent(haw, hal, arx, arz, afx, afz, tx, tz)
-		local bTe = extent(hbw, hbl, brx, brz, bfx, bfz, tx, tz)
-		local lo, hi = max(aT - aTe, bT - bTe), min(aT + aTe, bT + bTe)
-		local midT = if lo <= hi then (lo + hi) / 2 else (aT + bT) / 2
-		c.contactPoint = Vector3.new(nx * midN + tx * midT, midY, nz * midN + tz * midT)
+		-- Contact point: vertex average of the footprints' intersection polygon (inside both), mid overlap height.
+		local cx, cz = footprintIntersectionCentre(a, b, arx, arz, afx, afz, haw, hal, brx, brz, bfx, bfz, hbw, hbl)
+		c.contactPoint = Vector3.new(cx, midY, cz)
 	end
 	local n = c.normal
 	local rel = a.velocity - b.velocity

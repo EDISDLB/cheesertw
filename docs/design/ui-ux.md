@@ -108,6 +108,19 @@ Internal ids stay as they are in code and content. The UI shows only the right-h
 | `Session` (`SS`) | Client controllers + S2C pushes | `selectedVehicleId`, `queue` (§S06), `platoon` (§S23), `plusActive`, `robloxPremium`, `policy` (PolicyService result), `notifications[]`, `compareList[]`, `inputMode`, `layout` (`Regular`/`Compact`/`TV`), `resultsCache[battleId]`, `pendingPurchases`, `friends` | Not persisted, except the keys mirrored into settings (selected vehicle, filters). |
 | `Settings` (`ST`) | `PV.settings` (≤ 128 keys, D: `LIMITS.SETTINGS`) | §S22 key table | Written through `SettingsSet` (debounced 1.5 s, batched). Device-class keys carry a `.pc` / `.mob` / `.con` suffix. |
 | `BattleView` (`BV`) | `SnapshotPacket` (20 Hz), reliable battle event stream, client prediction (A§6.2) | §0.5 | Read-only for UI. HUD widgets subscribe to the narrowest field. |
+
+**Settings in the Battle place.** Battle servers never load profiles (A§2.1), so `ST` travels with the player as
+client preferences:
+* **Hub → Battle:** the Hub teleports each player (or platoon) with its own `TeleportOptions:SetTeleportData`. The
+  data is `{ st = <encoded battle subset> }`: the `hud.*`, `fx.*`, `ctl.*`, `pad.*`, `touch.*`, `cam.*`, `a11y.*`,
+  `audio.*`, `music.flags` and `map.*` keys, about 1.5 KB, plus `tracked`: up to 5 tracked or daily mission ids with
+  their progress, used for the scoreboard's estimated progress (§S34). The battle client reads it with
+  `GetLocalPlayerTeleportData`. The data is untrusted, so only the client uses it; the server never does. If it is
+  missing, defaults apply and the Field menu says "Settings will sync when you return."
+* **Battle → Hub:** Field-menu changes are sent with `SettingsSet` (1/s) to the battle server, which keeps them in
+  memory. The server teleports the player back with `{ st = <changed keys> }`, and the Hub client re-sends them
+  through `SettingsSet`, where they persist. If the player disconnects, the changes are lost (**O**: preferences only).
+
 | `ContentRegistry` (`CR`) | Shared config | Vehicle, module, shell, equipment, mission, store definitions | Frozen. UI derives stats with `StatsCalculator` (same path as battle, REG-UI-07). |
 
 ### 0.5 BattleView fields the HUD binds to (contract for the Battle client team)
@@ -197,9 +210,10 @@ uses this override table instead of letting the clamp overflow layouts. **TV** u
 | Layer | DisplayOrder | Insets | Holds |
 |---|---|---|---|
 | `Background3D` | 0 | None (non-interactive) | Hangar vignette, cinematic letterbox, header backing band |
-| `HUD` | 10 | `DeviceSafeInsets` for gauges; touch controls in a second `HUDInput` gui with `CoreUISafeInsets` | Battle HUD |
+| `HUD` | 10 | `DeviceSafeInsets` (non-interactive gauges) | Battle HUD gauges |
+| `HUDInput` (in the kit) | 11 | `CoreUISafeInsets` | Minimap, H-10 bar, touch controls, radial menus |
 | `Screens` | 20 | CoreUISafeInsets | All menu screens and drawers |
-| `TopBar` (**new, O**) | 25 | `TopbarSafeInsets` | The garage top bar (§1.4). Fallback below. |
+| `TopBar` (in the kit) | 25 | `TopbarSafeInsets` | The garage top bar (§1.4). Fallback below. |
 | `Modals` | 30 | CoreUISafeInsets | Modals, sheets, pickers |
 | `Toasts` | 40 | CoreUISafeInsets | Toasts, system banners |
 | `Tooltip` | 50 | CoreUISafeInsets | Tooltips, dropdown lists |
@@ -220,7 +234,7 @@ Each layer root is `Layout.root()`, sized `1 / scale`. So the run-time canvas is
 |---|---|---|---|
 | Regular (menus) | 800–1,800. The effective `ui.scale` is lowered automatically until the canvas is at least **1,280 × 800**, and the setting shows "Limited by this display". | 1,280 (4:3 and 5:4) to 3,440+ (21:9) | 1280 × 720 → 1,707 × 960 · 1024 × 768 → 1,365 × 1,024 · 4K → 2,560 × 1,440 |
 | Regular battle HUD | Effective height `E = H ÷ hud.scale`, 720–1,800. `hud.scale` is capped so that E ≥ 720 and the effective width is ≥ 1,360 (≥ 1,448 in event modes with abilities). | as above ÷ `hud.scale` | 1080p at 150 % → 1,280 × 720 is not allowed (width 1,280 < 1,360), so the cap lowers the scale to 141 % → 1,360 × 765 |
-| Compact (phones) | 390–480. The battle HUD uses `min(1.25, vh / 390)` so it never has H < 390. | 693 (16:9) to 870 (20:9) | 667 × 375 → 695 × 390 · 844 × 390 → 844 × 390 · 932 × 430 → 845 × 390 |
+| Compact (phones) | 390–480. The battle HUD uses `min(1.25, vh / 390)` so it never has H < 390. Menus on viewports under 359 px tall (legacy 320 pt phones) get down to 348; their screens scroll vertically. | 693 (16:9) to 950 (21:9) | 667 × 375 → 695 × 390 · 844 × 390 → 844 × 390 · 932 × 430 → 845 × 390 |
 | Touch on a Regular display (tablets), battle only | fixed **700** (HUD root = vh / 700) | 933–1,120 | 1024 × 768 → 933 × 700 · 1180 × 820 → 1,007 × 700 |
 
 **Anchoring rule.** Each rectangle keeps its offsets from an anchor.
@@ -276,8 +290,11 @@ Modals (≤ 880 wide) and toasts (360 wide, right-anchored) fit every supported 
 `ui/settings`) over a `micro` label (`GARAGE`, `TECH TREE`, `CREW`, `MISSIONS`, `PASS`, `STORE`, `PROFILE`,
 `SETTINGS`). Active item: `bg.selected` fill, 3 px dusk left edge with the crest notch, label `text.primary`.
 Badges (§1.5.3) sit at the glyph's top-right. Hovering or focusing the rail for 300 ms expands it to 280 px over the
-content (labels in `body` beside the glyphs, no reflow of the page). Compact: 64 px rail, glyphs only, no expansion;
-labels appear in a tooltip on long-press. Pressing an item **resets** the stack to `[Garage, Section]` (§1.3).
+content (labels in `body` beside the glyphs, no reflow of the page). **Compact:** 64 px rail, glyphs only, no
+expansion; labels appear in a tooltip on long-press. Eight 48 px items with 9 px gaps need 447 px, more than the
+≈ 342 px under the core row. So the Compact rail shows six items at 48 × 48 with 9 px gaps (333 px): `GARAGE`,
+`TECH TREE`, `CREW`, `MISSIONS` (Pass is its `PASS` tab), `STORE` and `MORE`. `MORE` opens a sheet with `PASS`,
+`PROFILE`, `SETTINGS`, `NOTIFICATIONS` and `SOCIAL`; its badge is the sum of theirs. Pressing an item **resets** the stack to `[Garage, Section]` (§1.3).
 
 **Universal Back.** Esc and ButtonStart are reserved by Roblox (D§16), so Back is: the top-bar `‹ BACK` button,
 `[Bksp]`, `[B]`, and on touch the same button. Back order: (1) close the top tooltip / dropdown / popover,
@@ -335,10 +352,14 @@ or the on-screen menu button (touch).
   2. Free XP and Campaign Tokens fold into a `…` wallet button (48 px) → 1,420.
   3. The centre slot drops the XP bar text (440 px) → 1,220.
   4. The section title keeps only the stencil index (120 px) → 1,120.
+  5. The centre slot shows only the tier plate and vehicle name (320 px) → 1,000.
 
-  The 1,280-wide minimum canvas (§1.1.1) always fits step 4. Compact shows Credits and Bullion plus the wallet
-  button. The wallet opens a sheet with every account currency (Credits, Bullion, Free XP, Campaign Tokens) and any
-  event tokens.
+  The 1,280-wide minimum canvas (§1.1.1) fits step 5 as long as the core buttons take ≤ 280 reference px (to verify
+  in-engine, §5.5).
+* **Compact top bar** (≈ 589 px, fits right of the core buttons at W ≥ 693): Back 48, centre slot 160 (tier plate
+  + vehicle name), Credits 120, Bullion 120, wallet 48 and bell 48, with 9 px gaps. There is no section title (the rail
+  shows it); profile and social are in the rail's `MORE` sheet. The wallet opens a sheet with every account currency
+  (Credits, Bullion, Free XP, Campaign Tokens) and any event tokens.
 * Premium Time under 24 h shows the timer in `state.warning`; expired shows nothing (no nagging).
 
 ### 1.5 Notification system
@@ -428,8 +449,8 @@ otherwise.
 | **Exchange** (Purchase confirm, 640) | Credits `+` in the top bar; `EXCHANGE BULLION` fix action (§1.9) | Bullion amount stepper (step 1, 10, 100) and slider; Credits received = BUL × 200 (D§11) in `num.l`; balances before → after; pre-filled with the exact shortfall when opened from an error | `ExchangeBullion` |
 | **Convert XP** (Purchase confirm, 640) | Free XP in the top bar; Research footer (§S09) | List of elite vehicles with banked XP (checkbox each); total XP; Bullion cost = ceil(XP / 10) (D§11); Free XP after. Non-elite vehicles are listed greyed with the reason "Research everything on this vehicle first" | `ConvertXP` |
 | **Sell vehicle** (Destructive, 640) | Inspect overflow `⋯` → `SELL` (the gamepad path); carousel card context menu (`[RMB]` / long-press 0.5 s: `INSPECT`, `FAVOURITE`, `MAKE PLUS VEHICLE`, `SELL`) | Title `SELL <NAME>`. Refund lines: tech-tree 50 % of the Credit price; premium 50 % × BUL price × 200 CR (D§11). Mounted equipment, shells and consumables go to Spares for free. Crew goes to the Reserve (or `DISMISS CREW` checkbox, off by default). "You can buy it back for 72 h at +10 %." Blocked, with the reason shown, while the vehicle is locked or queued, while it is the selected Plus vehicle, and when it is the last owned vehicle (**O**: the player always keeps one vehicle to play) | `SellVehicle` |
-| **Buy back** (Purchase confirm, 640) | Tech Tree node `BUYBACK +10 %` (§S10); Store vehicle page for sold premiums | Price = sell refund × 1.10 in the original currency; time left `Format.duration`; same buy options as §S10 | `BuybackVehicle` |
-| **Plus vehicle** (Picker, 880) | Store › Premium & Plus card; carousel card overflow `MAKE PLUS VEHICLE` | Tech-tree vehicles you own (premiums excluded, D§11 "+20 % on one tech-tree vehicle"); the current one marked; changing it is allowed once per 24 h (**O**, so the bonus cannot follow every vehicle; Economy to confirm, §5.6) with the cooldown shown | `SetPlusVehicle` |
+| **Buy back** (Purchase confirm, 640) | Tech Tree node `BUYBACK +10 %` (§S10); Store vehicle page for sold premiums | Price = the Credits refund the player received × 1.10, in Credits (premiums too). D§11's "+10 %" is read as over the refund; Economy to confirm, §5.4 #10. Time left `Format.duration`; same buy options as §S10 | `BuybackVehicle` |
+| **Plus vehicle** (Picker, 880) | Store › Premium & Plus card; carousel card overflow `MAKE PLUS VEHICLE` | Tech-tree vehicles you own (premiums excluded, D§11 "+20 % on one tech-tree vehicle"); the current one marked; changing it is allowed once per 24 h (**O**, so the bonus cannot follow every vehicle; Economy to confirm, §5.4 #10) with the cooldown shown | `SetPlusVehicle` |
 | **Boosters** (sheet / panel 640) | Store › Boosters; the active-booster chip on the profile chip | Owned boosters (count, effect, duration or battles) with `ACTIVATE` (vehicle picker for vehicle-bound ones); active boosters with time / battles left; at most `LIMITS.ACTIVE_BOOSTERS` active | `ActivateBooster` |
 | **Map preferences** (Picker, 880) | Mode selector `MAP PREFERENCES ›` (§S06) | Grid of map cards (512 × 288 art, name, climate strip, B§9); toggle "Avoid" on up to 1 map (2 with Premium Time, `LIMITS.MAP_BLACKLIST`); hidden until ≥ 8 maps exist (D§8); battle-type opt-out toggles for Crossroads and Breach (Tier IV+) | `SetMatchmakingPrefs` |
 
@@ -552,9 +573,9 @@ Glyphs swap within one frame of a `PreferredInput` change (REG-INP-02). Touch sh
 right-aligned, `label` text, up to 5 hints in priority order (`[A] Select · [B] Back · [X] Details · [Y] Motor pool ·
 [LB][RB] Tabs`). It never covers interactive content: screens reserve 48 px at the bottom when it is visible.
 
-**Contexts in the Battle place.** `KitUI` would otherwise sink battle keys: its priority is above `Battle`, and it
-binds `[C]` (page), `[Q]` / `[E]` (tabs) and `[F]` / `[G]`. So in the Battle place `KitUI` is enabled only while a
-menu has focus (Field menu, Settings subset, a focused Scoreboard, a modal). The rest of the time `Battle`, `Sniper`
+**Contexts in the Battle place.** `KitUI` binds `[C]` (page), `[Q]` / `[E]` (tabs) and `[F]` / `[G]`, which battle
+also uses. Even with `Sink = false` (kit), a menu action would fire alongside the battle action. So in the Battle
+place `KitUI` is enabled only while a menu has focus (Field menu, Settings subset, a focused Scoreboard, a modal). The rest of the time `Battle`, `Sniper`
 or `Spectate` owns every key, and `[Bksp]` / pad `[B]` hold open the Field menu from the `Battle` context. In the Hub,
 `Battle` is never enabled. Back is ignored while a `TextBox` has focus, so `[Bksp]` deletes text.
 
@@ -613,7 +634,7 @@ This list is checked in-engine (§5.5).
 |---|---|---|
 | Colour-vision schemes | Team, platoon and self colours from B§3.4 (default, deuteranopia, protanopia, tritanopia); offered at first launch (§S02). Penetration and module colours switch to the proposed `pen.cb.*` set under a CVD scheme (D§21 #14, pending brand approval). **Shapes never change** (class glyphs, self arrow, platoon pip numbers, ring segment counts, module crack / break outlines). | `a11y.scheme` |
 | High contrast | Opaque panels (`PreferredTransparency` forced 0), `text.secondary` → `text.primary`, borders 2 px `border.strong`, HUD plates on 70 % ink backing, markers get 2 px ink outlines, minimap terrain darkened 30 %. | `a11y.highContrast` |
-| UI scale | 80–120 % menus (kit), HUD 80–150 % separately (D§16). | `ui.scale`, `hud.scale` |
+| UI scale | 80–120 % menus (kit; fixed 100 % on Compact), HUD 80–150 % separately (D§16); both are capped per display so the canvas stays inside the verified range (§1.1.1), and the slider says "Limited by this display". | `ui.scale`, `hud.scale` |
 | Text size | Follows Roblox `PreferredTextSize`; extra in-game boost Follow / +15 % / +30 % applied in Theme to body and labels (never via `TextScaled`). All screens must pass layout tests at +30 % with the largest Roblox preference. | `a11y.textBoost` |
 | Transparency | Honours `PreferredTransparency`; in-game panel opacity override 60–100 %. | `ui.panelOpacity` |
 | Reduced motion | Honours `ReducedMotionEnabled` (or override On/Off): no slides, pops, pulses, count-ups, camera tweens or shakes; fades ≤ 100 ms (kit `Motion`). | `a11y.reducedMotion` |
@@ -720,7 +741,8 @@ to Garage interactive ≤ 8 s p50 on PC and ≤ 14 s p50 on the mobile baseline 
 **Purpose.** Set the two accessibility choices D§16 requires before the first battle, then offer the Proving Field.
 Shown once per account (flags `colorSchemePrompted`, `captionsPrompted`; `→ AckFlag`).
 
-1. **Team colours.** Four cards 400 × 300 in a row (Default, Deuteranopia, Protanopia, Tritanopia). Each card
+1. **Team colours.** Four cards 400 × 300 in a row (Default, Deuteranopia, Protanopia, Tritanopia); on canvases
+   narrower than 1,768 they shrink to (W − 168) / 4 wide at 4:3, and Compact keeps the row at (W − 75) / 4 wide (154 × 116 at 693, 192 × 144 at 844) with 9 px gaps. Each card
    shows the same static mini-scene: three ally markers, two enemy markers, one platoon marker with pip `2`, the self
    arrow, and a minimap crop, all tinted with that scheme. Title "Choose team colours", body "You can change this any
    time in Settings › Accessibility." Initial focus: Default. `[A]` selects; `CONTINUE` primary.
@@ -884,7 +906,7 @@ ends", REG-UI-02) · `NoCrew` · `NoAmmo` · `Loading` (skeleton for panels on f
 
 **Initial focus:** `TO BATTLE` when enabled, else the blocking service tile (Crew or Ammo).
 
-**Compact (844 × 390; W = 693–870):** rail 64 px; top bar center slot shows name + tier only; no right column
+**Compact (844 × 390; W = 693–950):** rail 64 px; top bar center slot shows name + tier only; no right column
 (missions via rail).
 * Stats sit behind a `STATS` button (72, 56, 96, 48) that opens a sheet.
 * The service strip is six 48 × 48 icon buttons at (72, 229), with 9 px gaps.
@@ -1006,7 +1028,7 @@ leaving the vehicle, the strip and the carousel visible.
 
 | Property | Regular | Compact |
 |---|---|---|
-| Rect | (1272, 152, 624, 584) | bottom sheet (0, 120, 844, 270) |
+| Rect | (1272, 172, 624, 564) at 1080p; anchored (W − 648, 172, 624, stripY − 180) (§S04), below the queue line at every width | bottom sheet (0, 120, W, H − 120) |
 | Header | 64 px: tile glyph 32, `h3` title, vehicle name `caption`, close `ui/close` | 48 px |
 | Body | scroll region, 24 px padding | scroll region |
 | Footer | 80 px: totals / cost line left, buttons right | 56 px |
@@ -1228,9 +1250,9 @@ text, ≤ 12 GuiObjects each; edges are 2 px Frames, ≤ 300 segments per factio
 │                      │ TUKKHALD   │ TUKKTUND   │ REGNION    │ DUNELIGHT  │ ADD        │            │
 │ Config               │ [CURRENT▾] │ [TOP ▾]    │ [TOP ▾]    │ [STOCK ▾]  │            │            │
 ├─FIREPOWER────────────┼────────────┼────────────┼────────────┼────────────┤            │            │
-│ Damage               │ 358 ×2     │ 440 ×2 ▲   │ 390        │ 260 ▼      │            │            │
-│ Penetration (std)    │ 195        │ 225 ▲      │ 220        │ 190 ▼      │            │            │
-│ DPM                  │ 1,671 ▼    │ 1,906      │ 2,120 ▲    │ 2,050      │            │            │
+│ Damage               │ 358 ×2     │ 440 ×2 ▲   │ 299        │ 252 ▼      │            │            │
+│ Penetration (std)    │ 195        │ 225 ▲      │ 211        │ 187 ▼      │            │            │
+│ DPM                  │ 1,671 ▼    │ 1,906      │ 1,919      │ 2,142 ▲    │            │            │
 │ …                    │            │            │            │            │            │            │
 ├─SURVIVABILITY────────┤ …          │            │            │            │            │            │
 │ [□ Show only differences]   [□ Highlight vs first column]                               [CLEAR ALL]     │
@@ -1554,8 +1576,9 @@ the server marked `completed`; reset timers use the server reset time from `PV.m
 
 ### S19 Achievements (`Screens/Achievements`, Profile tab and drill-in)
 
-* Left category list (280 px): `FIELD HONOURS` (battle medals, §5.3 names), `EPIC`, `MASTERY`, `BARREL BANDS`,
-  `MILESTONES`, `SERIES`, `EVENT`, `COMMEMORATIVE` (from `AchievementCategory`), each with "earned / total".
+* Left category list (280 px), one entry per `AchievementCategory`: `FIELD HONOURS` (`BattleHero`, §5.3 names) ·
+  `EPIC` (`Epic`) · `MASTERY` (`Mastery`) · `BARREL BANDS` (`Marks`) · `MILESTONES` (`Milestone`) · `SERIES` (`Series`)
+  · `EVENT` (`Event`) · `COMMEMORATIVE` (`Commemorative`), each with "earned / total".
 * Grid of 96 px badges (frame + emblem composited at the same size, B§6.13), 10 columns at 1080p; earned = full colour
   + count chip (`×14` for repeatables); not earned = 30 % steel silhouette; milestones show a progress ring; hidden
   achievements show a `???` frame until earned.
@@ -1576,7 +1599,7 @@ token and event shops. **No paid random items, no timed combat offers, no countd
 ├────────────────┬─────────────────────────────────────────────────────────────────────────────────────────┤
 │ FEATURED     ● │ ┌──────────────── HERO (1,176 × 360) ──────────────────┐ ┌─ PREMIUM TIME ─┐            │
 │ BULLION        │ │  DUNELIGHT · Tier VIII premium medium                 │ │ +50 % XP & CR  │            │
-│ PREMIUM & PLUS │ │  Autoloader · earns ×1.5 credits                      │ │ 7 days [B]1,250│            │
+│ PREMIUM & PLUS │ │  Single-shot DPM medium · earns ×1.5 credits          │ │ 7 days [B]1,250│            │
 │ VEHICLES       │ │                              [ VIEW ]                 │ └────────────────┘            │
 │ COSMETICS      │ └───────────────────────────────────────────────────────┘                               │
 │ SUPPLIES       │ [tile 280×200] [tile] [tile] [tile]                                                      │
@@ -1590,11 +1613,11 @@ token and event shops. **No paid random items, no timed combat offers, no countd
 |---|---|---|
 | FEATURED | 1 hero + max 8 tiles (`StoreItem.featured`, `sortOrder`) | per item |
 | BULLION | 6 packs (D§15 base 49 … 1,999 R$; bonus % from config), tile shows Bullion amount (`num.l`), bonus chip, Robux price from `GetProductInfoAsync` | `PromptProductPurchase` → receipt → `PurchaseGranted` toast |
-| PREMIUM & PLUS | Premium Time 1 d 250 / 7 d 1,250 / 30 d 2,000 BUL (D§11) with the benefit list; HULLDOWN Plus card (benefits from D§11, Robux price, "Manage in Roblox" when subscribed) shown only if `IsEligibleToPurchaseSubscription` | `→ BuyPremiumTime`; Plus via `PromptSubscriptionPurchase` |
+| PREMIUM & PLUS | Premium Time 1 d 250 / 7 d 1,250 / 30 d 2,000 BUL (D§11) with the benefit list; HULLDOWN Plus card (benefits from D§11, Robux price) shown when `IsEligibleToPurchaseSubscription` is true **or** the player is subscribed; subscribers see "Manage in Roblox", the next +25 Bullion grant, crew XP earned today (≤ 3,000) and `PLUS VEHICLE` (picker §1.6.1) instead of the price | `→ BuyPremiumTime`; Plus via `PromptSubscriptionPurchase`; `→ SetPlusVehicle` |
 | VEHICLES | premium vehicles (D§15 prices II 250 … VIII 3,500 BUL), filters tier / class / faction; tile = silhouette, name, tier, class, price; detail shows **facts**: credit multiplier, crew rule (any same faction + class crew), "No preferential matchmaking", stat summary vs tech-tree peers, `INSPECT`, `PREVIEW IN GARAGE` | `→ BuyStoreItem` with crew options (as §S10 buy) |
 | COSMETICS | styles, paints, camos, emblems with `PREVIEW` (opens Exterior with the item pre-selected) | Bullion / Credits |
 | SUPPLIES | consumables, equipment, crew books for Credits (and Tokens) | `→ BuyStoreItem` |
-| BOOSTERS | XP / Free XP / crew XP / credit boosters (fixed effect, battles or duration) | `→ BuyStoreItem`, then `ACTIVATE` in inventory |
+| BOOSTERS | Owned boosters with `ACTIVATE` (Boosters panel §1.6.1) and, for sale, XP / Free XP / crew XP / credit boosters (fixed effect, battles or duration) priced in **Credits or Campaign Tokens only**: D§11 does not list boosters among Bullion uses, so a Bullion-priced booster is a content error | `→ BuyStoreItem`, then `→ ActivateBooster` |
 | TOKEN SHOP | Campaign Token items (Refined equipment, books, cosmetics, D§11) | Tokens |
 | EVENT SHOP | event-token items while the shop is open (`shopClosesAt`, shown as a calm date "Shop open until 12 Nov") | event tokens |
 
@@ -1666,7 +1689,7 @@ read only by the battle client apply on the next frame there too. Controller: `[
 HUD, CAMERA, CONTROLS / CONTROLLER / TOUCH sensitivities and ACCESSIBILITY only.
 
 **Keys.** Stored in `PV.settings` (≤ 128 keys). Device-class keys end in `.pc`, `.mob` or `.con`. Encoded keys hold a
-compact string. This table defines **117 keys**; a new setting must join an encoded key if the total would exceed 120.
+compact string. This table defines **118 keys**; a new setting must join an encoded key if the total would exceed 120.
 
 | Category | Setting → key · control · values · **default** |
 |---|---|
@@ -1674,12 +1697,12 @@ compact string. This table defines **117 keys**; a new setting must join an enco
 | AUDIO | Master, Music, Ambience, Vehicles, Weapons, Impacts, Interface, Voice → `audio.master` … `audio.voice` · sliders 0–100 · **80, 60, 70, 80, 85, 85, 70, 90** · Device preset `audio.device` Speakers / Headphones / Phone · **Speakers (Phone on mobile)** · Mono `audio.mono` **Off** · Night mode `audio.night` **Off** · Reduced audio fatigue `audio.fatigue` **Off** (AU§7). (12) |
 | MUSIC | `music.flags` (encoded): garage music On · battle music On · dynamic intensity On · results music On (AU§11). Volume lives in AUDIO. (1) |
 | EFFECTS | Camera shake `fx.shake` 0–100 **60** · Recoil kick `fx.recoil` **On** · Hit flashes `fx.flash` **On** · Low-HP vignette `fx.vignette` 0–100 **70** (cap 35 % opacity, §3) · Damage numbers `fx.damageNumbers` Off / Floating / On marker **Floating** · Hit callout text `fx.callouts` **On** · Reduce effects while aiming `fx.aimReduce` **Off**. (7) |
-| INTERFACE | UI scale `ui.scale` 80–120 % **100** · Panel opacity `ui.panelOpacity` Follow Roblox / 60–100 % **Follow** · Tooltips `ui.tooltips` **On** · Tooltip delay `ui.tooltipDelay` Short / Normal / Long **Normal** · Title screen `ui.titleScreen` **On** · Open debrief after battle `ui.resultsAuto` **On** · 12-hour clock `ui.clock12h` **Off** · Keyboard hints bar `ui.hintsKbm` **Off**. (8) |
-| HUD | HUD scale `hud.scale` 80–150 % **100** · Team panels `hud.teamPanels` Hidden / Compact / Full **Full** · Team HP `hud.teamHp` Full / Bar only / % only / None **Full** · Damage log `hud.damageLog` Off / 4 / 8 lines **8** · Kill feed `hud.killFeed` **On** · Battle chat `hud.chat` **On** (forced Off on console) · Marker names `hud.markerNames` On Alt / Always / Never **On Alt** · Marker HP numbers `hud.markerHp` On Alt / Always **On Alt** · Reticle size `hud.reticleSize` 80–120 % **100** · Server reticle `hud.serverReticle` Off / On / Both **Off** (D§3) · Effective armor at reticle `hud.effArmor` **Off** · Ribbons `hud.ribbons` **On**. (12) |
+| INTERFACE | UI scale `ui.scale` 80–120 % **100** (Compact: fixed 100 %; capped per display, §1.1.1) · Panel opacity `ui.panelOpacity` Follow Roblox / 60–100 % **Follow** · Tooltips `ui.tooltips` **On** · Tooltip delay `ui.tooltipDelay` Short / Normal / Long **Normal** · Title screen `ui.titleScreen` **On** · Open debrief after battle `ui.resultsAuto` **On** · 12-hour clock `ui.clock12h` **Off** · Keyboard hints bar `ui.hintsKbm` **Off**. (8) |
+| HUD | HUD scale `hud.scale` 80–150 % **100** (capped per display, §1.1.1; when the effective height E < 960 the HUD uses the Reduced tier, §S31) · Team panels `hud.teamPanels` Hidden / Compact / Full **Full** · Team HP `hud.teamHp` Full / Bar only / % only / None **Full** · Damage log `hud.damageLog` Off / 4 / 8 lines **8** · Kill feed `hud.killFeed` **On** · Battle chat `hud.chat` **On** (forced Off on console) · Marker names `hud.markerNames` On Alt / Always / Never **On Alt** · Marker HP numbers `hud.markerHp` On Alt / Always **On Alt** · Reticle size `hud.reticleSize` 80–120 % **100** · Server reticle `hud.serverReticle` Off / On / Both **Off** (D§3) · Effective armor at reticle `hud.effArmor` **Off** · Ribbons `hud.ribbons` **On**. (12) |
 | CONTROLS | Bindings `ctl.bind` (encoded; §S40 defaults) · Mouse sensitivity arcade `ctl.sensArcade` 0.1–3.0 **1.0** · sniper `ctl.sensSniper` **0.8** (× tan(FOV/2) scaling, D§16) · Invert Y `ctl.invertY` **Off** · Sniper `ctl.sniperMode` Toggle / Hold **Toggle** · Free look `ctl.freeLook` Hold / Toggle **Hold** · Info overlay `ctl.info` Hold / Toggle **Hold** · Wheel past min zoom enters sniper `ctl.wheelSniper` **On**. (8) |
 | CONTROLLER | Bindings `pad.bind` (encoded) · Look sensitivity arcade `pad.sensArcade` **1.0** · sniper `pad.sensSniper` **0.7** · Response curve `pad.curve` Linear / Default (2.0) / Aggressive (3.0) **Default** · Deadzone left `pad.deadzoneL` 5–30 % **12** · right `pad.deadzoneR` **10** · Invert Y `pad.invertY` **Off** · Vibration `pad.haptics` 0–100 **70** · Cruise control on L3 `pad.cruise` **On** · Sniper `pad.sniperMode` Toggle / Hold **Hold**. (10) |
 | TOUCH | Aim sensitivity `touch.sens` **1.0** · sniper `touch.sensSniper` **0.7** · Fire button size `touch.fireSize` 90–120 % **100** · Custom layout `touch.layout` (encoded positions, `CUSTOMIZE LAYOUT` editor P2) · Movement stick `touch.stickMode` Dynamic / Fixed **Dynamic** · Vibration `touch.haptics` **Off**. (6) |
-| CAMERA | Field of view `cam.fov` 60–90 **70** (D§16) · Starting distance `cam.distance` Near / Mid / Far **Mid** · Sniper horizontal stabilisation `cam.sniperStab` **On** · Zoom steps `cam.zoomSteps` (multi-select of ×2/×4/×8/×16/×25, optics-limited) **×2 ×4 ×8** · Free look returns `cam.freeLookReturn` Instantly / Smoothly **Smoothly**. (5) |
+| CAMERA | Field of view `cam.fov` 60–90 **70** (D§16) · Starting distance `cam.distance` Near / Mid / Far **Mid** · Sniper horizontal stabilisation `cam.sniperStab` **On** · Zoom steps `cam.zoomSteps` (multi-select of ×2/×4/×8/×16/×25, optics-limited) **×2 ×4 ×8** · Free look returns `cam.freeLookReturn` Instantly / Smoothly **Smoothly** · Last sniper zoom step `cam.lastZoom` (internal, restored next battle, REG-MINI-06) **×2**. (6) |
 | ACCESSIBILITY | Team colours `a11y.scheme` Default / Deuteranopia / Protanopia / Tritanopia **Default** (live preview card) · High contrast `a11y.highContrast` **Off** · Text size boost `a11y.textBoost` Follow Roblox / +15 % / +30 % **Follow** · Reduced motion `a11y.reducedMotion` Follow Roblox / On / Off **Follow** · Reduced effects `a11y.reducedEffects` **Off** · Captions `a11y.captions` Off / Crew / Crew + radio **(first-launch choice)** · Caption size `a11y.captionSize` Normal / Large **Normal** · Sound visualisation `a11y.soundViz` **Off** · Hold-to-confirm `a11y.holdConfirm` 0.6–2.0 s / Two-step **1.2 s**. (9) |
 | NOTIFICATIONS | Categories `ntf.categories` (encoded: rewards, research, missions, social, store; all **On**) · Toast duration `ntf.duration` Normal / Long (×2) **Normal** · Notification sound `ntf.sound` **On** · Quiet while queued `ntf.dndQueue` **On** · Friend online alerts `ntf.friendOnline` **Off** · Platoon invites from `ntf.invitesFrom` Everyone in this server / Friends / Nobody **Everyone**. System notices cannot be turned off. (6) |
 | MINIMAP | Size `map.size` 224 / 288 / 352 / 416 / 480 **352** (D§16) · Opacity `map.opacity` 40–100 % **90** · Rotate with camera `map.rotate` **Off** · Circles `map.circles` (encoded: view range On, 445 m spotting limit On, 564 m draw limit Off) · Last-known markers `map.lastKnown` **On** (30 s, D§21 #11) · Grid labels `map.grid` **On** · Names on minimap `map.names` Off / Platoon / All **Platoon** · Camera cone `map.cone` **On**. (8) |
@@ -1697,7 +1720,7 @@ the defaults in this table exactly.
 ┌ PLATOON  2 / 3 ─────────────────────────────────────────────────────────────────────────── [×] ┐
 │ ┌[avatar] RidgeRunner ♛ ┐ ┌[avatar] OkraTank      ┐ ┌ [ + ]  INVITE      ┐                    │
 │ │ Section Leader         │ │ Gun Sergeant          │ │                    │                    │
-│ │ VIII ◈ Tukkhald  READY │ │ VIII ⬢ Tundmal NOT RDY│ │                    │                    │
+│ │ VIII ◈ Tukkhald  READY │ │ VIII ⬢ Sextant NOT RDY│ │                    │                    │
 │ └────────────────────────┘ └───────────────────────┘ └────────────────────┘                    │
 │ ⚠ Same tier required · max 1 artillery · 3 players                                               │
 │ INVITE  [ IN THIS GARAGE | FRIENDS | RECENT ]   [search name…]                                    │
@@ -1718,9 +1741,12 @@ the defaults in this table exactly.
 * **Invite lifecycle:** `INVITE` (`→ PlatoonInvite`, 0.2/s) → button shows "Invited · 0:30" countdown → receiver gets an
   actionable toast (30 s; also in the center) → `ACCEPT`: same server = joins at once; other server = "Joining
   RidgeRunner's garage…" overlay, the server teleports the receiver to the leader's Hub server, where the platoon join
-  completes on arrival → toast "Joined RidgeRunner's platoon". Expired / declined → sender toast.
-* **Platoon chat:** a `TextChatService` channel per platoon (server-created, filtered by Roblox); hidden on console
-  (chat window disabled).
+  completes on arrival → toast "Joined RidgeRunner's platoon". Expired / declined → sender toast. If the leader's
+  server is full (50) or the teleport fails, the receiver stays and both sides get "Couldn't join RidgeRunner's
+  garage. The server is full." (the invite is consumed; the leader can re-invite or move to the receiver's server via
+  `JOIN`).
+* **Platoon chat:** a `TextChatService` `TextChannel` per platoon (server-created, filtered by Roblox), rendered in
+  this modal's chat strip (the Hub has no core chat window, §1.12); hidden on console.
 * **States:** none (strip shows invite slots) · forming · ready check · queued (cards locked, `CANCEL` only for the
   leader) · in battle.
 * **Controller:** initial focus = first empty slot (`INVITE`); `[LB]/[RB]` invite list tabs; `[Y]` ready toggle.
@@ -1814,9 +1840,9 @@ arrives (setting `ui.resultsAuto`), or a `ResultsReady` toast if the player has 
 ┌──────────────────────────────────────────────────────────────────────────────────────────────────────────┐
 │ (map art, 40 % scrim)                                                                                    │
 │ ┌─ YOUR TEAM ──────────────────┐        ╔══════════════════════════════╗        ┌─ ENEMY TEAM ───────────┐│
-│ │◈ VIII Tukkhald   RidgeRunner●│        ║ CINDER VALLEY                ║        │⬢ VIII Regnion  Vellmar_9││
-│ │⬢ VIII Tundmal    OkraTank  ②│        ║ ▔▔▔ (dusk ridge underline)   ║        │◈ IX Sovrion    BOT      ││
-│ │◉ VII  Gardelle   BOT        │        ║ OPEN TRIALS · CONTEST        ║        │…                        ││
+│ │◈ VIII Tukkhald   RidgeRunner●│        ║ CINDER VALLEY                ║        │◈ VIII Regnion  Vellmar_9││
+│ │⬢ VIII Sextant    OkraTank  ②│        ║ ▔▔▔ (dusk ridge underline)   ║        │◈ IX Sovrion    BOT      ││
+│ │◉ VII  Lirett     BOT        │        ║ OPEN TRIALS · CONTEST        ║        │…                        ││
 │ │…  15 rows                    │        ║ Capture the enemy base or    ║        │                         ││
 │ │                              │        ║ destroy every enemy vehicle. ║        │                         ││
 │ └──────────────────────────────┘        ╚══════════════════════════════╝        └─────────────────────────┘│
@@ -1828,11 +1854,11 @@ arrives (setting `ui.resultsAuto`), or a `ResultsReady` toast if the player has 
 | Element | Rect | Content / binding |
 |---|---|---|
 | Map art | full | `Maps/<id>` 1280 × 720 thumbnail (B§9), 40 % ink scrim, climate strip along the bottom edge |
-| Ally list | (48, 120, 520, 15 × 40) | `RosterRow` 40 px: class glyph 20 (ally colour), tier `label`, vehicle name `body.s` Bold, player name `caption` (or `BOT` chip with skill: Recruit / Regular / Veteran, D§8), platoon pip number, self row with `team.self` text and 2 px white left edge. Sorted by tier desc, then class order heavy, medium, TD, light, artillery. `BV.roster` |
+| Ally list | (48, 120, 520, 15 × 40); row height = 40 when H ≥ 960, else ⌊(H − 360) / 15⌋ (≥ 28) so the list clears the bottom-anchored tip | `RosterRow` 40 px: class glyph 20 (ally colour), tier `label`, vehicle name `body.s` Bold, player name `caption` (or `BOT` chip with skill: Recruit / Regular / Veteran, D§8), platoon pip number, self row with `team.self` text and 2 px white left edge. Sorted by tier desc, then class order heavy, medium, TD, light, artillery. `BV.roster` |
 | Enemy list | (1352, 120, 520, 600) | same, enemy colour |
 | Map card | (640, 160, 640, 300) | map name `h1`, dusk ridge underline, mode · battle type `label`, objective sentence `body.l` (per battle type, §S29.1), team size "15 v 15" |
 | Tip | (360, 860, 1200, 48) | class- and vehicle-aware tips (e.g. artillery, magazines) |
-| Progress | (560, 940, 800, 4) + status (560, 952, 800, 24) | `Loading map` (map build + `MapReady`, D§10) → `Loading vehicles` → `Waiting for players 27/30 · bots take over in 0:31` (45 s arrival window, D§9) → hands over to §S30 |
+| Progress | (560, 940, 800, 4) + status (560, 952, 800, 24) | `Loading map` (map build + `MapReady`, D§10) → `Loading vehicles` → `Waiting for 2 commanders (12 / 14 here) · bots take over in 0:31` (45 s arrival window, D§9) → hands over to §S30 |
 
 #### S29.1 Objective copy (original)
 
@@ -1875,15 +1901,15 @@ local client (server tick latency aside); team panels and minimap are visible fr
 ```
 ┌─[Roblox]───────────────────┬──────────── H-01 SCORE ────────────┬──────────────────────────────────────────┐
 │ H-03 ALLIES                │   7  ███████████ 11:42 ██████████  5 │                              H-03 ENEMIES │
-│ ◈ VIII Tukkhald  Ridge…  ▬ │      14,250          ⏱        11,980 │ ▬ Vellmar_9   Regnion VIII ⬢            │
-│ ⬢ VIII Tundmal   OkraT…② ▬ │  H-02 [◎ CAPTURING ENEMY BASE ▬▬▬▱ 64 ×3]                     …            │
+│ ◈ VIII Tukkhald  Ridge…  ▬ │      14,250          ⏱        11,980 │ ▬ Vellmar_9   Regnion VIII ◈            │
+│ ⬢ VIII Sextant   OkraT…② ▬ │  H-02 [◎ CAPTURING ENEMY BASE ▬▬▬▱ 64 ×3]                     …            │
 │ …                          │           H-14 [^ spotted]                                    H-12 KILL FEED │
 │                            │                                                                  ▸ ▸ ▸     │
-│ H-19 CHAT                  │                 H-07 [⬢ VIII Regnion ▬▬▬▬ 1,120  212 m]                      │
+│ H-19 CHAT                  │                 H-07 [◈ VIII Regnion ▬▬▬▬ 1,120  212 m]                      │
 │ [Radio] OkraTank: Attack   │                                                                              │
 │                            │                      ( ◜ ⊙ ◝ )  7.4    ← H-05 reticle + reload               │
 │ H-11 DAMAGE LOG            │                      H-15 [DAMAGE 358] ribbons                              │
-│ −358 [AP] Regnion ⚙Engine  │                                                                              │
+│ −299 [AP] Regnion ⚙Engine  │                                                                              │
 │ BLOCKED [APCR] unseen      │                H-20 captions [Crew] Engine damaged                           │
 │ H-09 ▣ 2,340 ◇ 860 ▤ 1,200 │                                                         ┌── H-04 MINIMAP ──┐│
 │ ┌ H-09 DAMAGE PANEL ──────┐│        H-10 [⚙][1 AP 30][2 APCR 6][3 HE 6] [4 ✚][5 ✚][6 ⛑]   │ A B C D E F G H J K││
@@ -1893,35 +1919,45 @@ local client (server tick latency aside); team panels and minimap are visible fr
 └────────────────────────────┴──────────────────────────────────────────────────────────────────────────────┘
 ```
 
-| Id | Element | Rect | Gui (insets) |
-|---|---|---|---|
-| H-01 | Score bar | (640, 8, 640, 88) | `HUD` (Device) |
-| H-02 | Capture bars | (720, 104, 480, 28) each, max 2 stacked | `HUD` |
-| H-03 | Team panels | allies (16, T+8, 320, 360) · enemies (1584, T+8, 320, 360) | `HUD` |
-| H-04 | Minimap | (1552, 712, 352, 352) default; sizes 224 / 288 / 352 / 416 / 480 anchored bottom-right | `HUDInput` (Core) |
-| H-05 | Reticle and reload | centre | overlay |
-| H-06 | Penetration indicator | reticle ring segments | overlay |
-| H-07 | Target card | (840, 404, 240, 44) | `HUD` |
-| H-08 | Vehicle markers | world-projected | pooled overlay (`PreRender`) |
-| H-09 | Damage panel + efficiency strip | (16, 864, 360, 200) + strip (16, 832, 360, 24) | `HUD` |
-| H-10 | Mechanic, ammo, consumables bar | (704, 984, 512, 80), centred; 664 wide when event abilities show | `HUDInput` |
-| H-11 | Damage log | (16, 624, 440, 8 × 24) | `HUD` |
-| H-12 | Kill feed | (1504, 440, 400, 5 × 28) | `HUD` |
-| H-13 | Hit direction | ring r 220 around centre | overlay |
-| H-14 | Spotted alert | (928, 176, 64, 64) (+ ripples to 128) | `HUD` |
-| H-15 | Ribbons | (810, 660, 300, 3 × 40) | `HUD` |
-| H-16 | Kill and hit callouts | (760, 616, 400, 32) | `HUD` |
-| H-17 | Status banner | (660, 296, 600, 48) | `HUD` |
-| H-18 | Low-HP vignette | full screen edges | `HUD` |
-| H-19 | Chat | slot (16, 440, 440, 176) | engine chat window (TextChatService) |
-| H-20 | Captions | (560, 880, 800, 56) | `HUD` |
-| H-21 | Sound visualisation | ring r 300 around centre | overlay |
-| H-22 | Incoming artillery warning | (896, 352, 128, 44) | `HUD` |
-| H-23 | Perf overlay | (1784, T+8, 120, 20) when enabled (moves the enemy panel down 28) | `HUD` |
+**Density tiers and anchors.** The HUD is laid out on its **effective canvas**, W × E, where E = H ÷ `hud.scale`
+(§1.1.1). `hud.scale` is capped so that E ≥ 720 and W ≥ 1,360 (≥ 1,448 in event modes with abilities).
+* **Full tier:** E ≥ 960.
+* **Reduced tier:** 720 ≤ E < 960. It is entered automatically, for example on 1080p at `hud.scale` ≥ 113 % or on a
+  1280 × 720 laptop above 100 % (its canvas is 1,707 × 960).
+
+Formulas use W and E; at 1920 × 1080 Full they give the "Rect at 1080p" column. The layout was checked for overlaps
+and edge margins at E = 720–1,800 and aspect ratios 5:4 to 21:9, with and without event abilities.
+
+| Id | Element | Rect at 1080p | Full-tier anchor / formula | Reduced tier (E < 960) | Gui (insets) |
+|---|---|---|---|---|---|
+| H-01 | Score bar | (640, 8, 640, 88) | top-centre (W/2 − 320, 8, 640, 88) | same | `HUD` (Device) |
+| H-02 | Capture bars | (720, 104, 480, 28) each, max 2 stacked (104, 136) | top-centre (W/2 − 240, 104 / 136) | same | `HUD` |
+| H-03 | Team panels | allies (16, 64, 320, 360) · enemies (1584, 64, 320, 360) | top-left (16, 64) · top-right (W − 336, 64); 15 rows × 24 | hidden; hold `[Tab]` / `[View]` for the scoreboard | `HUD` |
+| H-04 | Minimap | (1552, 712, 352, 352) default | bottom-right (W − 16 − s, E − 16 − s, s, s); size s ∈ 224 / 288 / 352 / 416 / 480, capped to the largest that keeps ≥ 3 kill-feed lines and clears H-10 by 32 px (s ≤ E − 548 and s ≤ W/2 − ½·H-10 width − 48) | same, s ≤ E − 172 | `HUDInput` (Core) |
+| H-05 | Reticle and reload | centre | (W/2, E/2) | same | overlay |
+| H-06 | Penetration indicator | reticle ring segments | with H-05 | same | overlay |
+| H-07 | Target card | (840, 404, 240, 44) | centre (W/2 − 120, E/2 − 136) | **below** the reticle (W/2 − 120, E/2 + 36) | `HUD` |
+| H-08 | Vehicle markers | world-projected | – | same | pooled overlay (`PreRender`) |
+| H-09 | Damage panel + efficiency strip | (16, 864, 360, 200) + strip (16, 832, 360, 24) | bottom-left (16, E − 216) + strip (16, E − 248) | same | `HUD` |
+| H-10 | Mechanic, ammo, consumables bar | (704, 984, 512, 80) | bottom-centre (W/2 − 256, E − 96, 512, 80); 664 wide (W/2 − 332) with event abilities | same | `HUDInput` |
+| H-11 | Damage log | (16, 632, 440, 8 × 24) | bottom-left, bottom edge E − 256; lines = min(`hud.damageLog`, ⌊(E − 824) / 24⌋) so the chat slot keeps ≥ 120 px (8 at 1080, 7 at 1000, 5 at 960) | 3 lines at (16, E − 328, 440, 72) | `HUD` |
+| H-12 | Kill feed | (1504, 440, 400, 5 × 28) | right (W − 416, 440, 400); lines = min(5, ⌊(minimap top − 448) / 28⌋) ≥ 3 | 3 lines at (W − 16 − w, 64, w, 84), w = min(400, (W − 640)/2 − 24) | `HUD` |
+| H-13 | Hit direction | ring r 220 around centre | centre | same | overlay |
+| H-14 | Spotted alert | (928, 176, 64, 64) (+ ripples to 128) | top-centre (W/2 − 32, 176) | same | `HUD` |
+| H-15 | Ribbons | (810, 660, 300, 3 × 40) | centre (W/2 − 150, E/2 + 120) | shares one slot with H-20 (below) | `HUD` |
+| H-16 | Kill and hit callouts | (780, 616, 360, 32) | centre (W/2 − 180, E/2 + 76) | (W/2 − 180, E/2 + 88) | `HUD` |
+| H-17 | Status banner (also H-22) | (660, 280, 600, 48) | top-centre (W/2 − 300, 280) | same | `HUD` |
+| H-18 | Low-HP vignette | full screen edges | – | same | `HUD` |
+| H-19 | Chat | slot (16, 440, 440, 184) | left, from y 440 down to the damage-log top − 8 (≥ 120) | 3-line ticker (16, 64, w, 84), w as H-12; expands to 8 lines over the HUD while typing | engine chat window (TextChatService) |
+| H-20 | Captions | (560, 880, 800, 56) | bottom-centre, y E − 200, half-width = min(400, W/2 − 392, W/2 − s − 48) | the H-15 slot (W/2 − hw, E/2 + 128, 2·hw, 80), hw = min(400, W/2 − 472, W/2 − s − 48); a caption pre-empts ribbons, which queue behind it | `HUD` |
+| H-21 | Sound visualisation | ring r 300 around centre | centre | same | overlay |
+| H-22 | Incoming artillery warning | uses the H-17 slot | pre-empts any H-17 banner for its 1 s, then the banner resumes | same | `HUD` |
+| H-23 | Perf overlay | (1784, 8, 120, 20) when enabled | top-right corner (W − 136, 8), above the enemy panel | same | `HUD` |
 
 `HUD` is the gauges gui (`DeviceSafeInsets`, non-interactive, never under the Roblox buttons: top-left items start
-at `T`); `HUDInput` holds anything clickable or touchable (`CoreUISafeInsets`). HUD scale (80–150 %) scales every
-element about its anchor; at > 120 % the damage log drops to 4 lines and the kill feed to 3 so nothing overlaps.
+at y 64, below the engine row `T` ≈ 56). `HUDInput` holds anything clickable or touchable (`CoreUISafeInsets`).
+`hud.scale` sets E and does not scale elements independently, so these formulas are the only overlap rules. Touch
+devices use §S39 instead of this table.
 
 #### H-01 Score bar
 
@@ -1986,7 +2022,21 @@ Pieces from `assets/icons/battle/reticle_*` (B§8.7), all white with ink keyline
   chamfered pip per shell (filled = loaded) + intra-clip timer; autoreloader = per-slot mini bars filling
   independently; dual gun = two barrel pips L / R with their own reload rings, volley charge = a dusk arc filling around
   the dispersion ring for 1.0 s, then "1.5 s" between barrels; charged shot = the same charge arc (1.5 s) with "×0.6
-  dispersion" or "+10 % damage" label per vehicle.
+  dispersion" or "+10 % damage" label per vehicle; adaptive magazine (Tier XI) = magazine pips plus a top-off ring on
+  the next empty pip.
+* **Fire-button semantics** (all inputs; the client sends a fire request and the server's `GunState` decides, A§6.1):
+  * **Single, magazine, autoreloader:** the shot fires on press.
+  * **Dual gun** (D§4; report 03: "charge is cancelled by releasing fire early"):
+    * A press shorter than 0.25 s fires one barrel **on release**. This adds ≤ 0.25 s of latency, on dual-gun
+      vehicles only.
+    * Holding ≥ 0.25 s starts the volley charge. The arc covers the full 1.0 s, including the first 0.25 s.
+    * The volley fires **automatically** when the charge completes.
+    * Releasing before it completes cancels the volley: no shot, no reload consumed.
+  * **Charged shot** (Tier XI):
+    * Tap fires a normal shot on release.
+    * Holding charges for 1.5 s; releasing fires, with the bonus only if the charge was full.
+    * Hull movement > 0.5 km/h resets the arc to 0 and charging resumes when the vehicle stops (report 03: "charging
+      cancels on hull movement").
 * **Target lock**: four `reticle_lock_bracket`s around the locked target's marker, dusk when locked;
   `cue_target_locked` / `cue_target_unlocked`.
 * **Gun limits**: when the aim point is outside the gun's traverse or elevation arc (casemates ±11°, D§3), a short white
@@ -2014,7 +2064,7 @@ penetrate, the target card adds "Splash damage only". Effective thickness readou
 
 240 × 44 above the reticle, shown while the reticle is over a visible vehicle or a vehicle is locked: class glyph 20
 (team colour), tier, vehicle name `body.s` Bold, player name `caption` (or `BOT`), HP bar 200 × 4 + `mono`
-"1,120 / 1,350", distance `mono` "212 m", optional "Eff. 186 mm". Fades out 300 ms after the target leaves.
+"1,120 / 1,620", distance `mono` "212 m", optional "Eff. 186 mm". Fades out 300 ms after the target leaves.
 
 #### H-08 Vehicle markers (B§8.6; one pooled overlay, no `BillboardGui`)
 
@@ -2078,11 +2128,11 @@ Up to 8 lines (`hud.damageLog`), newest at the bottom, each fades after 12 s; `m
 
 | Event | Line example |
 |---|---|
-| Penetration received | `−358  [AP] Regnion · Vellmar_9   ⚙ Engine` |
+| Penetration received | `−299  [AP] Regnion · Vellmar_9   ⚙ Engine` |
 | Blocked / absorbed | `BLOCKED  [APCR] Regnion   290 blocked` (white) |
 | Ricochet | `RICOCHET  [AP] Sovrion` |
 | HE splash | `−61  [HE] splash · BOT Sovrion` |
-| Fire / ram / fall / drown | `−40  FIRE` · `−86  RAM · Tundmal` · `−24  FALL` |
+| Fire / ram / fall / drown | `−40  FIRE` · `−86  RAM · Sovrion` (enemies only: allied rams deal 0, D§2) · `−24  FALL` |
 | Unseen attacker | `−358  [AP] unseen` — identity is shown **only** if the attacker was visible to the player's team at that moment (REG-SPT-08) |
 
 The shell tag uses the `ammo.*` colour plus the 12 px shell silhouette; crits append the module / crew glyph.
@@ -2107,7 +2157,9 @@ The bearing is the shell's own path (the impact reveals it), not the shooter's p
 The dusk crest chevron with two expanding ripple arcs at (928, 176), 2 s (D§5, D§21 #12), plus `cue_sixth_sense`
 (ducks other buses 4 dB, AU§3.3). It fires 3 s after the server reports the player first team-visible to the enemy;
 it does not fire while the commander is injured (the damage panel shows the injured commander), and there is no
-"unspotted" cue. Reduced motion: the chevron fades in and out without ripples.
+"unspotted" cue. Exactly one alert per spotting episode, and only if the player is still team-visible at the 3 s
+mark. A new episode starts only after the player has been unseen by the enemy team (their 10 s linger expired,
+D§5; REG-SPT-05 as amended by D§21 #12). Reduced motion: the chevron fades in and out without ripples.
 
 #### H-15 Ribbons
 
@@ -2137,9 +2189,11 @@ vignette breathes at the heartbeat's 75 bpm between 25 % and 35 % (static under 
 #### H-19 Chat
 
 Roblox `TextChatService` team channel (`RBXTeam`, all-chat off, D§9), using the engine chat window configured by
-`ChatWindowConfiguration` (left-aligned, vertically centred, width and height scales chosen to fit the (16, 440, 440,
-176) slot — exact fit is an in-engine verification item) and `ChatInputBarConfiguration.KeyboardKeyCode = Return`.
-Command presets appear as `[Radio] OkraTank: Attack`. Hidden on console (chat window disabled) and by `hud.chat`.
+`ChatWindowConfiguration` and `ChatInputBarConfiguration.KeyboardKeyCode = Return`. The window is left-aligned and
+vertically centred; `WidthScale` and `HeightScale` are recomputed whenever the H-19 slot changes (tier, damage-log
+lines), so the window fits the slot. Exact fit is an in-engine verification item (§5.5). Command presets appear as
+`[Radio] OkraTank: Attack`. Commands that carry a position add the grid square: `[Radio] OkraTank: Enemy spotted here ·
+E5` (`MapLayout.gridLabel`, REG-MINI-05). Hidden on console (chat window disabled) and by `hud.chat`.
 
 #### H-20 Captions
 
@@ -2156,7 +2210,8 @@ Never for unspotted engines and never with identity.
 #### H-22 Incoming artillery
 
 When an artillery shell will land within its splash radius of the player, 1 s before impact (D§7.4): artillery class
-glyph in `state.danger` + `micro` "INCOMING" at (896, 352) and a short ring pulse around the reticle.
+glyph in `state.danger` + `label` "INCOMING" in the H-17 slot, pre-empting any status banner for 1 s, and a short ring
+pulse around the reticle.
 
 ### S32 Sniper and artillery overlays (`Screens/BattleHUD/Sniper`)
 
@@ -2208,7 +2263,8 @@ HE splash note).
 * **Rate limits** (D§9): markers 3 per 5 s and 12 per minute, chat presets 1 per 10 s. Limited sectors show a
   cooldown sweep and play `ui_error` if chosen.
 * **Delivery on allies' screens:** minimap pin (pin family), world marker at the target or position (3 s), chat line
-  `[Radio] Name: Command`, radio sound and caption (`a11y.captions`).
+  `[Radio] Name: Command` with ` · <grid square>` appended for commands that carry a position (H-19, REG-MINI-05),
+  radio sound and caption (`a11y.captions`).
 
 | Command | Glyph | Sound | Marker |
 |---|---|---|---|
@@ -2231,6 +2287,8 @@ HE splash note).
   damage numbers for others mid-battle **O** (they appear in the Debrief). Centre column 280 px: map, battle type,
   objective, clock, team HP. Bottom strip: the player's damage / assist / blocked / spotted, and tracked missions with
   **estimated** progress ("estimated · confirmed after battle"), `cue_objective_update` when an estimate completes.
+  The ids and starting progress come from the teleport `tracked` snapshot (§0.4). The client evaluates them with the
+  shared `Missions` conditions against its own `BV` counters; they are display only.
 * **Big map** (`[M]`, `[D←]`, minimap tap): 800 × 800 centred map with all minimap layers, larger glyphs (20 px) and
   names on hover; pings by click / cursor + `[A]` (pad moves a cursor with the left stick); legend strip below.
   The battle continues; the player's vehicle keeps its last input released (throttle 0) while the map is open on
@@ -2251,9 +2309,17 @@ HE splash note).
 
 Opened by `[Bksp]`, pad `[B]` held 0.6 s (a ring fills around a menu glyph bottom-right while holding), or the touch
 menu button. Buttons: `RESUME` (initial focus) · `SETTINGS` (battle subset, §S22) · `CONTROLS` · `LEAVE BATTLE`
-(destructive). Leave while alive: Destructive modal "Your vehicle is still fighting. If you leave, a bot takes over:
-no victory bonus, and it counts as a strike (1 of 3 today)." with hold-to-confirm (D§9). Leave after destruction: plain
-confirm, no strike. Proving Field adds `RESTART DRILL` and `SKIP DRILL`.
+(destructive). Leave while alive: Destructive modal with hold-to-confirm (D§9). The copy depends on the strike this
+leave would be. The Battle place has no profile, so the count comes from `strikes24h`, which the Hub copies from
+`PV.moderation.afkStrikes` into the manifest loadout snapshot at enqueue (§5.4 #11):
+
+| Strike | Modal copy |
+|---|---|
+| 1st | "Your vehicle is still fighting. If you leave, a bot takes over and you get no rewards for this battle. Strike 1 of 3 in 24 h." |
+| 2nd | "… no rewards for this battle, and your queue locks for 10 min. Strike 2 of 3 in 24 h." |
+| 3rd+ | "… no rewards for this battle, and your queue locks for 60 min. Strike 3 in 24 h." |
+
+Leave after destruction: plain confirm, no strike. Proving Field adds `RESTART DRILL` and `SKIP DRILL`.
 
 ### S37 Battle end banner (`Screens/BattleHUD/EndBanner`)
 
@@ -2276,28 +2342,29 @@ notification center, or Profile › Battles. **Exit:** `TO BATTLE` (re-queues th
 │  VICTORY                                              ┌──────── vehicle card (ViewportFrame 640 × 300) ───────┐ │
 │  ▔▔▔▔▔ Enemy base captured                            │                 TUKKHALD · Tier VIII                  │ │
 │  First win of the day ×2                              └───────────────────────────────────────────────────────┘ │
-├─[ SUMMARY ]─[ PERSONAL ]─[ TEAM ]─[ REPORT ]─[ PROGRESS ]─────────────────────────────────────────── [LB][RB] ──┤
-│ ┌DAMAGE──┐┌ASSIST──┐┌BLOCKED─┐┌SPOTTED─┐┌DESTROYED┐    ┌ VEHICLE XP ─┐┌ CREDITS ─────┐┌ FREE XP ┐┌ CREW XP ┐ │
-│ │ 2,340  ││  860   ││ 1,200  ││   3    ││   2     │    │ 1,624  ×2   ││ +48,210 net  ││  81     ││ 1,624   │ │
-│ └────────┘└────────┘└────────┘└────────┘└─────────┘    └─────────────┘└──────────────┘└─────────┘└─────────┘ │
-│ ROLE SCORE ▬▬▬▬▬▬▬▬▬▬|▬▬ 1.24× class median   HONOURS [badge][badge]   TEAM XP RANK 3 / 15   PASS +8         │
+├─[ SUMMARY ]─[ TEAM ]─[ REPORT ]─[ PROGRESS ]───────────────────────────────────────────────────────── [LB][RB] ──┤
+│ ┌DAMAGE──┐┌ASSIST──┐┌BLOCKED─┐┌SPOTTED─┐┌DESTROYED┐        ROLE SCORE ▬▬▬▬▬▬▬▬▬▬|▬▬ 1.24× class median          │
+│ │ 2,340  ││  860   ││ 1,200  ││   3    ││   2     │        HONOURS [badge][badge]   TEAM XP RANK 3 / 15         │
+│ └────────┘└────────┘└────────┘└────────┘└─────────┘        PASS +8                                              │
+│ ┌ VEHICLE XP ──┐┌ CREDITS ─────┐┌ FREE XP ─────┐┌ CREW XP ─────┐                                               │
+│ │ 1,624  ×2    ││ +48,210 net  ││  41          ││ 1,624        │      [ DETAILS ▾ ] shots · hits · pens · …   │
+│ └──────────────┘└──────────────┘└──────────────┘└──────────────┘                                               │
 │                                                                          [ GARAGE ]   [■■■ TO BATTLE ■■■]      │
 └────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 | Region | Rect | Content |
 |---|---|---|
-| Header | (144, 72, 1752, 220) | outcome `display.hero` (VICTORY `text.brand` + dusk ridge underline / DEFEAT `text.primary` / DRAW `text.secondary`, never colour alone: the word carries it), reason `body.l`, first-win ×2 chip, AFK strike notice in `state.danger` if `afkStrike` ("Inactive in battle: no rewards", D§9) |
-| Vehicle card | (1216, 72, 640, 300) | one `ViewportFrame` with the player's vehicle model (LOD1) in its cosmetics over the darkened map art (B§9) |
-| Tabs | (144, 308, 1752, 48) | five tabs, shoulder glyphs |
+| Header | (144, 72, 1752, 220) | outcome `display.hero` (VICTORY `text.brand` + dusk ridge underline / DEFEAT `text.primary` / DRAW `text.secondary`, never colour alone: the word carries it), reason `body.l`, first-win ×2 chip, defeat-protection chip "Top 5 on the losing team · XP ×1.25" when `rewards.xp.defeatProtection > 0` (D§7.2), AFK strike notice in `state.danger` if `afkStrike` ("Inactive in battle: no rewards", D§9) |
+| Vehicle card | (1216, 72, 640, 300); right-anchored; hidden when W < 1,600 | one `ViewportFrame` with the player's vehicle model (LOD1) in its cosmetics over the darkened map art (B§9) |
+| Tabs | (144, 308, 1752, 48) | the four decided tabs (D§14), shoulder glyphs |
 | Tab body | (144, 372, 1752, 580) | per tab below |
 | CTA row | (1400, 968, 496, 56) | `GARAGE` (secondary) · `TO BATTLE` (primary, same vehicle and mode, D§14 "battle again" on every tab) |
 
-| Tab | Content | Data |
+| Tab | Content | Data (`Types/Battle` `RewardInboxEntry`) |
 |---|---|---|
-| **SUMMARY** | five stat tiles 200 × 140 (`num.l`): damage, assist (spotting + tracking + stun), blocked, spotted, destroyed; four reward tiles 280 × 140: vehicle XP (with ×2), net Credits (sign + colour + icon), Free XP, Crew XP; Role Score bar (D§7.2; 1.0 = class × tier median, marker at the value); honours earned (badges 64 + names, §5.3); team XP rank; pass points | `summary.stats`, `rewards.xp`, `rewards.credits.net`, `summary.medals`, `stats.roleScore`, `stats.teamXpRank`, `rewards.passPoints` |
-| **PERSONAL** | own detail table (shots fired / hits / penetrations / criticals, damage received / blocked / ricochets / non-pens, capture and defense points, distance, time alive, cause of destruction) + **per-enemy exchanges** table: enemy (class glyph, vehicle, player), shots at · hits · pens · crits · damage dealt · spotted · destroyed | `summary.stats`, `interactions[]` |
-| **TEAM** | two sortable tables (allies, enemies), rows 40 px: platoon pip, name (`BOT` chip), vehicle (tier + class glyph), damage, assist, blocked, destroyed, spotted, XP, Role Score, honours count, survived glyph; own row highlighted; default sort XP desc; row → **player card** | `roster[]` (`ResultRow`) |
+| **SUMMARY** | **Row 1** at y 372: five performance tiles, 200 × 140 (`num.l`): damage, assist (spotting + tracking + stun), blocked, spotted, destroyed. Beside them (x 1,224–1,896): the Role Score bar (D§7.2; 1.0 = class × tier median, marker at the value), honours earned (badges 64 + names, §5.3), team XP rank, pass points. **Row 2** at y 528: four reward tiles, 280 × 140: vehicle XP (with ×2), net Credits (sign + colour + icon), Free XP, Crew XP. Tiles shrink to fit at W < 1,920 (min 168 / 240). `DETAILS ▾` (secondary) expands a table below: shots fired / hits / penetrations / criticals, damage received / blocked / ricochets / non-pens, capture and defense points, distance, time alive, cause of destruction | `summary.stats` (`BattleStats`, incl. `roleScore`, `teamXpRank`), `rewards.xp`, `rewards.credits.net`, `summary.medals`, `rewards.passPoints` |
+| **TEAM** | two sortable tables (allies, enemies), rows 40 px: platoon pip, name (`BOT` chip), vehicle (tier + class glyph), damage, assist, blocked, destroyed, spotted, XP, Role Score, honours count, survived glyph; own row highlighted; default sort XP desc. An **enemy row expands** in place into the per-enemy hits (D§14 "row → per-enemy hits"): shots at · hits · pens · crits · damage dealt · spotted it · destroyed it, and hits / damage received from it. `[X]` / click on a name opens the **player card** | `roster[]` (`ResultRow`; platoon number requested, §5.4), `interactions[]` (`Interaction`) |
 | **REPORT** | ledger in three groups — Credits, XP, Other — rendering `rewards.lines` **verbatim** in their given order (D§14, A§7): label from `LedgerLineKey` copy table, `detail`, multiplier chip (`×2`), signed amount with currency icon; group totals; **net Credits** row; negative net in `state.danger` with a `WHY?` button (modal explaining repair and ammo costs at Tiers IX–XI, the auto-repair floor `DebtWaived`, and "play a lower tier to earn Credits") | `rewards.lines`, `rewards.credits` |
 | **PROGRESS** | before → after bars with deltas: daily / weekly / campaign missions touched (completions get a CLAIM shortcut), pass points and stage, research progress to the next module or vehicle (`4,200 / 9,800 XP · RESEARCH ›`), crew perk training per member, barrel band progress (`marksProgress`), mastery reached, achievements earned | `RewardApplied` deltas (Hub-computed), `PV` |
 
@@ -2311,60 +2378,75 @@ the other tabs show "Team details are kept for battles from this session."
 
 **Motion and sound:** SUMMARY tiles count up in sequence (60 ms stagger, 600 ms each, `countUp`), reward tiles last
 with a 400 ms dusk shimmer; honours pop with `ui_achievement_unlocked`; music `RESULTS_WIN / LOSE / EVEN` (AU§11).
-Reduced motion: final values immediately. **Controller:** `[LB]/[RB]` tabs, `[Y]` TO BATTLE, `[B]` Garage, `[X]` player
-card on a focused row, `[LT]/[RT]` page tables. Initial focus: `TO BATTLE`.
-**Compact:** header 120 px (no vehicle card), tiles in a 2 × 3 grid, tables show name / damage / XP with row expand.
+Reduced motion: final values immediately. **Controller:** `[LB]/[RB]` tabs, `[Y]` TO BATTLE, `[B]` Garage, `[A]` expands
+a focused enemy row, `[X]` player card on a focused row, `[LT]/[RT]` page tables. Initial focus: `TO BATTLE`.
+**Compact:** header 120 px (no vehicle card), tiles in a 3-column grid (performance 5, rewards 4), tables show name /
+damage / XP with row expand.
 **Acceptance:** every currency and XP number shown equals the ledger (lines sum to totals, REG-RES goldens); nothing
 is recomputed client-side; enemy identities appear (the battle is over); TO BATTLE works from every tab and re-queues
 within 200 ms.
 
-### S39 Mobile battle layout (Compact HUD, 844 × 390)
+### S39 Mobile battle layout (Compact HUD, 844 × 390; canvas W 693–950, H 390–480)
 
 ```
-┌[≡][💬] core row ────────── H-01 ▮7 ▬▬ 11:42 ▬▬ 5▮ ───────────────────────────────────────────────┐
-│┌MINIMAP 160┐ [COMMS]   H-09 ♥ 1,240 ▬▬▬▬ ⚙! ◉!      [^]spotted                     [✚] 4      │
-││           │ [SCORE]   H-12 kill feed (3) / target card                            [✚] 5      │
-││           │ [MENU ]                                                                [⛑] 6      │
-│└───────────┘                              ◜ ⊙ ◝  7.4                  [+] (SNIPER)  [3]          │
-│                                                                       [−]       [2]            │
-│                          ribbons                                 [MECH]     [1]   ( FIRE )     │
-│      ( ○ ) stick ghost                                                             (  104 )    │
-│                    captions                                                                    │
-└────────────────────────────────────────────────────────────────────────────────────────────────┘
+┌[≡][💬] core row ───────── H-01 ▮7 ▬▬ 11:42 ▬▬ 5▮ [^]─────────────────────────────────────────────┐
+│┌MINIMAP 160┐ [COMMS]  H-09 ♥ 1,240 ▬▬▬▬ ⚙! ◉!              ( SNIPER ) [ZOOM]   [✚] 4            │
+││           │ [BOARD]  H-12 kill feed (3) / target card       (  ×4   ) [MECH]   [✚] 5            │
+││           │ [MENU ]                                                            [⛑] 6            │
+│└───────────┘                        ◜ ⊙ ◝  7.4                           (3)                    │
+│                                    ribbons                          (2)                         │
+│      ( ○ ) stick ghost                                             (1)     ( FIRE )             │
+│                               captions                                     (  104 )             │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘
   left 40 %: dynamic movement stick          right 60 %: aim drag zone (outside buttons)
 ```
 
-| Element | Rect (x, y, w, h) at 844 × 390, full-screen reference | Notes |
-|---|---|---|
-| Movement stick | dynamic in x 0–338 below y 230 (and anywhere in x 0–338 not covered by buttons) | base Ø 128 (spawns under the thumb), knob Ø 56, idle ghost centred (120, 290); `touch.stickMode` Fixed pins it there; feeds `Drive` via `InputBinding:Fire()` (D§16) |
-| Aim zone | x 338–844 minus buttons | drag = aim (`touch.sens`, × zoom factor); tap a visible enemy marker = target lock toggle |
-| Fire | (716, 262, 104, 104) | D§16: 104 px, 24 px from safe edges; reload progress ring 4 px around it; hold = dual-gun volley / charged shot charge |
-| Ammo ×3 | centres (644, 303), (666, 243), (716, 202), Ø 56 | arc left of Fire (r 124 from its centre); tap = select next shell; long-press 0.5 s = swap now (full reload); count badge |
-| Sniper | (563, 160, 72, 72) | toggles sniper; shows the zoom (`×4`) |
-| Zoom − / + | (499, 204, 48, 48) / (499, 148, 48, 48) | sniper view only; pinch in the aim zone also zooms |
-| Mechanic | (491, 268, 56, 56) | only when the vehicle has one |
-| Consumables ×3 | (764, 52, 56, 56), (764, 116, 56, 56), (764, 180, 56, 56) | right edge (D§16); cooldown sweep; highlight rules of H-10 |
-| Minimap | (12, 52, 160, 160) | D§16; tap = big map (60 % of the screen, centred) with tap-to-ping |
-| Comms | (184, 52, 56, 56) | tap = context ping; hold 250 ms = radial (Ø 300 around the thumb) |
-| Field menu | (184, 172, 48, 48) | opens §S36 |
-| Scoreboard | (184, 116, 48, 48) | toggle |
-| Score bar | (272, 4, 300, 40) | non-interactive, in the device-safe top band |
-| Damage panel | (272, 48, 300, 44) | HP `num.m` + bar 160 + up to 6 chips (24 px) for non-OK modules / crew / fire / stun only |
-| Kill feed | (272, 96, 300, 66) | 3 lines × 22 |
-| Spotted alert | (580, 52, 48, 48) | right of the damage panel on Compact (top-centre is taken) |
-| Reticle | centre (422, 195) | the target card (272, 96, 300, 32) replaces the kill feed while a target is under the reticle |
-| Ribbons | (272, 236, 200, 2 × 28) | max 2 |
-| Captions | (200, 334, 400, 40) | non-interactive |
+**Anchors.** `L` = from the left edge. `R` = right-anchored, x given as `W − d`. `C` = centred on `W/2`. `T` = from the
+top. `B` = from the bottom: y is given at H = 390, and on taller canvases add `H − 390`. The reticle sits at
+(W/2, H/2). All battle controls are authored at ≥ 56 px (51.5 rendered at the 0.92 floor, §1.14) with ≥ 9 px gaps.
 
-Hidden on Compact: team panels (scoreboard instead), damage log (2 latest lines appear for 4 s under the damage panel
-instead), chat (opened from the Field menu), efficiency strip (in the scoreboard). Touch targets: every battle control
-≥ 48 rendered px at the 0.92 floor scale (authored ≥ 52); 8 px minimum gaps (REG-INP-04 checks overlap and safe area at
-667 × 375, 844 × 390, 932 × 430). Multi-touch: stick, aim and one button may be held at once (fire while steering and
-aiming). Optional layout editor (`touch.layout`, P2) lets players drag Fire, Sniper, ammo and consumables within
-snapping zones; positions are validated against overlap before saving.
+| Element | Anchor | Rect at 844 × 390 | Formula | Notes |
+|---|---|---|---|---|
+| Minimap | L T | (12, 52, 160, 160) | – | D§16 160 px; tap = big map (60 % of the screen, centred) with tap-to-ping |
+| Comms | L T | (181, 52, 56, 56) | – | tap = context ping; hold 250 ms = radial (Ø 300 around the thumb) |
+| Scoreboard | L T | (181, 117, 56, 56) | – | toggle |
+| Field menu | L T | (181, 182, 56, 56) | – | opens §S36 |
+| Movement stick | L B | zone x < 0.4 W, anywhere not covered by a button | – | base Ø 128 (spawns under the thumb), knob Ø 56; Fixed mode (`touch.stickMode`) ghost centred (120, H − 90); feeds `Drive` via `InputBinding:Fire()` (D§16) |
+| Aim zone | – | x ≥ 0.4 W minus buttons | – | drag = aim (`touch.sens`, × zoom factor); tap a visible enemy marker = target lock toggle; two-finger pinch = zoom in sniper view |
+| Consumables ×3 | R T | (764, 52 / 117 / 182, 56, 56) | x = W − 80 | right edge (D§16); cooldown sweep; highlight rules of H-10 |
+| Sniper | R T | (594, 52, 72, 72) | x = W − 250 | D§16 72 px; tap toggles sniper view; shows the zoom (`×4`) while active |
+| Zoom | R T | (675, 52, 56, 56) | x = W − 169 | sniper view only; tap = next zoom step (×2 → ×4 → ×8 → … per optics → ×2); pinch also zooms |
+| Mechanic | R T | (675, 117, 56, 56) | x = W − 169 | only when the vehicle has one (D§4) |
+| Fire | R B | (716, 262, 104, 104) | (W − 128, H − 128) | D§16 104 px, 24 px from the safe edges; reload ring 4 px around it; hold semantics per H-05 (dual-gun volley, charged shot) |
+| Ammo ×3 | R B | centres (640.0, 336.6), (645.8, 269.5), (684.4, 214.4), Ø 56 | Fire centre + 130 × (cos θ, sin θ), θ = 170°, 200°, 230° | arc left of Fire (D§16); keys 1 / 2 / 3 from the bottom; tap = select next shell; long-press 0.5 s = swap now (full reload); count badge |
+| Score bar | C T | (272, 4, 300, 40) | x = W/2 − 150 | non-interactive, in the device-safe top band |
+| Spotted alert | C T | (580, 2, 44, 44) | x = W/2 + 158 | right of the score bar (Compact only) |
+| Damage panel | L T | (249, 48, 300, 44) | width wc = min(300, W − 508) | HP `num.m` + bar + up to 4 chips (24 px) for non-OK modules / crew / fire / stun; at wc < 240 the bar shrinks to 48 and chips show `+N` beyond 3 |
+| Kill feed / target card | L T | (249, 100, 300, 60) | width wc | 3 lines × 20. One slot, by priority: target card while a target is under the reticle; then the damage-log flash (2 latest received lines, 4 s); otherwise the kill feed |
+| Reticle | C | centre (422, 195) | (W/2, H/2) | – |
+| Ribbons | C | (322, 236, 200, 56) | (W/2 − 100, H/2 + 41) | max 2 |
+| Captions | C B | (241, 310, 362, 58) | width cw = min(400, W − 482); x = W/2 − cw/2; y = H − 80 | non-interactive; up to 3 lines when cw < 300 |
 
-**Tablets** (Regular layout, touch input): the Regular HUD with touch controls scaled × 1.15 and positioned with the
-same anchors (Fire bottom-right 24 px from the edges, consumables on the right edge); team panels Compact.
+Hidden on Compact: team panels (scoreboard instead), damage log (flash in the kill-feed slot instead), chat (opened
+from the Field menu), efficiency strip (in the scoreboard), H-10 (ammo and consumables are the touch controls).
+
+**Verified rules.** At every canvas width W 693–950 and height H 390–480, and with or without sniper view and the
+mechanic, this layout keeps:
+* no two controls closer than 9 px;
+* no gauge overlapping a control or another gauge;
+* no right-side control at x < 0.4 W + 16, which keeps them clear of the stick zone;
+* no control within 72 px of the reticle centre;
+* 24 px right and bottom margins, and controls at y ≥ 52 (below the core row).
+
+At 693 wide (16:9) the damage panel and kill feed are 185 wide and captions 211; at 844 they are 300 and 362.
+REG-INP-04 runs this at 667 × 375, 844 × 390 and 932 × 430. Multi-touch: stick, aim and one button may be held at
+once (fire while steering and aiming). Optional layout editor (`touch.layout`, P2) lets players drag Fire, Sniper,
+ammo and consumables within snapping zones. It validates positions against the rules above before saving.
+
+**Tablets** (touch input on a Regular display). The battle HUD uses this same arrangement and anchors on a canvas
+700 px tall (HUD root = vh / 700, §1.1.1): 933 × 700 on a 4:3 iPad, 1,007 × 700 at 1180 × 820. That renders Fire at
+about 114–122 px. The extra height goes between the top-anchored and bottom-anchored groups. The rules above hold
+at W 933–1,120 × H 700 (checked). Menus on tablets stay Regular (§1.14).
 
 ### S40 Battle input maps (console controller and keyboard / mouse)
 
@@ -2374,7 +2456,7 @@ same anchors (Fire bottom-right 24 px from the edges, consumables on the right e
 |---|---|---|
 | Left stick | Drive (deadzone `pad.deadzoneL`) | – |
 | Right stick | Aim / look (response curve `pad.curve`) | – |
-| `[R2]` | Fire (D§16) | Dual-gun volley / charged shot (release fires) |
+| `[R2]` | Fire (D§16) | Dual-gun volley (fires itself at full charge; early release cancels) / charged shot (release fires), per H-05 |
 | `[L2]` | Sniper view (hold by default, `pad.sniperMode`) | – |
 | `[L1]` | Target lock on / off (D§16 "L1 lock") | Free look (turret holds its heading) |
 | `[R1]` | Next shell to load (D§16); double-tap within 0.5 s = swap now (full reload, D§4) | Ammo radial (3 shells; release on a shell to queue it, `[A]` while open = swap now) |
@@ -2398,18 +2480,19 @@ menus and on H-10 slots (`[X]` glyph on the smart-consumable target slot). Hapti
 | Key | Action | Key | Action |
 |---|---|---|---|
 | `[W][A][S][D]` | Drive | Mouse | Aim |
-| `[LMB]` | Fire (hold = volley / charge) | `[RMB]` | Tap: target lock · Hold: free look |
+| `[LMB]` | Fire (hold = volley / charge, H-05) | `[RMB]` | Tap (< 0.25 s): target lock · Hold: free look |
 | `[Shift]` | Sniper view (toggle; `ctl.sniperMode`) | `[Wheel]` | Zoom; past min / max switches view |
 | `[1]`–`[3]` | Shells (press twice = swap now) | `[4]`–`[6]` | Consumables |
 | `[7]`–`[8]` | Event abilities | `[X]` | Vehicle mechanic |
 | `[C]` hold | Command radial | `[T]` | Context ping |
-| `[Tab]` | Hold: scoreboard · Tap: team panel mode | `[M]` | Big map |
+| `[Tab]` | Hold ≥ 0.25 s: scoreboard · Tap: team panel mode (core `PlayerList` is disabled, §1.12) | `[M]` | Big map |
 | `[Alt]` hold | Info overlay | `[-]` / `[=]` | Minimap size |
 | `[Enter]` | Chat (engine chat bar; `/` also works) | `[R]` | Cruise control cycle |
 | `[Bksp]` | Field menu | `[Q]` / `[E]` | Spectate: previous / next ally |
 | `[F]` | Smart consumable (same rule as pad `[X]`) | `[V]` | Camera distance cycle |
 
-Never bound: Esc, F9, F10 (Roblox graphics hotkey), F11, F12, PrintScreen (D§16).
+Never bound: Esc, F9, F10 (Roblox graphics hotkey), F11, F12, PrintScreen (D§16). Hold / tap thresholds are 0.25 s
+everywhere except the Field-menu hold (0.6 s); `ctl.*` / `pad.*` hold-or-toggle settings replace the hold where offered.
 
 **HUD acceptance (S31–S40).**
 1. With 30 vehicles and 120 shells in flight the HUD's Luau time stays within §1.17 (mobile ≤ 1.5 ms, PC ≤ 0.8 ms)
@@ -2585,9 +2668,10 @@ Paths are under `src/ReplicatedStorage/Client/UI/Screens/` (A§10). "Router" = r
 | S35 | Destroyed / spectate | `Screens/BattleHUD/Spectate` | HUD | `BV.own.alive`, allies; `SpectateTarget`, `LeaveBattle` | P1 |
 | S36 | Field menu | `Screens/BattleHUD/FieldMenu` | modal (`Menu` context) | `ST` subset; `LeaveBattle` | P0 |
 | S37 | Battle end banner | `Screens/BattleHUD/EndBanner` | HUD | `BV.phase`, outcome event | P0 |
-| S38 | Debrief / Results | `Screens/Results/*` (`Summary`, `Personal`, `Team`, `Report`, `Progress`, `PlayerCard`) | overlay over Garage | `SS.resultsCache`, `GetResult`, `ResultsReady`, `RewardApplied` | P0 (Summary + Report), P1 rest |
+| S38 | Debrief / Results | `Screens/Results/*` (`Summary`, `Team`, `Report`, `Progress`, `PlayerCard`) | overlay over Garage | `SS.resultsCache`, `GetResult`, `ResultsReady`, `RewardApplied` | P0 (Summary + Report), P1 rest |
 | S39 | Mobile battle layout | `Screens/BattleHUD/Touch` | `HUDInput` | `BV.*`, `ST.touch.*` | P0 |
 | S40 | Battle input maps | `Client/Controllers/Input` bindings (+ `Screens/BattleHUD/Radials`) | – | `ST.ctl.bind`, `ST.pad.bind` | P0 |
+| §1.6.1 | Economy modals (Exchange, Convert XP, Sell, Buy back, Plus vehicle, Boosters, Map preferences) | `Screens/Modals/*` (`Exchange`, `ConvertXp`, `SellVehicle`, `Buyback`, `PlusVehicle`, `Boosters`, `MapPreferences`) | modal | `PV.currencies`, `PV.vehicles`, `PV.inventory.boosters`, `PV.matchmaking`; `ExchangeBullion`, `ConvertXP`, `SellVehicle`, `BuybackVehicle`, `SetPlusVehicle`, `ActivateBooster`, `SetMatchmakingPrefs` | P1 (Sell, Exchange P0) |
 
 `VehicleInspect`, `Social`, `GameMenu`, `Deploying`, `FirstLaunch`, `Carousel/MotorPool` and the BattleHUD
 sub-screens extend the A§10 screen list; the ARCHITECTURE owner should add them in the same change as the code.
@@ -2612,6 +2696,9 @@ sub-screens extend the A§10 screen list; the ARCHITECTURE owner should add them
 | `RadialMenu` | §S33, ammo / consumable radials | |
 | `MarkerOverlay` · `ReticleView` · `MinimapView` · `DamagePanel` · `AmmoBar` | HUD | no per-frame allocation |
 | `ArmorProbe` | §S12 | |
+| `ContextMenu` | carousel card, Inspect overflow (§1.6.1) | `[RMB]` / long-press 0.5 s / overflow button; Back closes |
+| `TouchControls` (stick, Fire, ammo arc, zoom, sniper) | §S39 | anchored per §S39; layout validator shared with the `touch.layout` editor |
+| `AnchoredLayout` helper | every screen | applies the §1.1.1 thirds rule and explicit formulas; one unit-tested pure function per screen region |
 
 ---
 
@@ -2657,7 +2744,9 @@ display names are required:
 | Confederate (≥ 6 hit, later destroyed by allies) | **Shoulder to Shoulder** |
 | High Caliber (most damage, ≥ 20 % of enemy HP) | **Heavy Hand** |
 | "Battle Heroes" group | **Field Honours** |
-| Gun Marks / Mastery classes | **Barrel Bands** / Ace · First · Second · Third Class |
+| Gun Marks / Mastery Ace · I · II · III | **Barrel Bands** / **Ridge · Gold · Silver · Bronze Mastery** (the other game's "Ace / 1st / 2nd / 3rd Class" must not appear) |
+| Barracks / Depot (UI labels) | **Reserve** / **Spares** |
+| Crew books 5k · 25k · 60k (D§14 "Booklet", "Guide") | **Field Notes** · **Drill Manual** · **Crew Codex** |
 | Crew starters Recon · Practicality · Mentor | Long Watch · Field Economy · Field Tutor |
 | Snap Shot · Deadeye · Quick Aiming | Quick Lay · Plate Reader · Steady Hand |
 | Clutch Braking · Smooth Ride · Engineer | Pivot Hand · Level Ride · Engine Tuner |
@@ -2666,6 +2755,21 @@ display names are required:
 | Sixth Sense | "Spotted alert" (no perk name) |
 | Random Battle / Encounter / Assault / Boot Camp / About Vehicle / My Vehicles / Playlists | Open Trials / Crossroads / Breach / Proving Field / Inspect / Motor Pool / Lineups (§0.3) |
 
+**For Content to review (D§13 item names shown in the UI).** Several decided item names are near-verbatim copies of
+the other game's items. The UI shows `CR` names, so they must change in content, not here. Proposals:
+
+| Decided item | Issue | Proposed name |
+|---|---|---|
+| Large Repair Kit | verbatim | Field Workshop |
+| Large Medkit | near-verbatim | Trauma Kit |
+| Automatic Extinguisher | near-verbatim | Fire Suppression System |
+| Laying Drive | "Gun Laying Drive" | Elevation Servo |
+| Torsion Bars | "Reinforced Torsion Bars" | Heavy Suspension |
+| Crew Ventilation | "Improved Ventilation" | Fighting-Compartment Fans |
+| Rations | "Extra Combat Rations" | Field Rations |
+
+Generic engineering terms (Rammer, Spall Lining, Coated Lenses, Turbo Kit) can stay.
+
 ### 5.4 Engineering and data (owners named)
 
 1. **Shared:** add `Penetration.requiredPen(path, shell)` and `Penetration.chance(meanPenMm, requiredPenMm)`
@@ -2673,7 +2777,17 @@ display names are required:
 2. **Content / renderer:** `CustomizationKind` already has `Decal`, `Attachment` and `Effect` (`Types/Content`). The
    Exterior preview needs the client renderer to place decals and attachments at the slot hotspots (§S17)
    (Render).
-3. **Kit:** add the `TopBar` layer (`TopbarSafeInsets`, DisplayOrder 25) with the fallback in §1.1 (UI kit).
+3. **Kit** (`docs/systems/ui-kit.md` already ships the `TopBar` and `HUDInput` layers):
+   * add the 48 px fallback band of §1.1;
+   * make TV = `IsTenFootInterface()` only. The kit also treats `ViewportDisplaySize.Large` and "gamepad on a ≥ 1600 px
+     display" as TV, which would put desktop players into the × 1.25 TV layout;
+   * cap `ui.scale` / `hud.scale` per display (§1.1.1);
+   * set the HUD root scale = Regular root × effective `hud.scale` (§1.1.1, §S31);
+   * set the Compact battle root = `min(1.25, vh / 390)`;
+   * make the modal `pop` start at 0.98 (kit: 0.92) and use fade-only section switches (kit: slide 24 px), as §1.3 and
+     §3.2 specify. Exits that cut (the kit's synchronous lifecycle) are accepted when the revealed screen plays its
+     entrance, but the modal scrim must still fade (120 ms);
+   * lock `ui.scale` to 1.0 on Compact (UI kit).
 4. **Net:** register the §0.6 remotes in `RemoteDefs/*` with the stated rate limits; `RewardApplied` must carry the
    mission / pass / research deltas the PROGRESS tab shows (Progression, Matchmaking, Social, Battle).
 5. **BattleView contract** (§0.5) including enemy team HP for the score bar and the visibility flag on received damage
@@ -2681,6 +2795,20 @@ display names are required:
 6. **QA docs:** REG-UIX-01 asks for 48 px targets on Compact; D§21 #16 decides 44 px for menus and 48 px for battle.
    This spec follows the decision; update REG-UIX-01's wording (QA).
 7. **ARCHITECTURE §10** screen list additions (§4.1) (Architecture owner).
+8. **Results data:** add `platoon: number?` to `ResultRow` (TEAM tab pip); `RewardInboxEntry` already carries
+   `interactions` for the TEAM row expansion (Progression).
+9. **Content validation** (`ContentRegistry.validate`, Content):
+   * fail on a `camoBonus` cosmetic without a Credits price (§S17, D§5 / D§15);
+   * fail on a Bullion-priced `Booster` store item (§S20, D§11).
+10. **Economy rules to confirm** (Economy owner):
+    * Plus-vehicle change at most once per 24 h (§1.6.1, **O**);
+    * the last owned vehicle cannot be sold (**O**);
+    * buyback price = the Credits refund × 1.10 (§1.6.1);
+    * `ClaimMission` / `ClaimPassStage` accept a key list (§0.6).
+11. **Manifest:** add `strikes24h` (0–3) to each human's loadout snapshot so the Field menu can name the consequence
+    of leaving (§S36) (Matchmaking).
+12. **Teleports:** send per-player (or per-platoon) `TeleportOptions` with the settings payload, both ways (§0.4).
+    The return teleport carries only changed keys (Matchmaking, Battle).
 
 ### 5.5 In-engine verification items (add to D§22)
 
@@ -2694,6 +2822,14 @@ display names are required:
 7. Robux price glyph rendering in Builder Sans; `GetProductInfoAsync` latency and caching.
 8. `HapticService` motor support per controller; touch haptics availability.
 9. Landscape lock (`LandscapeSensor`) on phones in Hub and Battle.
+10. Core UI: `SetCoreGuiEnabled(PlayerList, false)` frees `[Tab]`; `ResetButtonCallback = false`; Hub core chat
+    window off, platoon `TextChannel` rendered in our panel; `ChatInputBarConfiguration.KeyboardKeyCode = Return` only
+    in the Battle place (§1.12).
+11. `GuiService:IsTenFootInterface()` true on every console target and false on PC with a gamepad (TV layout
+    trigger, §1.1).
+12. Canvas matrix (§1.1.1): Garage and HUD at 1280 × 720, 1024 × 768, 1920 × 1080 at `hud.scale` 150 %
+    (expect the cap at 141 %), 3440 × 1440; touch HUD at 667 × 375, 844 × 390, 932 × 430, 1024 × 768 and
+    1180 × 820 with the safe-area insets of notched phones.
 
 ### 5.6 Open questions
 
@@ -2702,3 +2838,9 @@ display names are required:
 3. Public profiles of other players (P2) need a server read path for non-session profiles; out of scope for v1.
 4. Lineup share codes are typed or selected manually (no clipboard API on Roblox); confirm acceptable for console
    (where text entry is awkward, import is hidden on console in v1).
+5. `hud.scale` 150 % is capped at 141 % on 1080p and lower on smaller displays (§1.1.1). The Reduced tier keeps it
+   usable, but low-vision players may want element-only scaling (bigger reticle, numbers) without the cap; consider
+   `hud.reticleSize` / `a11y.textBoost` as the path, or a 3rd "Minimal" tier, after accessibility playtests.
+6. Dual-gun singles fire on release (≤ 0.25 s latency, H-05). If playtests find it sluggish, the alternative is
+   "press fires a single, holding past 0.25 s charges the *remaining* barrel". That alternative needs a `GunState`
+   change (Combat owner).
