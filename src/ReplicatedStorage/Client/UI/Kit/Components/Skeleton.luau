@@ -4,10 +4,11 @@
 
 	Purpose:          Shown while data streams in (profile, store catalogue, tech tree) so layouts do not jump:
 	                  bg.raised shapes with a light band sweeping left-to-right every 1.4 s (a UIGradient Offset tween).
-	                  Under reduced motion the shimmer is off and the shapes are static. `lines` builds a paragraph
-	                  stand-in (last line 60 % wide).
+	                  Under reduced motion the shimmer is off and the shapes are static — live: turning reduced motion
+	                  on (Settings, or GuiService.ReducedMotionEnabled) stops running shimmers, turning it off starts
+	                  them. `lines` builds a paragraph stand-in (last line 60 % wide).
 	Dependencies:     Kit/Create, Kit/State, Kit/Theme, Kit/Layout, Kit/Motion, Components/Common.
-	State:            One tween per shape (cancelled when destroyed).
+	State:            One tween and one reduced-motion effect per shape (both end when the shape is destroyed).
 	Validation:       Line counts are clamped to 1..20.
 	Error handling:   N/A.
 	Performance notes: Engine tweens only; keep to a few dozen shapes per screen.
@@ -43,6 +44,15 @@ local Skeleton = {}
 
 Skeleton.PERIOD = 1.4
 
+local SHIMMER_BAND = NumberSequence.new({
+	NumberSequenceKeypoint.new(0, 0.15),
+	NumberSequenceKeypoint.new(0.4, 0.15),
+	NumberSequenceKeypoint.new(0.5, 0),
+	NumberSequenceKeypoint.new(0.6, 0.15),
+	NumberSequenceKeypoint.new(1, 0.15),
+})
+local SHIMMER_STATIC = NumberSequence.new(0.15)
+
 local function shimmer(frame: GuiObject)
 	local gradient = Create.UIGradient({
 		Name = "Shimmer",
@@ -50,31 +60,42 @@ local function shimmer(frame: GuiObject)
 			ColorSequenceKeypoint.new(0, Color3.new(1, 1, 1)),
 			ColorSequenceKeypoint.new(1, Color3.new(1, 1, 1)),
 		}),
-		Transparency = NumberSequence.new({
-			NumberSequenceKeypoint.new(0, 0.15),
-			NumberSequenceKeypoint.new(0.4, 0.15),
-			NumberSequenceKeypoint.new(0.5, 0),
-			NumberSequenceKeypoint.new(0.6, 0.15),
-			NumberSequenceKeypoint.new(1, 0.15),
-		}),
+		Transparency = SHIMMER_BAND,
 		Offset = Vector2.new(-1, 0),
 		Parent = frame,
 	})
-	if Motion.isReduced() then
-		gradient.Offset = Vector2.new(0, 0)
-		gradient.Transparency = NumberSequence.new(0.15)
-		return
-	end
-	local tween = Motion.tween(
-		gradient,
-		{ Offset = Vector2.new(1, 0) },
-		{ duration = Skeleton.PERIOD, easing = "linear", repeatCount = -1, kind = "move" }
-	)
-	if tween ~= nil then
-		Create.onDestroy(frame, function()
+	local tween: Tween? = nil
+	local function stop()
+		if tween ~= nil then
 			tween:Cancel()
-		end)
+			tween = nil
+		end
 	end
+	-- Follows reduced motion live (an infinite tween started before the player turned it on must stop).
+	local connection = State.effect(function()
+		local reduced = Theme.state.reducedMotion:get()
+		State.untracked(function(): nil
+			stop()
+			if reduced then
+				gradient.Offset = Vector2.new(0, 0)
+				gradient.Transparency = SHIMMER_STATIC
+			else
+				gradient.Transparency = SHIMMER_BAND
+				gradient.Offset = Vector2.new(-1, 0)
+				tween = Motion.tween(
+					gradient,
+					{ Offset = Vector2.new(1, 0) },
+					{ duration = Skeleton.PERIOD, easing = "linear", repeatCount = -1, kind = "move" }
+				)
+			end
+			return nil
+		end)
+		return nil
+	end, { name = "Skeleton.shimmer" })
+	Create.onDestroy(frame, function()
+		connection:Disconnect()
+		stop()
+	end)
 end
 
 local function shape(name: string, size: UDim2, circle: boolean, order: number?): Frame

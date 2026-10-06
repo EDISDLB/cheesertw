@@ -328,6 +328,18 @@ local function runTracked(node: Node, fn: (any) -> any, arg: any): (boolean, any
 	end
 	node._sources = newSources
 	node._sourceVersions = newVersions
+	if node._kind == KIND_EFFECT and node._status == CLEAN then
+		-- A source changed AFTER this run read it (typically the effect's own write on its first run, before the
+		-- observer edge existed, so the set could not mark it): it would stay CLEAN on a stale read until some other
+		-- change. Re-queue it like any stale effect (MAX_FLUSH_RUNS still catches an effect that writes forever).
+		for i, source in newSources do
+			if source._version ~= newVersions[i] then
+				node._status = DIRTY
+				table.insert(effectQueue, node)
+				break
+			end
+		end
+	end
 	return ok, result
 end
 
@@ -581,6 +593,11 @@ local function newEffect(fn: () -> any, name: string?, rooted: boolean): Node
 	-- Initial run establishes dependencies (outside any batch it runs immediately).
 	node._status = CLEAN
 	runEffect(node)
+	-- A first run that wrote one of its own sources re-queued itself (runTracked): settle it now (no-op inside a flush
+	-- or a batch, which settle it themselves).
+	if node._status ~= CLEAN then
+		flush()
+	end
 	return node
 end
 

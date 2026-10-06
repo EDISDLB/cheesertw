@@ -104,7 +104,7 @@ function Common.negate(value: CanBeState<boolean>): State<boolean>
 end
 
 --- Tracks hover / press / gamepad selection on a GuiButton (cleaned when it is destroyed).
---- `hoverSound` plays ui_hover on mouse enter (gamepad focus ticks come from Kit/Focus).
+--- `hoverSound` plays ui_hover on mouse enter (rate-limited, Sound.hover; gamepad focus ticks come from Kit/Focus).
 function Common.trackInteraction(button: GuiButton, hoverSound: boolean?): Interaction
 	local hovered = State.Value(false)
 	local pressed = State.Value(false)
@@ -113,7 +113,8 @@ function Common.trackInteraction(button: GuiButton, hoverSound: boolean?): Inter
 		[Create.On("MouseEnter")] = function()
 			hovered:set(true)
 			if hoverSound and InputMode.mode:peek() == "MouseKeyboard" then
-				Sound.play(Sound.KEYS.hover)
+				-- Rate-limited with gamepad focus moves (Sound.hover): sweeping a grid never machine-guns the cue.
+				Sound.hover()
 			end
 		end,
 		[Create.On("MouseLeave")] = function()

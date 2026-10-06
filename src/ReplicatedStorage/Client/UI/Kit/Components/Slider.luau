@@ -4,12 +4,14 @@
 
 	Purpose:          Label + value readout (Builder Mono) over a chamfered `bg.inset` track with an `accent.steel`
 	                  fill and thumb. Mouse/touch drag on the track; gamepad/keyboard: while the track is selected,
-	                  D-pad / arrow keys / A-D / left thumbstick step by `step` (horizontal neighbours point at the
-	                  slider itself so selection does not leave sideways; up/down navigate away). ui_slider_tick per
-	                  step (the AudioEngine rate-limits it).
-	Dependencies:     Kit/Create, Kit/State, Kit/Theme, Kit/Sound, Kit/Services, Components/Chamfer, Components/Text,
-	                  Components/Common.
-	State:            The bound Value, drag flag, thumbstick repeat timer.
+	                  D-pad / arrow keys / A-D / left thumbstick step by `step`, and keep stepping while held (first
+	                  repeat after REPEAT_DELAY, then every REPEAT_INTERVAL — a held stick sends no further
+	                  InputChanged, so the repeat is timed on Heartbeat); horizontal neighbours point at the slider
+	                  itself so selection does not leave sideways; up/down navigate away. ui_slider_tick per step (the
+	                  AudioEngine rate-limits it).
+	Dependencies:     Kit/Create, Kit/State, Kit/Theme, Kit/Sound, Kit/Services, Kit/Motion, Components/Chamfer,
+	                  Components/Text, Components/Common.
+	State:            The bound Value, drag connections, the held direction and its repeat loop.
 	Validation:       min < max required; step > 0 when given; values are clamped and snapped (pure helpers).
 	Error handling:   Invalid ranges raise at build time.
 	Performance notes: Global input listeners are connected only while dragging or selected.
@@ -20,6 +22,7 @@ local State = require("../State")
 local Theme = require("../Theme")
 local Sound = require("../Sound")
 local Services = require("../Services")
+local Motion = require("../Motion")
 local Chamfer = require("./Chamfer")
 local Text = require("./Text")
 local Common = require("./Common")
@@ -51,7 +54,10 @@ local Slider = {}
 local STICK_THRESHOLD = 0.6
 --- Height of the drawn track row (the touch hit area is taller, see Slider.new).
 local TRACK_HEIGHT = 24
-local STICK_REPEAT = 0.15
+--- Held D-pad / arrow / stick: seconds before the first repeat, then seconds between steps (12.5 steps/s, under the
+--- 30/s ui_slider_tick cap).
+Slider.REPEAT_DELAY = 0.35
+Slider.REPEAT_INTERVAL = 0.08
 
 --- Pure: clamps to [min, max] and snaps to the step grid anchored at min.
 function Slider.snap(value: number, min: number, max: number, step: number?): number
@@ -241,21 +247,58 @@ function Slider.new(props: SliderProps): Frame
 		[Create.Cleanup] = stopDrag,
 	})
 
-	-- Gamepad / keyboard stepping while selected.
+	-- Gamepad / keyboard stepping while selected; a held direction repeats.
 	local stepSize = step or (max - min) / 20
 	local selectionConnections: { RBXScriptConnection } = {}
-	local lastStick = 0
-	local function stopStepping()
-		for _, connection in selectionConnections do
-			connection:Disconnect()
-		end
-		table.clear(selectionConnections)
-	end
 	local function nudge(direction: number)
 		if not State.peek(disabled) then
 			commit(value:peek() + direction * stepSize)
 		end
 	end
+	-- The input holding a direction ("stick" or a KeyCode name) and its repeat loop.
+	local heldBy: string? = nil
+	local stickDirection = 0
+	local stopRepeat: (() -> ())? = nil
+	local function release()
+		heldBy = nil
+		if stopRepeat ~= nil then
+			local stop = stopRepeat
+			stopRepeat = nil
+			stop()
+		end
+	end
+	local function hold(source: string, direction: number)
+		release()
+		heldBy = source
+		nudge(direction)
+		local elapsed = 0
+		local nextAt = Slider.REPEAT_DELAY
+		stopRepeat = Motion.loop(function(dt: number): boolean?
+			elapsed += dt
+			if elapsed >= nextAt then
+				nudge(direction)
+				-- At most one step per frame: a frame hitch never fires a burst of catch-up steps.
+				nextAt = math.max(nextAt + Slider.REPEAT_INTERVAL, elapsed)
+			end
+			return nil
+		end)
+	end
+	local function stopStepping()
+		for _, connection in selectionConnections do
+			connection:Disconnect()
+		end
+		table.clear(selectionConnections)
+		release()
+	end
+	-- Keyed by KeyCode name (EnumItems are compared by value, not usable as stable table keys everywhere).
+	local KEY_DIRECTIONS: { [string]: number } = {
+		DPadLeft = -1,
+		Left = -1,
+		A = -1,
+		DPadRight = 1,
+		Right = 1,
+		D = 1,
+	}
 	Create.apply(track, {
 		[Create.On("SelectionGained")] = function()
 			stopStepping()
@@ -270,10 +313,17 @@ function Slider.new(props: SliderProps): Frame
 					if processed and not dpad then
 						return
 					end
-					if key == Enum.KeyCode.DPadLeft or key == Enum.KeyCode.Left or key == Enum.KeyCode.A then
-						nudge(-1)
-					elseif key == Enum.KeyCode.DPadRight or key == Enum.KeyCode.Right or key == Enum.KeyCode.D then
-						nudge(1)
+					local direction = KEY_DIRECTIONS[key.Name]
+					if direction ~= nil then
+						hold(key.Name, direction)
+					end
+				end)
+			)
+			table.insert(
+				selectionConnections,
+				UserInputService.InputEnded:Connect(function(input: InputObject)
+					if heldBy == input.KeyCode.Name then
+						release()
 					end
 				end)
 			)
@@ -284,10 +334,14 @@ function Slider.new(props: SliderProps): Frame
 						return
 					end
 					local x = input.Position.X
-					local now = os.clock()
-					if math.abs(x) >= STICK_THRESHOLD and now - lastStick >= STICK_REPEAT then
-						lastStick = now
-						nudge(if x > 0 then 1 else -1)
+					local direction = if x >= STICK_THRESHOLD then 1 elseif x <= -STICK_THRESHOLD then -1 else 0
+					if direction == 0 then
+						if heldBy == "stick" then
+							release()
+						end
+					elseif heldBy ~= "stick" or stickDirection ~= direction then
+						stickDirection = direction
+						hold("stick", direction)
 					end
 				end)
 			)

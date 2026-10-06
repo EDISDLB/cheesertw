@@ -167,8 +167,11 @@ function ToastStack.new(options: Options?): Stack
 		end
 		stopLoop = Motion.loop(function(dt: number): boolean?
 			local anyTimed = false
-			for _, record in table.clone(records) do
-				if record.hold ~= nil and not record.leaving then
+			-- Backwards by index: leave() may remove a record synchronously (reduced motion = instant slide-out), and
+			-- a per-frame table.clone would allocate every Heartbeat while a toast is up.
+			for i = #records, 1, -1 do
+				local record = records[i]
+				if record ~= nil and record.hold ~= nil and not record.leaving then
 					anyTimed = true
 					if not record.hovered then
 						record.elapsed += dt

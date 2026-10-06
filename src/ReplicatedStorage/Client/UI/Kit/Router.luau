@@ -483,6 +483,12 @@ local function showEntry(_self: RouterImpl, entry: EntryImpl, reason: ShowReason
 	entry.host.Visible = true
 	entry.visible = true
 	safe("show", entry.name, entry.screen.show, entry.screen, entry.params, { reason = reason, previous = previous })
+	if not entry.visible then
+		-- show() navigated (a redirect: push/replace/reset from onShow) and this entry is covered or gone: the new top
+		-- already played its entrance and owns focus; activating this scope now would put a hidden screen on top of the
+		-- focus stack (no gamepad focus, dead ctx.on actions).
+		return
+	end
 	playEntrance(entry, reason)
 	if entry.focus ~= nil then
 		(entry.focus :: Focus.FocusScope):activate()

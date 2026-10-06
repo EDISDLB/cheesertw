@@ -117,6 +117,8 @@ local view: ViewState? = nil
 local owner: GuiObject? = nil
 local ownerPlacement: Placement? = nil
 local showToken = 0
+-- Stops the visibility watch that runs while a tooltip is shown.
+local stopWatch: (() -> ())? = nil
 
 local reposition: () -> ()
 
@@ -253,6 +255,24 @@ function Tooltip.show(target: GuiObject, content: Content, placement: Placement?
 	ownerPlacement = placement
 	current.frame.Visible = title ~= "" or body ~= ""
 	reposition()
+	-- A screen covered by keyboard/gamepad navigation (Router hides its host) fires no MouseLeave under a still
+	-- pointer: watch the owner while the tip is up (one ancestor walk per frame, only while shown) so it never
+	-- lingers over the next screen.
+	if owner == target and current.frame.Visible and stopWatch == nil then
+		stopWatch = Motion.loop(function(): boolean?
+			local watched = owner
+			if watched == nil or view == nil or not (view :: ViewState).frame.Visible then
+				stopWatch = nil
+				return true
+			end
+			if not isShown(watched) then
+				stopWatch = nil
+				Tooltip.hide(watched)
+				return true
+			end
+			return nil
+		end)
+	end
 end
 
 --- Hides the tooltip (only if `target` owns it, when given).
@@ -265,6 +285,11 @@ function Tooltip.hide(target: GuiObject?)
 	local current = view
 	if current ~= nil then
 		current.frame.Visible = false
+	end
+	local stop = stopWatch
+	if stop ~= nil then
+		stopWatch = nil
+		stop()
 	end
 end
 

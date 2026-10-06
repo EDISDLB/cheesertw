@@ -13,7 +13,7 @@
 	Dependencies:     Kit/Create, Kit/State, Kit/Theme, Kit/Focus, Kit/InputMode, Kit/Motion, Kit/Services,
 	                  Components/Common, Core/Trove.
 	State:            The slot pool, current window and lane count per list.
-	Validation:       itemSize/cell must be positive; overscan is clamped to 0..10.
+	Validation:       itemSize/cell must be positive; overscan is clamped to 1..10 (gamepad reachability).
 	Error handling:   A failing `render` raises at construction (programming error).
 	Performance notes: Instances = pool size (viewport rows + 1 + 2 × overscan) × lanes, independent of item count;
 	                  refresh is O(pool) and runs on scroll, resize and item changes only.
@@ -56,7 +56,7 @@ export type VirtualListProps = {
 	--- Content padding in px on all sides (default 0).
 	padding: number?,
 	direction: Direction?,
-	--- Extra rows built beyond each edge (default 2).
+	--- Extra rows built beyond each edge (default 2, minimum 1 so gamepad navigation always has a next row).
 	overscan: number?,
 	--- Context kept around a gamepad-selected item when revealing it (default 48, ui-ux §1.13).
 	revealPadding: number?,
@@ -104,6 +104,8 @@ export type Controller = {
 	slotCount: () -> number,
 	lanes: () -> number,
 	refresh: () -> (),
+	--- Diagnostics (perf tests): slot re-binds and slot placements (Position/Size writes) since creation.
+	stats: () -> { rebinds: number, placements: number },
 }
 
 local VirtualList = {}
@@ -218,6 +220,9 @@ type Slot = {
 	index: State.Value<number>,
 	gui: GuiObject,
 	assigned: number?,
+	-- Index and layout generation the slot was last positioned for (re-placed only when either changes).
+	placedIndex: number?,
+	placedLayout: number,
 }
 
 type EngineConfig = {
@@ -237,7 +242,9 @@ type EngineConfig = {
 local function build(config: EngineConfig): (ScrollingFrame, Controller)
 	local props = config.props
 	local vertical = config.direction ~= "horizontal"
-	local overscan = math.clamp(math.floor(props.overscan or VirtualList.DEFAULT_OVERSCAN), 0, 10)
+	-- At least one row beyond each edge: with none, a viewport edge that falls exactly on a row boundary leaves no
+	-- instantiated row below the last visible one, and gamepad navigation (which needs a target) is stuck there.
+	local overscan = math.clamp(math.floor(props.overscan or VirtualList.DEFAULT_OVERSCAN), 1, 10)
 	local revealPadding = props.revealPadding or 48
 	local animate = props.animate ~= false
 	local pad = config.padding
@@ -306,10 +313,21 @@ local function build(config: EngineConfig): (ScrollingFrame, Controller)
 		local gui = config.render(itemValue, indexValue)
 		gui:SetAttribute("VirtualIndex", index)
 		gui.Parent = frame
-		return { item = itemValue, index = indexValue, gui = gui, assigned = index }
+		return { item = itemValue, index = indexValue, gui = gui, assigned = index, placedIndex = nil, placedLayout = 0 }
 	end
 
+	-- Bumped when lanes or the pool change: every slot's position must be recomputed.
+	local layoutVersion = 1
+	local rebinds, placements = 0, 0
+	local lastExtent = -1
+
 	local function place(slot: Slot, index: number)
+		if slot.placedIndex == index and slot.placedLayout == layoutVersion then
+			return
+		end
+		slot.placedIndex = index
+		slot.placedLayout = layoutVersion
+		placements += 1
 		local row, lane = VirtualList.cellOf(index, lanes)
 		local main = VirtualList.itemOffset(row, config.mainExtent, config.mainGap, pad)
 		local gui = slot.gui
@@ -329,7 +347,8 @@ local function build(config: EngineConfig): (ScrollingFrame, Controller)
 	end
 
 	-- Re-binds the slots of the current window. Defined once with a reused `used` set: refresh runs every frame
-	-- while the list scrolls, so it allocates nothing per call (ARCHITECTURE §3.11).
+	-- while the list scrolls, so it allocates nothing per call (ARCHITECTURE §3.11), and only slots whose index or
+	-- layout changed are re-positioned (a one-row scroll writes one slot, not the whole window).
 	local used: { [number]: boolean } = {}
 	local pendingResize = false
 	local function assignWindow()
@@ -341,17 +360,21 @@ local function build(config: EngineConfig): (ScrollingFrame, Controller)
 			if slot == nil then
 				slot = newSlot(items[index], index)
 				pool[slotNumber] = slot
+				rebinds += 1
 			elseif slot.assigned ~= index or pendingResize then
+				local wasHidden = slot.assigned == nil
 				slot.assigned = index
 				slot.item:set(items[index])
 				slot.index:set(index)
 				slot.gui:SetAttribute("VirtualIndex", index)
+				rebinds += 1
+				if wasHidden then
+					slot.gui.Visible = true
+				end
 			elseif slot.item:peek() ~= items[index] then
 				slot.item:set(items[index])
 			end
-			local placed = slot :: Slot
-			place(placed, index)
-			placed.gui.Visible = true
+			place(slot :: Slot, index)
 		end
 		for slotNumber, slot in pool do
 			if not used[slotNumber] and slot.assigned ~= nil then
@@ -368,15 +391,22 @@ local function build(config: EngineConfig): (ScrollingFrame, Controller)
 		end
 		refreshing = true
 		local view = viewSize()
+		local previousLanes = lanes
 		if config.grid then
 			lanes =
 				VirtualList.lanesFor(crossOf(view), config.crossExtent or 1, config.crossGap, 2 * pad, config.maxLanes)
 		else
 			lanes = 1
 		end
+		if lanes ~= previousLanes then
+			layoutVersion += 1
+		end
 		local rows = rowCount()
 		local extent = VirtualList.contentExtent(rows, config.mainExtent, config.mainGap, pad, pad)
-		frame.CanvasSize = if vertical then UDim2.fromOffset(0, extent) else UDim2.fromOffset(extent, 0)
+		if extent ~= lastExtent then
+			lastExtent = extent
+			frame.CanvasSize = if vertical then UDim2.fromOffset(0, extent) else UDim2.fromOffset(extent, 0)
+		end
 		local wanted = VirtualList.poolSizeFor(mainOf(view), config.mainExtent, config.mainGap, overscan, lanes)
 		wanted = math.min(wanted, math.max(#items, 1))
 		-- Growing the pool changes the ring mapping, so every visible index is re-assigned below.
@@ -482,6 +512,9 @@ local function build(config: EngineConfig): (ScrollingFrame, Controller)
 			return lanes
 		end,
 		refresh = refresh,
+		stats = function(): { rebinds: number, placements: number }
+			return { rebinds = rebinds, placements = placements }
+		end,
 	}
 
 	scope:Add(frame:GetPropertyChangedSignal("CanvasPosition"):Connect(refresh))

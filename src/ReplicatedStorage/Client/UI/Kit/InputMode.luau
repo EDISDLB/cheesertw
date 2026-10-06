@@ -126,10 +126,35 @@ function InputMode.set(mode: Mode)
 	modeValue:set(mode)
 end
 
---- Follows PreferredInput (or the last input type when PreferredInput is unavailable). Returns stop().
+-- Bumped when the connected controller changes: GetStringForKeyCode / GetImageForKeyCode answer for "the currently
+-- connected gamepad", so an Xbox pad swapped for a PlayStation pad (both "Gamepad" mode) must re-resolve prompts.
+local deviceVersion = State.Value(0)
+
+--- Re-resolves every glyphState (start() calls it when a gamepad connects or disconnects).
+function InputMode.refreshGlyphs()
+	deviceVersion:update(function(v: number): number
+		return v + 1
+	end)
+end
+
+--- Follows PreferredInput (or the last input type when PreferredInput is unavailable) and the connected controller
+--- family (prompts switch between Xbox letters and PlayStation symbols). Returns stop().
 function InputMode.start(): () -> ()
 	local UserInputService = Services.input()
 	local connections: { RBXScriptConnection } = {}
+	for _, signalName in { "GamepadConnected", "GamepadDisconnected" } do
+		local ok, signal = pcall(function(): RBXScriptSignal
+			return (UserInputService :: any)[signalName]
+		end)
+		if ok and signal ~= nil then
+			table.insert(
+				connections,
+				signal:Connect(function()
+					InputMode.refreshGlyphs()
+				end)
+			)
+		end
+	end
 	local okPreferred, preferred = pcall(function()
 		return UserInputService.PreferredInput
 	end)
@@ -363,10 +388,11 @@ function InputMode.glyph(action: string | Enum.KeyCode, mode: Mode?): Glyph
 	return { kind = "key", keyCode = keyCode, text = InputMode.keyText(keyCode), image = nil }
 end
 
---- Reactive glyph that follows the input mode and remapping.
+--- Reactive glyph that follows the input mode, remapping and the connected controller family.
 function InputMode.glyphState(action: string | Enum.KeyCode): State<Glyph>
 	return State.Computed(function(): Glyph
 		actionsVersion:get()
+		deviceVersion:get()
 		return InputMode.glyph(action, modeValue:get())
 	end, { equals = State.shallowEqual })
 end

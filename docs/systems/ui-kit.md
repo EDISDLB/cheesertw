@@ -176,6 +176,9 @@ local rows = State.list(items, function(item) return item.id end, function(item,
 * `State.get(x)` / `State.peek(x)` / `State.map(x, fn)` accept plain values or States (`CanBeState<T>`), which is how
   every component accepts both.
 * Setting a Value inside a Computed raises; cyclic reads raise (and are logged).
+* An effect may write a Value it reads (normalise-and-render, clamping): it re-runs until it reads what is stored,
+  including on its very first run. An effect that writes on every run is a loop and raises after
+  `MAX_FLUSH_RUNS` runs instead of hanging.
 
 ## Create
 
@@ -329,6 +332,9 @@ keyboard, nothing on touch). `KeyPrompt.hintBar({ hints })` is the footer hint r
   ignored while a TextBox has focus.
 * Remapping: `InputMode.registerAction(name, { keyboard, gamepad })` replaces an action's keys at any time; the
   `KitUI` context rebinds (`InputMode.actionsChanged`) and every `KeyPrompt`/`glyphState` refreshes.
+* Controller family: prompts also refresh when a gamepad connects or disconnects (`InputMode.start` listens; an Xbox
+  pad swapped for a PlayStation pad switches A/B/X/Y to ✕/○/□/△ and the button art). `InputMode.refreshGlyphs()`
+  forces it.
 * `KeyPrompt.hintBar({ hints, keyboard? })` (48 px) shows on gamepad only unless `keyboard = true` (setting
   `ui.hintsKbm`); never on touch. Bind the screen's 48 px bottom reservation to `KeyPrompt.hintBarShown(keyboard)`.
   Keycaps are chamfered `bg.inset` plates with a Builder Mono (`keycap`) label.
@@ -358,10 +364,13 @@ end)
   newest `TabBar` visible inside the top scope (`Focus.registerShoulder`) — a screen with a TabBar needs no handler.
   TabBar shows the shoulder glyphs (Q/E keycaps on keyboard).
 * LT/RT: the top scope's `onPage` handler (Router screens: `onPage`, e.g. tech-tree zoom), else `Focus.page` scrolls
-  the focused ScrollingFrame (or the scope's first one) by one viewport minus 10 % and focuses the first element
-  fully inside the new page (`Focus.pageOffset` is the pure rule).
+  the nearest **scrollable, visible** ScrollingFrame around the focused element (else the scope's first one) by one
+  viewport minus 10 % and focuses the first element fully inside the new page (`Focus.pageOffset` is the pure
+  rule). Lists on hidden tab pages and frames with `ScrollingEnabled = false` (fixed carousels) are skipped.
 * Right stick scrolls that region smoothly (900 px/s at full deflection, 0.25 dead zone; `Focus.stickScrollStep`).
-  Screens where it orbits the camera register with `{ stickScroll = false }` (Router option / scope option).
+  Screens where it orbits the camera register with `{ stickScroll = false }` (Router option / scope option). The
+  scroll loop only exists while the top scope can stick-scroll in gamepad mode (battle camera input starts nothing)
+  and caches its region until the selection or the top scope changes.
 * Returning to a screen restores the remembered element; if it was destroyed meanwhile (sold, filtered out) focus
   goes to the **nearest selectable sibling** in the same list, else `initialFocus` (ui-ux §1.13 rule 2).
 * Lost focus is repaired (REG-INP-01): when the engine resets `SelectedObject` to nil in gamepad mode (the focused
@@ -371,7 +380,9 @@ end)
   engine keeps dropping is skipped; separate incidents (selling row after row) are always repaired.
 * Select programmatically with `Focus.select(object)` (or `scope:focus(object)`): no hover tick, gamepad mode only.
 * `ui_hover` ticks only for player moves (never for programmatic focus such as initial focus or restoration) and at
-  most 6 per second while scrolling fast (ui-ux §1.16).
+  most 6 per second (ui-ux §1.16). Pointer hovers and focus moves share that budget through `Sound.hover()` (use it
+  for custom hover sounds). Programmatic focus stays silent under `Workspace.SignalBehavior = Deferred` too (the
+  queued `SelectedObject` events of a restore all read the final target).
 * Lists: `Focus.chain(list, "horizontal" | "vertical", wrap?)`, `Focus.grid(list, columns, wrap?)` set explicit
   neighbours; carousels/grids do not wrap (ui-ux §1.13). Scroll containers (`ScrollFrame`, `VirtualList`) reveal the
   selected element with 48 px of context (`Focus.revealOffset`).
@@ -393,7 +404,8 @@ end)
   previous })`, `hide()`, `destroy()`, optional `onBack(): boolean?`, `initialFocus(): GuiObject?`,
   `onShoulder(direction)`, `onPage(direction)`. `Router.define({ build, onShow, onHide, onBack, initialFocus,
   onShoulder, onPage })` builds one from functions. The new screen is built before the old one hides, so a failing build leaves the old screen
-  up (errors are logged, never thrown into the caller).
+  up (errors are logged, never thrown into the caller). A screen may navigate from inside `show` (a redirect such as
+  the Garage pushing pending Battle Results): the covered screen then skips its entrance and does not take focus.
 * Screen context: `ctx.router`, `ctx.name`, `ctx.layer`, `ctx.params` (Value), `ctx.scope` (Trove), `ctx.app`,
   `ctx.on(action, fn)` (screen-scoped KitUI action) and `ctx.isActive()`.
 * Transitions: drill-ins slide 24 px + veil fade (none under reduced motion); roots and sections fade; modals pop
@@ -410,6 +422,9 @@ and the presets `fadeIn/fadeOut`, `slideIn/slideOut(gui, "right", 24)`, `pop`, `
 
 Reduced motion (the player's setting OR `GuiService.ReducedMotionEnabled`) removes movement (slides, pops, pulses,
 shakes, springs, count-ups jump) and caps fades/colour changes at 0.1 s. Always animate through Motion so this holds.
+Motion reads the setting when an animation starts; anything that **loops** (`repeatCount = -1`) must also follow the
+setting live — bind it in an effect on `Theme.state.reducedMotion` that cancels/restarts the tween (Spinner,
+Skeleton shimmer, ProgressBar sweep and the focus-ring pulse do).
 
 ## Components
 
@@ -424,7 +439,7 @@ check against `{ Instance }`).
 | Button | `Button.new({ text, variant = "primary"|"secondary"|"ghost"|"danger"|"premium"|"battle", size = "large"|"medium"|"compact", icon, iconRight, hint, disabled, loading, loadingText, hold = true|seconds, armedText, onActivated, width = n|"fill"|"auto", sound, tooltip })`. `loadingText` swaps the label for the "-ING" verb while loading and keeps the width; `hold` = hold-to-confirm on gamepad (hold A while focused) and touch (hold the finger), with a fill sweep; mouse/keyboard click; with `Theme.state.twoStepConfirm` it arms on the first press (`armedText`) and confirms on the second. `Button.holdController(guiButton, { seconds, enabled, onComplete })` adds the hold to any button (inactive in two-step mode). The loading spinner only runs while loading. |
 | IconButton | `IconButton.new({ icon, label (tooltip), variant = "ghost"|"secondary"|"primary", size = 44, disabled, selected, onActivated })` |
 | Toggle | `Toggle.new({ label, value = Value<boolean> } | { checked, onChanged }, disabled)` — `checked` as a State is controlled (update it from `onChanged`); as a plain boolean it is just the initial value |
-| Slider | `Slider.new({ label, value = Value<number>, min, max, step, format, onChanged, disabled })` — d-pad/stick steps while focused |
+| Slider | `Slider.new({ label, value = Value<number>, min, max, step, format, onChanged, disabled })` — d-pad/arrows/stick step while focused and repeat while held (`Slider.REPEAT_DELAY` 0.35 s, then every `REPEAT_INTERVAL` 0.08 s) |
 | Dropdown | `Dropdown.new({ options = {{ value, label, icon, disabled }}, selected = Value, onChanged, placeholder, width, disabled })` — the list opens in the Tooltip layer, so dropdowns inside modals work |
 | TabBar | `TabBar.new({ tabs = {{ id, label, icon, badge, disabled }}, selected = Value<string>, onChanged, variant = "top"|"segmented", shoulder })` |
 | Chip | `Chip.new({ label, icon, tone, selected, disabled, onActivated, removable, onRemove })`, `Chip.tag(label, tone)` |
@@ -432,7 +447,7 @@ check against `{ Instance }`).
 | Card | `Card.new({ onActivated, selected, disabled, rarity, padding, list, children, sound })` |
 | Modal | `Modal.new({ title, icon, body, children, actions = {{ text, variant, id, icon, hint, disabled, onActivated, keepOpen, focus }}, size = "s"|"m"|"l", dismissible, onClose, banner })` (card for Router modal screens); `Modal.open(props + { onResult, anchor, initialFocus, scope }) -> { close(result), isOpen(), closed, root, dialog }`. **Pass `scope = ctx.scope`**: the dialog then closes (result nil) with the screen instead of covering the next one. A dialog whose layer is destroyed (router teardown) closes itself and releases Back and focus. |
 | ConfirmDialog | `ConfirmDialog.open({ title, body, icon, confirmLabel, cancelLabel, destructive, hold, size, children, onConfirm, onCancel, scope })` — destructive: hazard band, danger button that must be **held** on gamepad/touch (`Theme.state.holdSeconds`, or two presses with `twoStepConfirm`; `hold = false` opts out), focus on Cancel; cleaning `scope` cancels |
-| Tooltip | `Tooltip.attach(target, "text" | { title, body }, { placement, delay }) -> detach`; `Tooltip.show/hide/owner`; `Tooltip.place` (pure). A touch long-press shows the tooltip and never activates the target (kit buttons, cards, chips, toggles and dropdowns check `Common.consumeLongPress`; do the same in custom buttons that carry a tooltip). Activating, hiding or removing the target hides it. |
+| Tooltip | `Tooltip.attach(target, "text" | { title, body }, { placement, delay }) -> detach`; `Tooltip.show/hide/owner`; `Tooltip.place` (pure). A touch long-press shows the tooltip and never activates the target (kit buttons, cards, chips, toggles and dropdowns check `Common.consumeLongPress`; do the same in custom buttons that carry a tooltip). Activating, hiding or removing the target hides it, and so does covering its screen (a per-frame visibility watch runs only while a tip is shown, since a still pointer fires no MouseLeave). |
 | Toast | `Toast.show({ title, body, tone, icon, action = { text, onActivated }, duration, sticky, key, sound = true|false|"ui_purchase", reward = { currency, amount } }) -> id?`, `Toast.reward({ currency, amount, title, sound })`, `Toast.dismiss(id)`. `ui_notification` plays at most once per 1.5 s (bursts share one cue). Toast buttons are never selectable (toasts never take gamepad focus). |
 | ToastStack | `ToastStack.new({ parent, max = 3, position, anchorPoint })` → `:push(spec)`, `:dismiss(id)`, `:clear()`, `:ids()`, `:count()`, `:destroy()`; `ToastStack.default()` |
 | ProgressBar | `ProgressBar.new({ value (0..1), indeterminate, ghost, color, height = 6, segments, animate = true })` |
@@ -441,7 +456,7 @@ check against `{ Instance }`).
 | Badge | `Badge.new({ kind = "tier"|"class"|"premium"|"new"|"count"|"text", tier, class, premium, elite, count, text, tone, size, compact })`, `Badge.tier(n)` |
 | Icon | `Icon.new({ key, size = 24, color, transparency, forceGlyph })` (also `Kit/Components/Icon`) |
 | KeyPrompt | `KeyPrompt.new({ action, label, size })`, `KeyPrompt.hintBar({ hints = {{ action, label }}, align, keyboard })` |
-| VirtualList | `local frame, controller = VirtualList.new({ items, render(item, index), itemSize, gap, padding, direction = "vertical"|"horizontal", crossSize, overscan = 2, revealPadding = 48, animate })` |
+| VirtualList | `local frame, controller = VirtualList.new({ items, render(item, index), itemSize, gap, padding, direction = "vertical"|"horizontal", crossSize, overscan = 2 (min 1), revealPadding = 48, animate })` |
 | VirtualGrid | `VirtualGrid.new({ items, render, cell = Vector2, gap, padding, direction, maxLanes, overscan })` |
 | ScrollFrame | `ScrollFrame.new({ direction = "x"|"y"|"xy", list, grid, padding, children, reveal = true, revealPadding = 48 })`, `ScrollFrame.reveal(frame, object)` |
 | Spinner / Skeleton | `Spinner.new({ size, color })`; `Skeleton.new({ shape = "block"|"lines"|"circle", lines, lineHeight })` |
@@ -454,8 +469,11 @@ check against `{ Instance }`).
 scrolls (never nil). Bind everything to them (`State.map(item, ...)`), keep per-row state in the item, and do not
 cache instances by item. The engine owns each slot's `Position`, `Size` and `Visible`. The pool holds
 (visible rows + 1 + 2 × overscan) × lanes slots and they are re-used by ring assignment, so a selected slot keeps its
-item while it stays in the window. The controller: `scrollToIndex(i, animate?)`, `selectIndex(i)` (gamepad),
-`indexOf(instance)`, `slotFor(i)`, `range()`, `poolSize()`, `slotCount()`, `lanes()`, `refresh()`.
+item while it stays in the window. Only slots whose index (or the lane count) changed are re-positioned, so a
+one-row scroll writes one slot. `overscan` is at least 1: with none, a viewport edge on a row boundary leaves no
+instantiated row below the last visible one and gamepad navigation cannot move on. The controller:
+`scrollToIndex(i, animate?)`, `selectIndex(i)` (gamepad), `indexOf(instance)`, `slotFor(i)`, `range()`,
+`poolSize()`, `slotCount()`, `lanes()`, `refresh()`, `stats()` (`{ rebinds, placements }` for perf tests).
 
 ### The HULLDOWN cut (chamfers)
 
@@ -562,7 +580,15 @@ behaviours cannot be observed there:
 * Input Action System: `KitUI` (priority 3100, Sink false) coexisting with the gameplay contexts and with GuiService
   navigation (B/LB/RB/LT/RT not swallowed), rebinding after remapping, and `GetImageForKeyCode` art for Xbox and
   PlayStation.
-* TV detection rule (gamepad on ≥ 1600 px wide) on PC + controller and on console.
+* TV detection rule (`GuiService:IsTenFootInterface()` only; a PC with a pad or on a Large display stays Regular) on
+  PC + controller and on console.
+* `Workspace.SignalBehavior`: the kit is written to work under Immediate (today's `Default`) and Deferred (the
+  announced future default): play-test both, especially focus restore after dialogs, REG-INP-01 repair and the
+  hover tick.
+* First focus on a freshly mounted screen: `Focus.firstSelectable` orders by `AbsolutePosition`; check that layouts
+  (UIListLayout/UIGridLayout) have resolved positions when the scope activates, or give the screen `initialFocus`.
+* Held left stick on a Slider: the repeat is Heartbeat-timed because a steady stick sends no InputChanged; confirm the
+  stick's dead-zone noise does not restart the repeat delay on real pads.
 
 ## Format
 
@@ -586,8 +612,11 @@ everything you build. Engine-owned values (AbsoluteSize, AbsolutePosition) are s
 
 * `Components/Lifecycle.spec` builds and destroys every component with State-bound props and fails if any rooted
   effect/observer survives (`State.stats().liveEffects`) — add new components to it.
-* `Kit/ReviewRegressions.spec` holds the adversarial regressions from the kit review (shoulder routing, focus repair,
-  TV rule, HUD scale, touch targets, long-press, overlays, two-step confirm, ...); each failed against the first kit.
+* `Kit/ReviewRegressions.spec` holds the adversarial regressions from the kit reviews (round 1: shoulder routing,
+  focus repair, TV rule, HUD scale, touch targets, long-press, overlays, two-step confirm, ...; round 2: hidden
+  scroll regions, stick-loop churn, deferred-signal hover ticks, pointer hover rate, redirect from `show`, controller
+  family prompts, lingering tooltips, slider hold-repeat, VirtualList placement/overscan, live reduced motion for
+  looping placeholders); each failed against the kit it was written for.
 * Rate limits and timers take injectable clocks in tests: `Focus.setClock(fn)` (hover ticks), `ToastStack.setClock(fn)`
   (notification cue); Heartbeat-driven loops advance with `env:step(dt)`.
 * Harness gaps patched test-side in KitTestSupport (the shared harness is not modified): `inst.Parent` reads, GUI

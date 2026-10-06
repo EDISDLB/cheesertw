@@ -6,11 +6,15 @@
 	                  Audio controller calls `Sound.setPlayer(function(key) AudioEngine:playUi(key) end)` at Start.
 	                  Keys are the catalogue keys from docs/design/audio.md §10 (UI bus).
 	Dependencies:     Core/Log.
-	State:            Injected player function, mute flag, play counters (diagnostics/tests).
+	                  `Sound.hover()` is the one entry for ui_hover (pointer enter AND gamepad focus moves share it):
+	                  at most HOVER_RATE ticks per second, so sweeping the pointer across a grid or scrolling fast
+	                  never machine-guns the cue (ui-ux §1.16: "not while scrolling faster than 6 items/s").
+	State:            Injected player function, mute flag, play counters (diagnostics/tests), the hover limiter's
+	                  clock and last tick.
 	Validation:       Keys must be non-empty strings.
 	Error handling:   A failing player is logged once per key and never breaks the calling component.
-	Performance notes: One function call per cue; voice caps/rate limits (ui_hover x1, slider 30/s) are enforced by
-	                  the AudioEngine, not here.
+	Performance notes: One function call per cue; voice caps (ui_hover x1, slider 30/s) are enforced by the
+	                  AudioEngine, not here.
 ]]
 
 local Log = require("@game/ReplicatedStorage/Shared/Core/Log")
@@ -67,6 +71,34 @@ function Sound.play(key: string)
 		failedKeys[key] = true
 		log:warn("UI sound %s failed: %s", key, tostring(err))
 	end
+end
+
+--- Max ui_hover ticks per second (pointer and gamepad focus together; ui-ux §1.16).
+Sound.HOVER_RATE = 6
+
+local hoverClock: () -> number = os.clock
+local lastHoverAt = -math.huge
+
+--- Plays ui_hover unless one played less than 1 / HOVER_RATE s ago. Returns true if it played.
+function Sound.hover(): boolean
+	local now = hoverClock()
+	if now - lastHoverAt < 1 / Sound.HOVER_RATE then
+		return false
+	end
+	lastHoverAt = now
+	Sound.play(Sound.KEYS.hover)
+	return true
+end
+
+--- Replaces the clock of the hover rate limit (tests) and resets it. nil restores os.clock.
+function Sound.setClock(fn: (() -> number)?)
+	hoverClock = fn or os.clock
+	lastHoverAt = -math.huge
+end
+
+--- Forgets the last hover tick (the next hover plays).
+function Sound.resetHover()
+	lastHoverAt = -math.huge
 end
 
 --- Number of times each key was requested (diagnostics and tests).

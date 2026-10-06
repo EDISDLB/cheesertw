@@ -105,8 +105,9 @@ type ScopeImpl = {
 
 local stack: { ScopeImpl } = {}
 
---- Max ui_hover ticks per second while the player scrolls through a list (ui-ux §1.16).
-Focus.HOVER_SOUND_RATE = 6
+--- Max ui_hover ticks per second while the player scrolls through a list (ui-ux §1.16); the limiter lives in
+--- Kit/Sound so pointer hovers and focus moves share one budget.
+Focus.HOVER_SOUND_RATE = Sound.HOVER_RATE
 --- Fraction of the viewport kept as context when paging with LT/RT (ui-ux §1.13: one viewport minus 10 %).
 Focus.PAGE_OVERLAP = 0.1
 --- Right-stick scroll speed at full deflection (px/s, ui-ux §1.13) and its dead zone.
@@ -117,15 +118,18 @@ Focus.STICK_DEADZONE = 0.25
 Focus.MAX_REPAIRS = 3
 Focus.REPAIR_WINDOW = 0.5
 
--- The object Focus itself selected last (its SelectionChanged is not a player move: no hover tick).
+-- The object Focus itself selected last (its SelectionChanged is not a player move: no hover tick). It stays set
+-- until a DIFFERENT selection is observed: under Workspace.SignalBehavior = Deferred (Roblox's announced default) the
+-- two writes of a restore (nil, then the target) queue two handler runs that both read the final target.
 local expectedSelection: GuiObject? = nil
+-- Cached right-stick scroll region (declared early: selection changes invalidate it).
+local stickFrame: ScrollingFrame? = nil
 -- Lost-focus repair state (see repairSelection): a repair queued for the next frame, consecutive repairs without a
 -- player move, and the element that was selected when the engine dropped the selection.
 local repairPending = false
 local repairStreak = 0
 local lastRepairAt = -math.huge
 local lostObject: GuiObject? = nil
-local lastHoverAt = -math.huge
 local clock: () -> number = os.clock
 -- Shoulder handlers registered by components (TabBar): used when the top scope has no handler of its own.
 local shoulderHandlers: { { object: GuiObject, fn: (number) -> () } } = {}
@@ -667,20 +671,12 @@ function Focus.shoulder(direction: number): boolean
 	return true
 end
 
---- Replaces the clock used for the hover-tick rate limit and the repair window (tests). nil restores os.clock.
+--- Replaces the clock used for the hover-tick rate limit (Kit/Sound's) and the repair window (tests). nil restores
+--- os.clock.
 function Focus.setClock(fn: (() -> number)?)
 	clock = fn or os.clock
-	lastHoverAt = -math.huge
+	Sound.setClock(fn)
 	lastRepairAt = -math.huge
-end
-
-local function hoverTick()
-	local now = clock()
-	if now - lastHoverAt < 1 / Focus.HOVER_SOUND_RATE then
-		return
-	end
-	lastHoverAt = now
-	Sound.play(Sound.KEYS.hover)
 end
 
 -- Lost-focus repair (REG-INP-01: SelectedObject ~= nil in gamepad mode). The engine resets SelectedObject to nil when
@@ -734,7 +730,11 @@ local function onSelectionChanged()
 	local top = stack[#stack]
 	local selected = selectedObject()
 	local programmatic = selected ~= nil and selected == expectedSelection
-	expectedSelection = nil
+	if not programmatic then
+		expectedSelection = nil
+	end
+	-- The stick-scroll region follows the selection.
+	stickFrame = nil
 	if top == nil then
 		return
 	end
@@ -751,7 +751,7 @@ local function onSelectionChanged()
 	if Focus.contains(top.root, selected) then
 		remember(top, selected)
 		if gamepadMode() and not programmatic then
-			hoverTick()
+			Sound.hover()
 		end
 		return
 	end
@@ -782,20 +782,32 @@ local function uiScaleOf(instance: Instance): number
 	return if scale > 0 then scale else 1
 end
 
+-- A region LT/RT and the right stick may scroll: scrolling enabled and visible up to the scope root (a list on a
+-- hidden tab page, or a fixed carousel with ScrollingEnabled = false, is never the target).
+local function scrollable(frame: Instance, top: ScopeImpl): boolean
+	return frame:IsA("ScrollingFrame")
+		and (frame :: ScrollingFrame).ScrollingEnabled ~= false
+		and visibleWithin(frame :: GuiObject, top.root)
+end
+
 local function scrollContainer(top: ScopeImpl): ScrollingFrame?
 	local selected = selectedObject()
 	if selected ~= nil and Focus.contains(top.root, selected) then
-		local frame = selected:FindFirstAncestorWhichIsA("ScrollingFrame")
-		if frame ~= nil and Focus.contains(top.root, frame) then
-			return frame
+		-- The nearest scrollable region around the focused element.
+		local node: Instance? = selected.Parent
+		while node ~= nil and node ~= top.root.Parent do
+			if scrollable(node, top) then
+				return node :: ScrollingFrame
+			end
+			if node == top.root then
+				break
+			end
+			node = node.Parent
 		end
 	end
 	for _, descendant in top.root:GetDescendants() do
-		if descendant:IsA("ScrollingFrame") and (descendant :: ScrollingFrame).ScrollingEnabled ~= false then
-			local frame = descendant :: ScrollingFrame
-			if frame.Visible ~= false then
-				return frame
-			end
+		if scrollable(descendant, top) then
+			return descendant :: ScrollingFrame
 		end
 	end
 	return nil
@@ -875,40 +887,63 @@ function Focus.page(direction: number): boolean
 	return true
 end
 
--- Right-stick scrolling state (install wires it).
+-- Right-stick scrolling state (install wires it). The region (and its UIScale product) is resolved once and cached
+-- while the stick is held; a selection change or another top scope re-resolves it (no per-frame tree walks).
 local stickAxis = Vector2.zero
 local stopStickLoop: (() -> ())? = nil
+local stickScope: ScopeImpl? = nil
+local stickScale = 1
+
+local function canStickScroll(): boolean
+	local top = stack[#stack]
+	return top ~= nil and top._stickScroll and gamepadMode()
+end
 
 local function stickStep(dt: number): boolean?
 	local top = stack[#stack]
-	if not gamepadMode() or top == nil or not top._stickScroll or stickAxis.Magnitude <= Focus.STICK_DEADZONE then
+	if not canStickScroll() or stickAxis.Magnitude <= Focus.STICK_DEADZONE then
 		stopStickLoop = nil
+		stickFrame = nil
 		return true
 	end
-	local frame = scrollContainer(top)
-	if frame == nil then
-		stopStickLoop = nil
-		return true
+	local scope = top :: ScopeImpl
+	local frame = stickFrame
+	-- Re-resolve when the region went away or out of view (a tab switch while the stick is held); the check is an
+	-- ancestor walk, no allocation.
+	if frame == nil or stickScope ~= scope or not scrollable(frame, scope) then
+		frame = scrollContainer(scope)
+		if frame == nil then
+			stopStickLoop = nil
+			return true
+		end
+		stickFrame, stickScope, stickScale = frame, scope, uiScaleOf(frame)
 	end
-	local vertical = frame.ScrollingDirection ~= Enum.ScrollingDirection.X
-	local scale = uiScaleOf(frame)
+	local region = frame :: ScrollingFrame
+	local vertical = region.ScrollingDirection ~= Enum.ScrollingDirection.X
+	local scale = stickScale
 	local window, canvas, position =
-		frame.AbsoluteWindowSize / scale, frame.AbsoluteCanvasSize / scale, frame.CanvasPosition
+		region.AbsoluteWindowSize / scale, region.AbsoluteCanvasSize / scale, region.CanvasPosition
 	if vertical then
 		local y = Focus.stickScrollStep(position.Y, stickAxis.Y, dt, window.Y, canvas.Y)
-		frame.CanvasPosition = Vector2.new(position.X, y)
+		if y ~= position.Y then
+			region.CanvasPosition = Vector2.new(position.X, y)
+		end
 	else
 		-- Horizontal regions scroll with the stick's X (right = forward).
 		local x = Focus.stickScrollStep(position.X, -stickAxis.X, dt, window.X, canvas.X)
-		frame.CanvasPosition = Vector2.new(x, position.Y)
+		if x ~= position.X then
+			region.CanvasPosition = Vector2.new(x, position.Y)
+		end
 	end
 	return nil
 end
 
---- Feeds the right-stick position (install does this from UserInputService; tests call it directly).
+--- Feeds the right-stick position (install does this from UserInputService; tests call it directly). A loop runs
+--- only while the top scope can stick-scroll: in battle (no scope) or on a camera-orbit screen (stickScroll =
+--- false) the stick's InputChanged stream starts nothing.
 function Focus.setStick(axis: Vector2)
 	stickAxis = axis
-	if stopStickLoop == nil and axis.Magnitude > Focus.STICK_DEADZONE then
+	if stopStickLoop == nil and axis.Magnitude > Focus.STICK_DEADZONE and canStickScroll() then
 		stopStickLoop = Motion.loop(stickStep)
 	end
 end
@@ -996,8 +1031,9 @@ function Focus.reset()
 		stopStickLoop()
 		stopStickLoop = nil
 	end
+	stickFrame, stickScope = nil, nil
 	expectedSelection = nil
-	lastHoverAt = -math.huge
+	Sound.resetHover()
 	repairPending = false
 	repairStreak = 0
 	lastRepairAt = -math.huge

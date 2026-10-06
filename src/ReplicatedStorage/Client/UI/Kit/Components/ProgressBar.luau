@@ -171,6 +171,8 @@ function ProgressBar.new(props: ProgressBarProps): Frame
 	end
 	State.effect(function()
 		local active = State.get(indeterminate)
+		-- Tracked so a reduced-motion change restarts (or stops) a running sweep live.
+		Theme.state.reducedMotion:get()
 		State.untracked(function(): nil
 			runSweep(active)
 			return nil

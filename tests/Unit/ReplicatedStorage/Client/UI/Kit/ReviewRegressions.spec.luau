@@ -30,6 +30,10 @@ local CurrencyLabel = require("@game/ReplicatedStorage/Client/UI/Kit/Components/
 local UIInput = require("@game/ReplicatedStorage/Client/UI/Kit/UIInput")
 local KeyPrompt = require("@game/ReplicatedStorage/Client/UI/Kit/Components/KeyPrompt")
 local Toggle = require("@game/ReplicatedStorage/Client/UI/Kit/Components/Toggle")
+local VirtualList = require("@game/ReplicatedStorage/Client/UI/Kit/Components/VirtualList")
+local ToastStack = require("@game/ReplicatedStorage/Client/UI/Kit/Components/ToastStack")
+local Skeleton = require("@game/ReplicatedStorage/Client/UI/Kit/Components/Skeleton")
+local ProgressBar = require("@game/ReplicatedStorage/Client/UI/Kit/Components/ProgressBar")
 local Signal = require("@game/ReplicatedStorage/Shared/Core/Signal")
 local Trove = require("@game/ReplicatedStorage/Shared/Core/Trove")
 
@@ -907,5 +911,564 @@ describe("Format.compact rounding carries into the next unit", function()
 		expect(Format.compact(999999999)).toBe("1B")
 		expect(Format.compact(12400)).toBe("12.4K")
 		expect(Format.compact(950)).toBe("950")
+	end)
+end)
+
+--------------------------------------------------------------------------------
+-- Review round 2 (each failed against the round-1 kit, except the ToastStack expiry test: a guard for the
+-- allocation-free loop rewrite, which keeps the same behaviour)
+--------------------------------------------------------------------------------
+
+describe("Focus: LT/RT and the right stick scroll the visible, scrollable region", function()
+	local stopInstall: () -> ()
+	local gui: any
+	Test.beforeEach(function()
+		reset()
+		InputMode.set("Gamepad")
+		stopInstall = Focus.install({ playerGui = env.playerGui, startInput = false })
+		gui = Create("ScreenGui", { Name = "Paging", Parent = env.playerGui })
+	end)
+	Test.afterEach(function()
+		Focus.setStick(Vector2.zero)
+		stopInstall()
+		gui:Destroy()
+		reset()
+	end)
+
+	local function scroller(name: string, parent: any, enabled: boolean?): any
+		local frame = Create("ScrollingFrame", { Name = name, Parent = parent })
+		local props = rawget(frame, "_props")
+		props.AbsoluteWindowSize = Vector2.new(400, 500)
+		props.AbsoluteCanvasSize = Vector2.new(400, 2000)
+		props.CanvasPosition = Vector2.new(0, 0)
+		props.ScrollingDirection = Enum.ScrollingDirection.Y
+		props.ScrollingEnabled = enabled ~= false
+		return frame
+	end
+
+	it("never pages or stick-scrolls a list on a hidden tab page", function()
+		local screen = Create("Frame", { Name = "Screen", Parent = gui })
+		local tabButton = Create("TextButton", { Name = "TabButton", Parent = screen })
+		-- Tab pages are built up front; the inactive one is hidden and comes first in tree order.
+		local hiddenPage = Create("Frame", { Name = "ModulesPage", Visible = false, Parent = screen })
+		local hidden = scroller("ModulesList", hiddenPage)
+		local shownPage = Create("Frame", { Name = "CrewPage", Parent = screen })
+		local shown = scroller("CrewList", shownPage)
+		Create("TextButton", { Name = "CrewRow", Parent = shown })
+		local scope = Focus.scope(screen, { name = "Barracks" })
+		scope:activate()
+		Support.select(env.guiService, tabButton)
+		expect(Focus.page(1)).toBe(true)
+		expect(hidden.CanvasPosition).toEqual(Vector2.new(0, 0))
+		expect(shown.CanvasPosition).toEqual(Vector2.new(0, 450))
+		Focus.setStick(Vector2.new(0, -1))
+		env:step(0.1)
+		expect(hidden.CanvasPosition.Y).toBe(0)
+		expect(shown.CanvasPosition.Y).toBeCloseTo(450 + 90, 1e-6)
+		-- LB/RB switches the tab while the stick is still held: the stick follows the page now on screen.
+		shownPage.Visible = false
+		hiddenPage.Visible = true
+		env:step(0.1)
+		expect(shown.CanvasPosition.Y).toBeCloseTo(450 + 90, 1e-6)
+		expect(hidden.CanvasPosition.Y).toBeCloseTo(90, 1e-6)
+		Focus.setStick(Vector2.zero)
+		scope:Destroy()
+	end)
+
+	it("pages the scrollable list around a focused row inside a fixed (non-scrolling) carousel", function()
+		local screen = Create("Frame", { Name = "Screen", Parent = gui })
+		local list = scroller("Rows", screen)
+		local carousel = scroller("Carousel", list, false)
+		local row = Create("TextButton", { Name = "Card", Parent = carousel })
+		local scope = Focus.scope(screen, { name = "Store" })
+		scope:activate()
+		Support.select(env.guiService, row)
+		expect(Focus.page(1)).toBe(true)
+		expect(carousel.CanvasPosition).toEqual(Vector2.new(0, 0))
+		expect(list.CanvasPosition).toEqual(Vector2.new(0, 450))
+		scope:Destroy()
+	end)
+
+	it("starts no Heartbeat loop for the right stick while nothing can stick-scroll", function()
+		local function loops(): number
+			return #rawget(env.runService.Heartbeat, "_connections")
+		end
+		-- Let loops left by earlier tests (page focus, stick release) finish.
+		for _ = 1, 3 do
+			env:step(1 / 60)
+		end
+		local base = loops()
+		-- Battle: no focus scope; the stick turns the camera and InputChanged streams every frame.
+		for _ = 1, 5 do
+			Focus.setStick(Vector2.new(0.9, 0.4))
+			expect(loops()).toBe(base)
+			env:step(1 / 60)
+		end
+		-- Garage 3D view: the screen gives the stick to the camera orbit.
+		local screen = Create("Frame", { Name = "Garage", Parent = gui })
+		scroller("Hangar", screen)
+		local orbit = Focus.scope(screen, { name = "Garage", stickScroll = false })
+		orbit:activate()
+		Focus.setStick(Vector2.new(0, -1))
+		expect(loops()).toBe(base)
+		Focus.setStick(Vector2.zero)
+		orbit:Destroy()
+		-- Mouse/keyboard: no gamepad focus, no stick scrolling.
+		local menu = Focus.scope(screen, { name = "Menu" })
+		menu:activate()
+		InputMode.set("MouseKeyboard")
+		Focus.setStick(Vector2.new(0, -1))
+		expect(loops()).toBe(base)
+		-- A scope that scrolls still gets its loop.
+		InputMode.set("Gamepad")
+		Focus.setStick(Vector2.zero)
+		Focus.setStick(Vector2.new(0, -1))
+		expect(loops()).toBe(base + 1)
+		Focus.setStick(Vector2.zero)
+		env:step(1 / 60)
+		expect(loops()).toBe(base)
+		menu:Destroy()
+	end)
+end)
+
+describe("Focus: programmatic restores stay silent under deferred signals", function()
+	local stopInstall: () -> ()
+	local gui: any
+	local now = 0
+	Test.beforeEach(function()
+		reset()
+		now = 0
+		Focus.setClock(function(): number
+			return now
+		end)
+		InputMode.set("Gamepad")
+		stopInstall = Focus.install({ playerGui = env.playerGui, startInput = false })
+		gui = Create("ScreenGui", { Name = "Deferred", Parent = env.playerGui })
+	end)
+	Test.afterEach(function()
+		stopInstall()
+		gui:Destroy()
+		Focus.setClock(nil)
+		reset()
+	end)
+
+	it("does not tick ui_hover when queued SelectedObject events replay after a dialog closes", function()
+		local screen = Create("Frame", { Name = "Screen", Parent = gui })
+		local first = Create("TextButton", { Name = "First", Parent = screen })
+		local second = Create("TextButton", { Name = "Second", Parent = screen })
+		setAbsolute(second, Vector2.new(0, 60))
+		local scope = Focus.scope(screen, { name = "Garage" })
+		scope:activate()
+		expect(env.guiService.SelectedObject).toBe(first)
+		-- The player moves (one tick).
+		now += 1
+		Support.select(env.guiService, second)
+		expect(Sound.counts().ui_hover).toBe(1)
+		local dialog = Create("Frame", { Name = "Dialog", Parent = gui })
+		Create("TextButton", { Name = "Ok", Parent = dialog })
+		local modal = Focus.scope(dialog, { name = "Dialog", trap = true })
+		modal:activate()
+		-- Workspace.SignalBehavior = Deferred: the writes of the restore (nil, then Second) queue two handler runs that
+		-- both read the final SelectedObject.
+		local signal = env.guiService:GetPropertyChangedSignal("SelectedObject")
+		local queued = 0
+		rawset(signal, "Fire", function()
+			queued += 1
+		end)
+		now += 1
+		modal:Destroy()
+		rawset(signal, "Fire", nil)
+		expect(env.guiService.SelectedObject).toBe(second)
+		expect(queued).toBeGreaterThanOrEqual(2)
+		for _ = 1, queued do
+			signal:Fire()
+		end
+		expect(Sound.counts().ui_hover).toBe(1)
+		-- A real move afterwards still ticks.
+		now += 1
+		Support.select(env.guiService, first)
+		expect(Sound.counts().ui_hover).toBe(2)
+		scope:Destroy()
+	end)
+end)
+
+describe("Pointer hover ticks share the focus rate limit", function()
+	Test.beforeEach(reset)
+
+	it("plays ui_hover at most HOVER_RATE times per second while the pointer sweeps a grid", function()
+		local now = 0
+		Sound.setClock(function(): number
+			return now
+		end)
+		local buttons = {}
+		for i = 1, 10 do
+			buttons[i] = Button.new({ text = "Vehicle " .. i })
+		end
+		for _, b in buttons do
+			Support.fire(b, "MouseEnter")
+		end
+		expect(Sound.counts().ui_hover).toBe(1)
+		now += 1 / Sound.HOVER_RATE
+		Support.fire(buttons[1], "MouseEnter")
+		expect(Sound.counts().ui_hover).toBe(2)
+		Sound.setClock(nil)
+		for _, b in buttons do
+			b:Destroy()
+		end
+	end)
+end)
+
+describe("Router: navigating from inside show() keeps focus on the new top screen", function()
+	Test.beforeEach(reset)
+
+	it("redirects (onShow pushes) without leaving the covered screen's scope on top of the focus stack", function()
+		InputMode.set("Gamepad")
+		local router = Router.new({ parent = env.playerGui, backSignal = Signal.new() })
+		local hits = {}
+		local pendingResults = true
+		router:register(
+			"Garage",
+			Router.define({
+				build = function(ctx)
+					ctx.on("Secondary", function()
+						table.insert(hits, "Garage")
+					end)
+					return Create.Frame({
+						Name = "GarageRoot",
+						[Create.Children] = { Create("TextButton", { Name = "GarageButton" }) },
+					})
+				end,
+				onShow = function(ctx)
+					if pendingResults then
+						pendingResults = false
+						ctx.router:push("Results")
+					end
+				end,
+			})
+		)
+		router:register(
+			"Results",
+			Router.define({
+				build = function(ctx)
+					ctx.on("Secondary", function()
+						table.insert(hits, "Results")
+					end)
+					return Create.Frame({
+						Name = "ResultsRoot",
+						[Create.Children] = { Create("TextButton", { Name = "ResultsButton" }) },
+					})
+				end,
+			})
+		)
+		router:reset("Garage")
+		expect((router:current() :: any).name).toBe("Results")
+		expect((Focus.top() :: any).name).toBe("Results")
+		expect(env.guiService.SelectedObject.Name).toBe("ResultsButton")
+		UIInput.secondary:Fire()
+		expect(hits).toEqual({ "Results" })
+		router:back()
+		expect((router:current() :: any).name).toBe("Garage")
+		expect((Focus.top() :: any).name).toBe("Garage")
+		expect(env.guiService.SelectedObject.Name).toBe("GarageButton")
+		UIInput.secondary:Fire()
+		expect(hits).toEqual({ "Results", "Garage" })
+		router:destroy()
+	end)
+end)
+
+describe("InputMode: prompts follow the connected controller family", function()
+	Test.beforeEach(reset)
+
+	it("re-resolves button glyphs when a PlayStation pad replaces an Xbox pad", function()
+		local stop = InputMode.start()
+		InputMode.set("Gamepad")
+		local glyph = InputMode.glyphState("Confirm")
+		expect(glyph:peek().text).toBe("A")
+		local prompt = KeyPrompt.new({ action = "Secondary" })
+		local plate = Support.find(prompt, "Keycap"):FindFirstChildWhichIsA("TextLabel", true)
+		rawset(env.userInputService, "_playstation", true)
+		env.userInputService.GamepadConnected:Fire(Enum.UserInputType.Gamepad2)
+		expect(glyph:peek().text).toBe("✕")
+		local image = Support.find(prompt, "ButtonImage")
+		expect(image.Visible or plate.Text == "□").toBe(true)
+		rawset(env.userInputService, "_playstation", nil)
+		env.userInputService.GamepadDisconnected:Fire(Enum.UserInputType.Gamepad2)
+		expect(glyph:peek().text).toBe("A")
+		prompt:Destroy()
+		stop()
+	end)
+end)
+
+describe("Tooltip: never lingers over a screen covered without pointer events", function()
+	local gui: any
+	Test.beforeEach(function()
+		reset()
+		gui = overlayLayers()
+	end)
+	Test.afterEach(function()
+		Tooltip.hide()
+		gui:Destroy()
+	end)
+
+	it("hides within a frame when the target's screen is hidden under a still pointer", function()
+		local host = Create("Frame", { Name = "Host", Parent = gui })
+		local target = Create("TextButton", { Name = "Target", Parent = host })
+		local detach = Tooltip.attach(target, "Opens the store")
+		Tooltip.show(target, "Opens the store")
+		expect(Tooltip.owner()).toBe(target)
+		-- Keyboard shortcut / gamepad action navigates: the Router hides the screen, the mouse never moves.
+		host.Visible = false
+		env:step(1 / 60)
+		expect(Tooltip.owner()).toBeNil()
+		expect(Support.find(Layers.get("Tooltip") :: any, "KitTooltip").Visible).toBe(false)
+		-- The watch stops with the tooltip: no Heartbeat work while nothing is shown.
+		local before = #rawget(env.runService.Heartbeat, "_connections")
+		env:step(1 / 60)
+		expect(#rawget(env.runService.Heartbeat, "_connections")).toBe(before)
+		detach()
+	end)
+end)
+
+describe("Slider: a held D-pad, arrow key or stick keeps stepping", function()
+	Test.beforeEach(reset)
+
+	local function key(code: Enum.KeyCode, state: Enum.UserInputState?): any
+		return Support.input({
+			KeyCode = code,
+			UserInputType = Enum.UserInputType.Gamepad1,
+			UserInputState = state or Enum.UserInputState.Begin,
+		})
+	end
+
+	local function stick(x: number): any
+		return Support.input({
+			KeyCode = Enum.KeyCode.Thumbstick1,
+			UserInputType = Enum.UserInputType.Gamepad1,
+			UserInputState = Enum.UserInputState.Change,
+			Position = Vector3.new(x, 0, 0),
+		})
+	end
+
+	local function hold(seconds: number)
+		for _ = 1, math.floor(seconds * 60 + 0.5) do
+			env:step(1 / 60)
+		end
+	end
+
+	it("repeats while held (0-100 volume in seconds, not 100 presses) and stops on release", function()
+		InputMode.set("Gamepad")
+		local value = State.Value(50)
+		local slider = Slider.new({ value = value, min = 0, max = 100, step = 1, label = "Music" })
+		local track = Support.find(slider, "Track")
+		Support.select(env.guiService, track)
+		local uis = env.userInputService
+		uis.InputBegan:Fire(key(Enum.KeyCode.DPadRight), true)
+		expect(value:peek()).toBe(51)
+		hold(1)
+		expect(value:peek()).toBeGreaterThan(55)
+		uis.InputEnded:Fire(key(Enum.KeyCode.DPadRight, Enum.UserInputState.End), true)
+		local released = value:peek()
+		hold(0.5)
+		expect(value:peek()).toBe(released)
+		-- The left stick held steady at full deflection sends ONE InputChanged.
+		uis.InputChanged:Fire(stick(-1), false)
+		expect(value:peek()).toBe(released - 1)
+		hold(1)
+		expect(value:peek()).toBeLessThan(released - 5)
+		uis.InputChanged:Fire(stick(0), false)
+		local centred = value:peek()
+		hold(0.5)
+		expect(value:peek()).toBe(centred)
+		-- Focus moving away ends a held repeat.
+		uis.InputBegan:Fire(key(Enum.KeyCode.DPadLeft), true)
+		Support.select(env.guiService, nil)
+		local lost = value:peek()
+		hold(0.5)
+		expect(value:peek()).toBe(lost)
+		slider:Destroy()
+	end)
+end)
+
+describe("ToastStack: timed expiry without per-frame copies", function()
+	local gui: any
+	Test.beforeEach(function()
+		reset()
+		gui = overlayLayers()
+	end)
+	Test.afterEach(function()
+		gui:Destroy()
+	end)
+
+	it("expires toasts that time out in the same frame, including instant (reduced-motion) removals", function()
+		Theme.set({ reducedMotion = true })
+		local stack = ToastStack.new({ parent = gui })
+		stack:push({ title = "One", sound = false })
+		stack:push({ title = "Two", sound = false })
+		stack:push({ title = "Three", sound = false })
+		expect(stack:count()).toBe(3)
+		for _ = 1, math.ceil(Toast.holdFor({ title = "x" }) * 60) + 1 do
+			env:step(1 / 60)
+		end
+		expect(stack:count()).toBe(0)
+		stack:destroy()
+	end)
+end)
+
+describe("VirtualList: scrolling re-positions only the slots that changed", function()
+	Test.beforeEach(reset)
+
+	it("writes one slot (not the whole window) for a one-row scroll", function()
+		local items = {}
+		for i = 1, 200 do
+			items[i] = i
+		end
+		local frame, controller = VirtualList.new({
+			items = items,
+			itemSize = 40,
+			gap = 10,
+			render = function(item: any, _index: any): any
+				return Create("TextButton", {
+					Name = "Row",
+					Text = State.map(item, tostring),
+				})
+			end,
+		})
+		local props = rawget(frame, "_props")
+		props.AbsoluteSize = Vector2.new(400, 300)
+		frame:GetPropertyChangedSignal("AbsoluteSize"):Fire()
+		local before = controller.stats()
+		-- Count real property writes on slots during a one-row scroll.
+		local meta = getmetatable(frame)
+		local original = meta.__newindex
+		local writes = 0
+		meta.__newindex = function(inst: any, k: any, v: any)
+			if inst ~= frame and (k == "Position" or k == "Size" or k == "Visible") then
+				writes += 1
+			end
+			original(inst, k, v)
+		end
+		frame.CanvasPosition = Vector2.new(0, 50)
+		meta.__newindex = original
+		local after = controller.stats()
+		expect(after.placements - before.placements).toBe(1)
+		-- The new row: Position + Size (+ Visible when a parked slot is re-used).
+		expect(writes <= 3).toBe(true)
+		frame:Destroy()
+	end)
+end)
+
+describe("Looping placeholders follow reduced motion live", function()
+	Test.beforeEach(reset)
+
+	local function playing(predicate: (any) -> boolean): { any }
+		local out = {}
+		for _, tween in env.tweens do
+			if tween.PlaybackState == Enum.PlaybackState.Playing and predicate(tween) then
+				table.insert(out, tween)
+			end
+		end
+		return out
+	end
+
+	it("stops Skeleton shimmers and the ProgressBar sweep under reduced motion, restarts them after", function()
+		env.deferTweens = true
+		local skeleton = Skeleton.new({ shape = "lines", lines = 2 })
+		local bar = ProgressBar.new({ value = 0, indeterminate = true })
+		local function shimmers(): { any }
+			return playing(function(tween: any): boolean
+				return tween.Instance.Name == "Shimmer" and tween.Instance:IsDescendantOf(skeleton)
+			end)
+		end
+		local function sweeps(): { any }
+			return playing(function(tween: any): boolean
+				return tween.Instance.Name == "Sweep" and tween.Instance:IsDescendantOf(bar)
+			end)
+		end
+		expect(#shimmers()).toBe(2)
+		expect(#sweeps()).toBe(1)
+		-- The player turns reduced motion on in Settings while the loading screen is up.
+		Theme.set({ reducedMotion = true })
+		expect(#shimmers()).toBe(0)
+		expect(#sweeps()).toBe(0)
+		local gradient = Support.find(skeleton, "Shimmer")
+		expect(gradient.Offset).toEqual(Vector2.new(0, 0))
+		Theme.set({ reducedMotion = false })
+		expect(#shimmers()).toBe(2)
+		expect(#sweeps()).toBe(1)
+		skeleton:Destroy()
+		bar:Destroy()
+		expect(#shimmers()).toBe(0)
+		env:completeTweens()
+	end)
+end)
+
+describe("VirtualList: overscan never drops below one row", function()
+	Test.beforeEach(reset)
+
+	it("keeps the row past a viewport edge that falls exactly on a row boundary (gamepad reachability)", function()
+		local items = {}
+		for i = 1, 50 do
+			items[i] = i
+		end
+		local frame, controller = VirtualList.new({
+			items = items,
+			itemSize = 40,
+			gap = 10,
+			overscan = 0,
+			render = function(item: any, _index: any): any
+				return Create("TextButton", { Name = "Row", Text = State.map(item, tostring) })
+			end,
+		})
+		local props = rawget(frame, "_props")
+		-- 200 px = exactly 4 rows of stride 50: row 5 starts on the bottom edge.
+		props.AbsoluteSize = Vector2.new(400, 200)
+		frame:GetPropertyChangedSignal("AbsoluteSize"):Fire()
+		local _, last = controller.range()
+		expect(last >= 5).toBe(true)
+		expect(controller.slotFor(5)).never.toBeNil()
+		frame:Destroy()
+	end)
+end)
+
+describe("State: an effect that writes its own source on its first run settles", function()
+	it("re-runs with the value it wrote instead of keeping the stale read", function()
+		local count = State.Value(150)
+		local shown: number? = nil
+		-- Normalise-and-render: clamp the bound value, show what is stored.
+		local connection = State.effect(function()
+			local n = count:get()
+			if n > 100 then
+				count:set(100)
+			end
+			shown = n
+		end)
+		expect(count:peek()).toBe(100)
+		expect(shown).toBe(100)
+		-- Still subscribed and current afterwards.
+		count:set(40)
+		expect(shown).toBe(40)
+		connection:Disconnect()
+		-- The same inside a batch settles when the batch ends.
+		local inBatch = State.Value(7)
+		local seen: number? = nil
+		local batched: any = nil
+		State.batch(function()
+			batched = State.effect(function()
+				local n = inBatch:get()
+				if n % 2 == 1 then
+					inBatch:set(n + 1)
+				end
+				seen = n
+			end)
+		end)
+		expect(seen).toBe(8)
+		batched:Disconnect()
+		-- An effect that always writes is still caught as a loop, not hung.
+		local runaway = State.Value(0)
+		expect(function()
+			State.effect(function()
+				runaway:set(runaway:get() + 1)
+			end)
+		end).toThrow("effect runs in one flush")
 	end)
 end)
