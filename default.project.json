@@ -1,0 +1,23 @@
+{
+  "name": "CheeserTW",
+  "tree": {
+    "$className": "DataModel",
+    "ReplicatedStorage": {
+      "SurvivalConfig": {
+        "$path": "src/ReplicatedStorage/SurvivalConfig.lua"
+      }
+    },
+    "ServerScriptService": {
+      "SurvivalStats": {
+        "$path": "src/ServerScriptService/SurvivalStats.server.lua"
+      }
+    },
+    "StarterPlayer": {
+      "StarterPlayerScripts": {
+        "SurvivalHUD": {
+          "$path": "src/StarterPlayerScripts/SurvivalHUD.client.lua"
+        }
+      }
+    }
+  }
+}
