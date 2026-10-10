@@ -1,8 +1,16 @@
 --[[
-	SurvivalHUD — parodo žaidėjo alkio ir troškulio juostas ekrane.
+	SurvivalHUD — apvalūs gyvybės, šarvų, alkio ir troškulio rodikliai (GTA stiliaus).
+	Rodomi apačioje kairėje ekrano pusėje.
 
-	Reikšmes nustato serverio skriptas SurvivalStats (atributai "Hunger" ir "Thirst").
+	Gyvybė imama iš Humanoid, kiti rodikliai — iš žaidėjo atributų (juos nustato SurvivalStats).
 	Spalvos, dydžiai, vieta ir animacijos keičiami faile SurvivalConfig.
+
+	HUD galima perkelti iš bet kurio skripto (plačiau README.md):
+		player:SetAttribute("HUDAnchorPoint", Vector2.new(1, 1))
+		player:SetAttribute("HUDPosition", UDim2.new(1, -16, 1, -16))
+	Grąžinti į vietą iš SurvivalConfig:
+		player:SetAttribute("HUDAnchorPoint", nil)
+		player:SetAttribute("HUDPosition", nil)
 ]]
 
 local Players = game:GetService("Players")
@@ -22,232 +30,401 @@ local playerGui = player:WaitForChild("PlayerGui")
 -- Ar žaidžiama telefone ar planšetėje (lietimo ekranas be klaviatūros).
 local isMobile = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
 
-local barTweenInfo = TweenInfo.new(Animation.BarTweenTime, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+local ringTweenInfo = TweenInfo.new(Animation.RingTweenTime, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+local moveTweenInfo = TweenInfo.new(Animation.MoveTweenTime, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 local pulseTweenInfo = TweenInfo.new(Animation.PulseTime, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true)
 
--- Prideda užapvalintus kampus. radius = UDim.new(0.5, 0) daro apskritimą.
-local function addCorner(parent: GuiObject, radius: UDim)
+-- Gradientas, kuris pusę apskritimo palieka matomą, o kitą pusę paslepia.
+-- Sukant jį (Rotation) žiedas pasipildo arba ištuštėja.
+local HALF_VISIBLE = NumberSequence.new({
+	NumberSequenceKeypoint.new(0, 0),
+	NumberSequenceKeypoint.new(0.5, 0),
+	NumberSequenceKeypoint.new(0.501, 1),
+	NumberSequenceKeypoint.new(1, 1),
+})
+
+local FULL_ROUND = UDim.new(0.5, 0) -- Kampų apvalumas, kuris daro apskritimą.
+
+-- =====================================================================
+-- Pagalbinės funkcijos
+-- =====================================================================
+
+-- Sukuria spalvotą stačiakampį. x ir y — kiek pikselių nuo tėvo centro, rotation — pasukimas laipsniais.
+local function newShape(parent: Instance, width: number, height: number, x: number, y: number, color: Color3, rotation: number?): Frame
+	local frame = Instance.new("Frame")
+	frame.AnchorPoint = Vector2.new(0.5, 0.5)
+	frame.Position = UDim2.new(0.5, x, 0.5, y)
+	frame.Size = UDim2.fromOffset(width, height)
+	frame.Rotation = rotation or 0
+	frame.BackgroundColor3 = color
+	frame.BorderSizePixel = 0
+	frame.Parent = parent
+	return frame
+end
+
+-- Užapvalina kampus.
+local function round(frame: GuiObject, radius: UDim)
 	local corner = Instance.new("UICorner")
 	corner.CornerRadius = radius
-	corner.Parent = parent
+	corner.Parent = frame
 end
 
 -- =====================================================================
--- Pagrindinis HUD langas (panelė, kurioje sudėtos visos juostos)
+-- Baltos ikonos, nupieštos iš paprastų formų (nereikia įkelti paveikslėlių)
+-- =====================================================================
+local IconShapes = {}
+
+-- Širdis: pasuktas kvadratas ir du apskritimai viršuje.
+function IconShapes.Heart(box: Frame, size: number, color: Color3)
+	local side = size / 1.71
+	local shift = side * 0.07 -- Kad širdis būtų per vidurį.
+	newShape(box, side, side, 0, shift, color, 45)
+	round(newShape(box, side, side, -side * 0.354, shift - side * 0.354, color), FULL_ROUND)
+	round(newShape(box, side, side, side * 0.354, shift - side * 0.354, color), FULL_ROUND)
+end
+
+-- Skydas: viršus su apvaliais kampais ir smailus galas apačioje (pasuktas kvadratas).
+function IconShapes.Shield(box: Frame, size: number, color: Color3)
+	local width = size * 0.8
+	local height = size * 0.95
+	local bodyHeight = height - width / 2
+	local top = -height / 2
+	round(newShape(box, width, bodyHeight, 0, top + bodyHeight / 2, color), UDim.new(0, width * 0.3))
+	newShape(box, width, bodyHeight / 2, 0, top + bodyHeight * 0.75, color) -- Apačia be apvalių kampų.
+	newShape(box, width / math.sqrt(2), width / math.sqrt(2), 0, top + bodyHeight, color, 45)
+end
+
+-- Mėsainis: apvali viršutinė bandelė, kotletas ir apatinė bandelė.
+function IconShapes.Burger(box: Frame, size: number, color: Color3)
+	local width = size * 0.9
+	local bunHeight = size * 0.36
+
+	-- Viršutinė bandelė: matoma tik viršutinė apvalios formos pusė.
+	local bunTop = newShape(box, width, bunHeight, 0, -size * 0.25, color)
+	bunTop.BackgroundTransparency = 1
+	bunTop.ClipsDescendants = true
+	local dome = Instance.new("Frame")
+	dome.Size = UDim2.fromScale(1, 2)
+	dome.BackgroundColor3 = color
+	dome.BorderSizePixel = 0
+	dome.Parent = bunTop
+	round(dome, FULL_ROUND)
+
+	round(newShape(box, width, size * 0.16, 0, size * 0.07, color), FULL_ROUND)
+	round(newShape(box, width, size * 0.22, 0, size * 0.32, color), UDim.new(0.3, 0))
+end
+
+-- Lašas: apskritimas ir pasuktas kvadratas viršuje (smailus galas).
+function IconShapes.Drop(box: Frame, size: number, color: Color3)
+	local radius = size * 0.39
+	local centerY = radius * 0.207 -- Kad lašas būtų per vidurį.
+	round(newShape(box, radius * 2, radius * 2, 0, centerY, color), FULL_ROUND)
+	newShape(box, radius, radius, 0, centerY - radius * 0.707, color, 45)
+end
+
+-- Įdeda ikoną į apskritimo vidurį: savą paveikslėlį, nupieštą formą arba emoji.
+local function createIcon(parent: Instance, circleConfig)
+	local box = Instance.new("Frame")
+	box.Name = "Icon"
+	box.AnchorPoint = Vector2.new(0.5, 0.5)
+	box.Position = UDim2.fromScale(0.5, 0.5)
+	box.Size = UDim2.fromOffset(HUD.IconSize, HUD.IconSize)
+	box.BackgroundTransparency = 1
+	box.ZIndex = 4
+	box.Parent = parent
+
+	if circleConfig.IconImage and circleConfig.IconImage ~= "" then
+		local image = Instance.new("ImageLabel")
+		image.Size = UDim2.fromScale(1, 1)
+		image.BackgroundTransparency = 1
+		image.Image = circleConfig.IconImage
+		image.ScaleType = Enum.ScaleType.Fit
+		image.Parent = box
+	elseif IconShapes[circleConfig.Icon] then
+		IconShapes[circleConfig.Icon](box, HUD.IconSize, Look.IconColor)
+	else
+		local text = Instance.new("TextLabel")
+		text.Size = UDim2.fromScale(1, 1)
+		text.BackgroundTransparency = 1
+		text.Text = circleConfig.Icon
+		text.TextScaled = true
+		text.Parent = box
+	end
+end
+
+-- =====================================================================
+-- HUD langas ir apskritimų stulpelis
 -- =====================================================================
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "SurvivalHUD"
 screenGui.ResetOnSpawn = false -- HUD neišnyksta po mirties.
+screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
-local panel = Instance.new("Frame")
-panel.Name = "Panel"
-panel.AnchorPoint = if isMobile then HUD.MobileAnchorPoint else HUD.AnchorPoint
-panel.Position = if isMobile then HUD.MobilePosition else HUD.Position
-panel.Size = UDim2.fromOffset(HUD.Width, 0)
-panel.AutomaticSize = Enum.AutomaticSize.Y -- Aukštis prisitaiko prie juostų skaičiaus.
-panel.BackgroundColor3 = Look.PanelColor
-panel.BackgroundTransparency = Look.PanelTransparency
-panel.Parent = screenGui
-addCorner(panel, UDim.new(0, HUD.CornerRadius))
+local container = Instance.new("Frame")
+container.Name = "StatusCircles"
+container.Size = UDim2.fromOffset(0, 0)
+container.AutomaticSize = Enum.AutomaticSize.XY -- Dydis prisitaiko prie apskritimų skaičiaus.
+container.BackgroundTransparency = 1
+container.Parent = screenGui
 
-local panelStroke = Instance.new("UIStroke")
-panelStroke.Color = Look.StrokeColor
-panelStroke.Transparency = Look.StrokeTransparency
-panelStroke.Parent = panel
-
-local panelPadding = Instance.new("UIPadding")
-panelPadding.PaddingTop = UDim.new(0, HUD.Padding)
-panelPadding.PaddingBottom = UDim.new(0, HUD.Padding)
-panelPadding.PaddingLeft = UDim.new(0, HUD.Padding)
-panelPadding.PaddingRight = UDim.new(0, HUD.Padding)
-panelPadding.Parent = panel
-
--- Sudeda juostas vieną po kita iš viršaus į apačią.
-local panelLayout = Instance.new("UIListLayout")
-panelLayout.FillDirection = Enum.FillDirection.Vertical
-panelLayout.SortOrder = Enum.SortOrder.LayoutOrder
-panelLayout.Padding = UDim.new(0, HUD.Spacing)
-panelLayout.Parent = panel
+-- Sudeda apskritimus vieną po kito.
+local layout = Instance.new("UIListLayout")
+layout.FillDirection = if HUD.Layout == "Horizontal" then Enum.FillDirection.Horizontal else Enum.FillDirection.Vertical
+layout.SortOrder = Enum.SortOrder.LayoutOrder
+layout.Padding = UDim.new(0, HUD.Spacing)
+layout.Parent = container
 
 -- Padidina arba sumažina visą HUD.
-local panelScale = Instance.new("UIScale")
-panelScale.Scale = if isMobile then HUD.MobileScale else HUD.Scale
-panelScale.Parent = panel
+local containerScale = Instance.new("UIScale")
+containerScale.Scale = if isMobile then HUD.MobileScale else HUD.Scale
+containerScale.Parent = container
 
--- =====================================================================
--- Viena eilutė: ikona + pavadinimas + procentai + juosta
--- =====================================================================
-local infoHeight = HUD.TextSize + 4 + HUD.BarHeight
-local rowHeight = math.max(HUD.IconSize, infoHeight)
-
--- Sukuria vieno rodiklio (pvz. alkio) eilutę ir grąžina jos dalis.
-local function createRow(statName: string, stat)
-	local row = Instance.new("Frame")
-	row.Name = statName
-	row.LayoutOrder = stat.Order
-	row.Size = UDim2.new(1, 0, 0, rowHeight)
-	row.BackgroundTransparency = 1
-	row.Parent = panel
-
-	-- Spalvotas apskritimas, kuriame yra ikona.
-	local iconHolder = Instance.new("Frame")
-	iconHolder.Name = "Icon"
-	iconHolder.AnchorPoint = Vector2.new(0, 0.5)
-	iconHolder.Position = UDim2.fromScale(0, 0.5)
-	iconHolder.Size = UDim2.fromOffset(HUD.IconSize, HUD.IconSize)
-	iconHolder.BackgroundColor3 = stat.Color
-	iconHolder.BackgroundTransparency = Look.IconBackgroundTransparency
-	iconHolder.Parent = row
-	addCorner(iconHolder, UDim.new(0.5, 0))
-
-	-- Šitą dydį keičia pulsavimo animacija.
-	local iconScale = Instance.new("UIScale")
-	iconScale.Parent = iconHolder
-
-	-- Ikona: savas paveikslėlis, jei nurodytas, kitaip emoji.
-	if stat.IconImage ~= "" then
-		local iconImage = Instance.new("ImageLabel")
-		iconImage.AnchorPoint = Vector2.new(0.5, 0.5)
-		iconImage.Position = UDim2.fromScale(0.5, 0.5)
-		iconImage.Size = UDim2.fromScale(0.7, 0.7)
-		iconImage.BackgroundTransparency = 1
-		iconImage.Image = stat.IconImage
-		iconImage.ScaleType = Enum.ScaleType.Fit
-		iconImage.Parent = iconHolder
-	else
-		local iconText = Instance.new("TextLabel")
-		iconText.Size = UDim2.fromScale(1, 1)
-		iconText.BackgroundTransparency = 1
-		iconText.Text = stat.Icon
-		iconText.TextSize = math.floor(HUD.IconSize * 0.6)
-		iconText.Parent = iconHolder
+-- Grąžina HUD vietą: iš atributų (jei skriptas ją pakeitė), kitaip iš SurvivalConfig.
+local function getHUDPlacement()
+	local anchorPoint = player:GetAttribute("HUDAnchorPoint")
+	local position = player:GetAttribute("HUDPosition")
+	if typeof(anchorPoint) ~= "Vector2" then
+		anchorPoint = if isMobile then HUD.MobileAnchorPoint else HUD.AnchorPoint
 	end
+	if typeof(position) ~= "UDim2" then
+		position = if isMobile then HUD.MobilePosition else HUD.Position
+	end
+	return anchorPoint, position
+end
 
-	-- Dešinė pusė: pavadinimas, procentai ir juosta.
-	local infoLeft = HUD.IconSize + HUD.Spacing
-	local info = Instance.new("Frame")
-	info.Name = "Info"
-	info.AnchorPoint = Vector2.new(0, 0.5)
-	info.Position = UDim2.new(0, infoLeft, 0.5, 0)
-	info.Size = UDim2.new(1, -infoLeft, 0, infoHeight)
-	info.BackgroundTransparency = 1
-	info.Parent = row
+-- Padeda HUD į vietą. instant = true — iškart, be animacijos.
+local function placeHUD(instant: boolean)
+	local anchorPoint, position = getHUDPlacement()
+	if instant then
+		container.AnchorPoint = anchorPoint
+		container.Position = position
+	else
+		TweenService:Create(container, moveTweenInfo, { AnchorPoint = anchorPoint, Position = position }):Play()
+	end
+end
 
-	local nameLabel = Instance.new("TextLabel")
-	nameLabel.Name = "StatName"
-	nameLabel.Size = UDim2.new(1, 0, 0, HUD.TextSize)
-	nameLabel.BackgroundTransparency = 1
-	nameLabel.Font = Look.Font
-	nameLabel.TextSize = HUD.TextSize
-	nameLabel.TextColor3 = Look.TextColor
-	nameLabel.TextXAlignment = Enum.TextXAlignment.Left
-	nameLabel.Text = stat.DisplayName
-	nameLabel.Parent = info
+-- =====================================================================
+-- Vienas apskritimas: tamsus pagrindas, spalvotas žiedas ir ikona
+-- =====================================================================
+local function createCircle(circleConfig, order: number)
+	local ringSize = HUD.CircleSize - HUD.RingInset * 2
+	local innerSize = ringSize - HUD.RingThickness * 2
 
-	local valueLabel = Instance.new("TextLabel")
-	valueLabel.Name = "Value"
-	valueLabel.Size = UDim2.new(1, 0, 0, HUD.TextSize)
-	valueLabel.BackgroundTransparency = 1
-	valueLabel.Font = Look.Font
-	valueLabel.TextSize = HUD.TextSize
-	valueLabel.TextColor3 = Look.TextColor
-	valueLabel.TextXAlignment = Enum.TextXAlignment.Right
-	valueLabel.Visible = Look.ShowValueText
-	valueLabel.Parent = info
+	-- Nematoma vieta sąraše, kad pulsavimas nestumdytų kitų apskritimų.
+	local slot = Instance.new("Frame")
+	slot.Name = circleConfig.Stat
+	slot.LayoutOrder = order
+	slot.Size = UDim2.fromOffset(HUD.CircleSize, HUD.CircleSize)
+	slot.BackgroundTransparency = 1
+	slot.Parent = container
 
-	-- Juostos fonas (tuščia dalis).
-	local barBackground = Instance.new("Frame")
-	barBackground.Name = "Bar"
-	barBackground.AnchorPoint = Vector2.new(0, 1)
-	barBackground.Position = UDim2.fromScale(0, 1)
-	barBackground.Size = UDim2.new(1, 0, 0, HUD.BarHeight)
-	barBackground.BackgroundColor3 = Look.BarBackgroundColor
-	barBackground.BackgroundTransparency = Look.BarBackgroundTransparency
-	barBackground.Parent = info
-	addCorner(barBackground, UDim.new(0.5, 0))
+	-- Tamsus apskritimas — visų dalių pagrindas.
+	local base = newShape(slot, HUD.CircleSize, HUD.CircleSize, 0, 0, Look.BackgroundColor)
+	base.Name = "Circle"
+	round(base, FULL_ROUND)
 
-	-- Užpildyta juostos dalis. Jos plotis = kiek procentų liko.
-	local fill = Instance.new("Frame")
-	fill.Name = "Fill"
-	fill.Size = UDim2.fromScale(1, 1)
-	fill.BackgroundColor3 = stat.Color
-	fill.Parent = barBackground
-	addCorner(fill, UDim.new(0.5, 0))
+	-- Pulsavimas keičia šitą dydį.
+	local pulseScale = Instance.new("UIScale")
+	pulseScale.Parent = base
 
-	-- Lengvas šešėlis: viršus šviesesnis, apačia tamsesnė.
-	local fillGradient = Instance.new("UIGradient")
-	fillGradient.Color = ColorSequence.new(Color3.new(1, 1, 1), Color3.fromRGB(185, 185, 185))
-	fillGradient.Rotation = 90
-	fillGradient.Parent = fill
+	-- Blanki žiedo dalis (tuščia vieta).
+	local track = newShape(base, ringSize, ringSize, 0, 0, circleConfig.Color)
+	track.Name = "Track"
+	track.BackgroundTransparency = Look.TrackTransparency
+	track.ZIndex = 1
+	round(track, FULL_ROUND)
+
+	-- Spalvotas žiedas iš dviejų pusių: dešinė rodo 0–50 %, kairė 50–100 %.
+	local function createHalf(side: string)
+		local half = Instance.new("Frame")
+		half.Name = side .. "Half"
+		half.AnchorPoint = Vector2.new(if side == "Right" then 0 else 1, 0.5)
+		half.Position = UDim2.fromScale(0.5, 0.5)
+		half.Size = UDim2.fromOffset(ringSize / 2, ringSize)
+		half.BackgroundTransparency = 1
+		half.ClipsDescendants = true -- Rodo tik savo pusę.
+		half.ZIndex = 2
+		half.Parent = base
+
+		local fill = Instance.new("Frame")
+		fill.Name = "Fill"
+		fill.Position = UDim2.fromScale(if side == "Right" then -1 else 0, 0)
+		fill.Size = UDim2.fromScale(2, 1)
+		fill.BackgroundColor3 = circleConfig.Color
+		fill.BorderSizePixel = 0
+		fill.Parent = half
+		round(fill, FULL_ROUND)
+
+		local gradient = Instance.new("UIGradient")
+		gradient.Transparency = HALF_VISIBLE
+		gradient.Parent = fill
+		return fill, gradient
+	end
+	local rightFill, rightGradient = createHalf("Right")
+	local leftFill, leftGradient = createHalf("Left")
+
+	-- Vidinis apskritimas uždengia centrą, todėl matosi tik žiedas.
+	local innerColor = Look.BackgroundColor:Lerp(circleConfig.Color, Look.BackgroundTint)
+	local inner = newShape(base, innerSize, innerSize, 0, 0, innerColor)
+	inner.Name = "Inner"
+	inner.ZIndex = 3
+	round(inner, FULL_ROUND)
+
+	createIcon(base, circleConfig)
+
+	-- Pasuka žiedo puses taip, kad žiedas būtų užpildytas percent procentų (pagal laikrodžio rodyklę nuo viršaus).
+	local function showProgress(percent: number)
+		local angle = percent / 100 * 360
+		rightGradient.Rotation = math.clamp(angle, 0, 180)
+		leftGradient.Rotation = math.clamp(angle, 180, 360)
+	end
+	showProgress(0)
+
+	-- Žiedo užpildymas (0–100). Animuojame šitą skaičių, o žiedas pasisuka pagal jį.
+	local progress = Instance.new("NumberValue")
+	progress.Name = "Progress"
+	progress.Changed:Connect(showProgress)
+	progress.Parent = slot
 
 	return {
-		statName = statName,
-		stat = stat,
-		fill = fill,
-		valueLabel = valueLabel,
-		iconScale = iconScale,
+		config = circleConfig,
+		fills = { rightFill, leftFill },
+		progress = progress,
+		pulseScale = pulseScale,
 		pulseTween = nil :: Tween?,
 	}
 end
 
--- Įjungia arba išjungia ikonos pulsavimą.
-local function setPulse(row, shouldPulse: boolean)
-	if shouldPulse and Animation.PulseEnabled and not row.pulseTween then
-		row.pulseTween = TweenService:Create(row.iconScale, pulseTweenInfo, { Scale = Animation.PulseSize })
-		row.pulseTween:Play()
-	elseif not shouldPulse and row.pulseTween then
-		row.pulseTween:Cancel()
-		row.pulseTween = nil
-		row.iconScale.Scale = 1
+-- =====================================================================
+-- Reikšmių skaitymas ir atnaujinimas
+-- =====================================================================
+local currentHumanoid = nil -- Dabartinio personažo Humanoid (iš jo imama gyvybė).
+
+-- Grąžina, kiek procentų (0–100) liko rodiklio.
+local function getPercent(stat: string): number
+	local value, max
+	if stat == "Health" then
+		if not currentHumanoid then
+			return 100 -- Kol personažas dar neatsirado, rodome pilną.
+		end
+		value, max = currentHumanoid.Health, currentHumanoid.MaxHealth
+	else
+		local statConfig = Config.Stats[stat]
+		value = player:GetAttribute(stat)
+		if type(value) ~= "number" then
+			value = statConfig.StartValue -- Kol serveris dar nenustatė reikšmės.
+		end
+		max = statConfig.Max
+	end
+
+	if max <= 0 then
+		return 0
+	end
+	return math.clamp(value / max, 0, 1) * 100
+end
+
+-- Įjungia arba išjungia apskritimo pulsavimą.
+local function setPulse(circle, shouldPulse: boolean)
+	if shouldPulse and Animation.PulseEnabled and not circle.pulseTween then
+		circle.pulseTween = TweenService:Create(circle.pulseScale, pulseTweenInfo, { Scale = Animation.PulseSize })
+		circle.pulseTween:Play()
+	elseif not shouldPulse and circle.pulseTween then
+		circle.pulseTween:Cancel()
+		circle.pulseTween = nil
+		circle.pulseScale.Scale = 1
 	end
 end
 
--- Atnaujina vieną eilutę pagal žaidėjo atributą (pvz. "Hunger").
-local function updateRow(row, instant: boolean)
-	local value = player:GetAttribute(row.statName)
-	if type(value) ~= "number" then
-		value = row.stat.Max -- Kol serveris dar nenustatė reikšmės, rodome pilną juostą.
-	end
-
-	local percent = math.clamp(value / row.stat.Max, 0, 1) * 100
+-- Atnaujina apskritimą: žiedo ilgį, spalvą ir pulsavimą.
+local function updateCircle(circle, instant: boolean)
+	local percent = getPercent(circle.config.Stat)
 
 	-- Parenka spalvą pagal tai, kiek liko.
-	local barColor = row.stat.Color
-	local textColor = Look.TextColor
-	local isCritical = percent <= Warnings.CriticalPercent
-	if isCritical then
-		barColor = Warnings.CriticalColor
-		textColor = Warnings.CriticalColor
-	elseif percent <= Warnings.WarningPercent then
-		barColor = Warnings.WarningColor
+	local color = circle.config.Color
+	local isCritical = false
+	if circle.config.Warnings then
+		if percent <= Warnings.CriticalPercent then
+			color = Warnings.CriticalColor
+			isCritical = true
+		elseif percent <= Warnings.WarningPercent then
+			color = Warnings.WarningColor
+		end
 	end
 
-	local goal = {
-		Size = UDim2.fromScale(percent / 100, 1),
-		BackgroundColor3 = barColor,
-	}
 	if instant then
-		row.fill.Size = goal.Size
-		row.fill.BackgroundColor3 = goal.BackgroundColor3
+		circle.progress.Value = percent
+		for _, fill in circle.fills do
+			fill.BackgroundColor3 = color
+		end
 	else
-		TweenService:Create(row.fill, barTweenInfo, goal):Play()
+		TweenService:Create(circle.progress, ringTweenInfo, { Value = percent }):Play()
+		for _, fill in circle.fills do
+			TweenService:Create(fill, ringTweenInfo, { BackgroundColor3 = color }):Play()
+		end
 	end
 
-	row.valueLabel.Text = math.ceil(percent) .. "%"
-	row.valueLabel.TextColor3 = textColor
-	setPulse(row, isCritical)
+	setPulse(circle, isCritical)
 end
 
 -- =====================================================================
--- Sukuria eilutes ir seka reikšmių pokyčius
+-- Sukuria apskritimus ir seka pokyčius
 -- =====================================================================
-for statName, stat in Config.Stats do
-	local row = createRow(statName, stat)
-	updateRow(row, true)
+local circles = {}
+for order, circleConfig in Config.Circles do
+	if circleConfig.Stat == "Health" or Config.Stats[circleConfig.Stat] then
+		local circle = createCircle(circleConfig, order)
+		table.insert(circles, circle)
+		updateCircle(circle, true)
 
-	player:GetAttributeChangedSignal(statName):Connect(function()
-		updateRow(row, false)
+		if circleConfig.Stat ~= "Health" then
+			player:GetAttributeChangedSignal(circleConfig.Stat):Connect(function()
+				updateCircle(circle, false)
+			end)
+		end
+	else
+		warn("SurvivalHUD: nežinomas rodiklis '" .. tostring(circleConfig.Stat) .. "'. Patikrink SurvivalConfig.Circles.")
+	end
+end
+
+-- Atnaujina gyvybės apskritimą.
+local function updateHealth()
+	for _, circle in circles do
+		if circle.config.Stat == "Health" then
+			updateCircle(circle, false)
+		end
+	end
+end
+
+-- Kai atsiranda naujas personažas (ir po atgimimo), sekame jo gyvybę.
+local function onCharacterAdded(character)
+	local humanoid = character:WaitForChild("Humanoid")
+	currentHumanoid = humanoid
+	updateHealth()
+
+	humanoid.HealthChanged:Connect(function()
+		if humanoid == currentHumanoid then
+			updateHealth()
+		end
+	end)
+	humanoid:GetPropertyChangedSignal("MaxHealth"):Connect(function()
+		if humanoid == currentHumanoid then
+			updateHealth()
+		end
 	end)
 end
+
+player.CharacterAdded:Connect(onCharacterAdded)
+if player.Character then
+	task.spawn(onCharacterAdded, player.Character)
+end
+
+-- HUD vieta: pradžioje iš SurvivalConfig, vėliau ją gali keisti kiti skriptai per atributus.
+placeHUD(true)
+player:GetAttributeChangedSignal("HUDPosition"):Connect(function()
+	placeHUD(false)
+end)
+player:GetAttributeChangedSignal("HUDAnchorPoint"):Connect(function()
+	placeHUD(false)
+end)
 
 screenGui.Parent = playerGui

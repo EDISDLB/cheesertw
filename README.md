@@ -1,23 +1,28 @@
 # CheeserTW
 
-## Alkio ir troškulio HUD
+## GTA stiliaus HUD: gyvybė, šarvai, alkis ir troškulys
 
-Ekrane rodomos dvi juostos: **Alkis** ir **Troškulys**. Jos lėtai mažėja. Kai rodiklis
-nukrenta žemai, juosta pagelsta, o vėliau parausta ir ikona pradeda pulsuoti.
-Kai rodiklis tuščias, žaidėjas po truputį praranda gyvybę.
+Apačioje kairėje ekrano pusėje rodomas stulpelis iš keturių apskritimų:
+❤ **gyvybė**, 🛡 **šarvai**, 🍔 **alkis**, 💧 **troškulys**.
+Kiekvieną apskritimą juosia spalvotas žiedas, kuris ištuštėja, kai rodiklis mažėja.
+
+- Alkis ir troškulys lėtai krenta. Kai jie tušti, žaidėjas praranda gyvybę.
+- Šarvai sugeria žalą prieš gyvybę (kaip GTA).
+- Kai rodiklis žemas, žiedas tampa oranžinis, o vėliau raudonas ir apskritimas pulsuoja.
+- Po atgimimo alkis ir troškulys vėl 100, šarvai 0.
 
 ### Failai
 
 | Failas projekte | Kur yra Roblox Studio | Ką daro |
 |---|---|---|
 | `src/ReplicatedStorage/SurvivalConfig.lua` | `ReplicatedStorage > SurvivalConfig` (ModuleScript) | **Visi nustatymai**: spalvos, dydžiai, vieta, greitis, įspėjimai. |
-| `src/ServerScriptService/SurvivalStats.server.lua` | `ServerScriptService > SurvivalStats` (Script) | Serveryje mažina alkį ir troškulį, atima gyvybę, kai jie tušti. |
-| `src/StarterPlayerScripts/SurvivalHUD.client.lua` | `StarterPlayer > StarterPlayerScripts > SurvivalHUD` (LocalScript) | Nupiešia juostas ekrane ir jas animuoja. |
+| `src/ServerScriptService/SurvivalStats.server.lua` | `ServerScriptService > SurvivalStats` (Script) | Serveryje mažina alkį ir troškulį, valdo šarvus, atima gyvybę. |
+| `src/StarterPlayerScripts/SurvivalHUD.client.lua` | `StarterPlayer > StarterPlayerScripts > SurvivalHUD` (LocalScript) | Nupiešia apskritimus, žiedus ir ikonas, juos animuoja. |
 | `default.project.json` | — | Rojo nustatymas: kuris failas į kurią Roblox Studio vietą. |
 
 ### Kaip įkelti į Roblox Studio
 
-**Su Rojo (rekomenduojama):** terminale paleisk `rojo serve`, o Roblox Studio Rojo įskiepyje spausk *Connect*.
+**Su Rojo:** terminale paleisk `rojo serve`, o Roblox Studio Rojo įskiepyje spausk *Connect*.
 
 **Be Rojo (rankiniu būdu):** Roblox Studio sukurk tris objektus ir į kiekvieną nukopijuok atitinkamo failo turinį:
 
@@ -29,54 +34,82 @@ Pavadinimai turi būti tiksliai tokie, nes skriptai vienas kitą randa pagal pav
 
 ### Kaip keisti išvaizdą ir elgesį
 
-Viskas keičiama tik faile `SurvivalConfig.lua`. Prie kiekvienos reikšmės yra paaiškinimas.
+Viskas keičiama faile `SurvivalConfig.lua`. Prie kiekvienos reikšmės yra paaiškinimas.
 
 | Ką nori pakeisti | Skiltis faile | Reikšmės |
 |---|---|---|
+| Kurie apskritimai rodomi ir kokia tvarka | `Circles` | Eilučių tvarka; ištrink eilutę, kad paslėptum |
+| Žiedo spalvą, ikoną | `Circles` | `Color`, `Icon`, `IconImage` |
 | Kaip greitai krenta alkis / troškulys | `Stats` | `SecondsToEmpty` |
 | Kiek žalos daro tuščias rodiklis | `Stats` | `DamagePerSecond` |
-| Juostų spalvas, ikonas, pavadinimus | `Stats` | `Color`, `Icon`, `IconImage`, `DisplayName` |
-| Kada juosta pagelsta / parausta | `Warnings` | `WarningPercent`, `CriticalPercent` |
+| Kiek šarvų turi pradžioje | `Stats > Armor` | `StartValue` |
+| Ar šarvai sugeria žalą | — | `ArmorAbsorbsDamage` |
+| Kada žiedas tampa oranžinis / raudonas | `Warnings` | `WarningPercent`, `CriticalPercent` |
 | HUD vietą ekrane | `HUD` | `Position`, `AnchorPoint` (telefone `MobilePosition`, `MobileAnchorPoint`) |
-| HUD dydį | `HUD` | `Scale`, `MobileScale`, `Width`, `IconSize`, `BarHeight`, `TextSize` |
-| Tarpus ir kampų apvalumą | `HUD` | `Spacing`, `Padding`, `CornerRadius` |
-| Fono spalvą ir permatomumą | `Look` | `PanelColor`, `PanelTransparency`, `StrokeTransparency` ir kt. |
-| Animacijų greitį | `Animation` | `BarTweenTime`, `PulseTime`, `PulseSize`, `PulseEnabled` |
+| Stulpelis ar eilutė | `HUD` | `Layout` (`"Vertical"` arba `"Horizontal"`) |
+| Dydžius | `HUD` | `CircleSize`, `RingThickness`, `RingInset`, `IconSize`, `Scale`, `MobileScale` |
+| Tarpus | `HUD` | `Spacing` |
+| Fono spalvą ir permatomumą | `Look` | `BackgroundColor`, `BackgroundTint`, `TrackTransparency`, `IconColor` |
+| Animacijų greitį | `Animation` | `RingTweenTime`, `MoveTweenTime`, `PulseTime`, `PulseSize`, `PulseEnabled` |
 
-### Kaip papildyti alkį ar troškulį (pvz. kai žaidėjas valgo)
+### Kaip perkelti HUD per skriptą
+
+Bet kuris skriptas gali perkelti HUD, pakeitęs žaidėjo atributus. HUD sklandžiai nuslenka į naują vietą.
+
+```lua
+-- Perkelia HUD į apatinį dešinį kampą.
+player:SetAttribute("HUDAnchorPoint", Vector2.new(1, 1))
+player:SetAttribute("HUDPosition", UDim2.new(1, -16, 1, -16))
+
+-- Grąžina HUD į vietą iš SurvivalConfig.
+player:SetAttribute("HUDAnchorPoint", nil)
+player:SetAttribute("HUDPosition", nil)
+```
+
+- Iš **serverio** skripto (Script) — veikia iš karto.
+- Iš **LocalScript** — naudok `game.Players.LocalPlayer` vietoje `player`.
+
+`AnchorPoint` nurodo, kuris HUD kampas pritvirtinamas: `(0, 0)` viršutinis kairys, `(0, 1)` apatinis kairys,
+`(1, 1)` apatinis dešinys. `Position` — kur tas kampas yra ekrane.
+
+### Kaip duoti šarvų, maisto ar vandens
 
 Bet kuriame **serverio** skripte (Script):
 
 ```lua
--- Prideda 25 alkio. Daugiau nei maksimumas nebus — serveris tai apriboja.
-player:SetAttribute("Hunger", player:GetAttribute("Hunger") + 25)
-
--- Prideda 40 troškulio.
-player:SetAttribute("Thirst", player:GetAttribute("Thirst") + 40)
+player:SetAttribute("Armor", 100) -- Pilni šarvai.
+player:SetAttribute("Hunger", player:GetAttribute("Hunger") + 25) -- Pavalgė.
+player:SetAttribute("Thirst", player:GetAttribute("Thirst") + 40) -- Atsigėrė.
 ```
+
+Daugiau nei maksimumas nebus — serveris tai apriboja.
 
 ### Kaip patikrinti
 
-1. Roblox Studio spausk **Play**. Apačioje kairėje turi atsirasti HUD su dviem juostomis (100%).
-2. Viršuje, skirtuke **Test**, perjunk *Current: Client* į *Current: Server*.
-3. Apačioje esančioje **Command Bar** eilutėje įvesk ir spausk Enter:
-   - `game.Players:GetPlayers()[1]:SetAttribute("Hunger", 25)` → alkio juosta turi pagelsti.
-   - `game.Players:GetPlayers()[1]:SetAttribute("Hunger", 10)` → juosta parausta, ikona pulsuoja.
-   - `game.Players:GetPlayers()[1]:SetAttribute("Thirst", 0)` → žaidėjas pradeda prarasti gyvybę.
-4. Norėdamas greitai pamatyti, kaip juostos krenta, laikinai nustatyk `SecondsToEmpty = 30`.
+1. Roblox Studio spausk **Play**. Apačioje kairėje turi atsirasti 4 apskritimai (šarvų žiedas tuščias).
+2. Skirtuke **Test** perjunk *Current: Client* į *Current: Server*.
+3. **Command Bar** eilutėje įvesk ir spausk Enter:
+   - `game.Players:GetPlayers()[1]:SetAttribute("Armor", 100)` → šarvų žiedas užsipildo.
+   - `game.Players:GetPlayers()[1].Character.Humanoid:TakeDamage(30)` → sumažėja šarvai, o ne gyvybė.
+   - `game.Players:GetPlayers()[1]:SetAttribute("Hunger", 25)` → alkio žiedas oranžinis.
+   - `game.Players:GetPlayers()[1]:SetAttribute("Hunger", 10)` → žiedas raudonas, apskritimas pulsuoja.
+   - `game.Players:GetPlayers()[1]:SetAttribute("HUDPosition", UDim2.new(0, 16, 0.5, 0))` → HUD pasislenka aukštyn.
+4. Norėdamas greitai pamatyti, kaip žiedai mažėja, laikinai nustatyk `SecondsToEmpty = 30`.
 
 ### Jei kas neveikia
 
 Pirmiausia atsidaryk **View > Output** ir ieškok raudonų klaidų — jose parašytas failo pavadinimas ir eilutės numeris.
 
 - **HUD visai nesimato** → tikrink `SurvivalHUD`: ar tai **LocalScript**, ar jis yra `StarterPlayer > StarterPlayerScripts`.
-  Taip pat patikrink, ar `ReplicatedStorage` yra `SurvivalConfig` (tiksliai toks pavadinimas).
-  Jei HUD yra, bet už ekrano ribų — tikrink `Position` ir `AnchorPoint` faile `SurvivalConfig`.
-- **Juostos nemažėja** → tikrink `SurvivalStats`: ar tai **Script** (ne LocalScript), ar jis yra `ServerScriptService`.
+  Patikrink, ar `ReplicatedStorage` yra `SurvivalConfig` (tiksliai toks pavadinimas).
+- **HUD yra, bet ne toje vietoje / už ekrano** → faile `SurvivalConfig`, skiltyje `HUD`, tikrink `Position` ir `AnchorPoint`.
+  Jei kitas skriptas keitė `HUDPosition`, grąžink jį į `nil`.
+- **Trūksta apskritimo** → faile `SurvivalConfig`, skiltyje `Circles`, patikrink, ar yra jo eilutė ir ar `Stat` parašytas teisingai.
+  Klaidingas `Stat` parašomas Output lange (`SurvivalHUD: nežinomas rodiklis`).
+- **Žiedai nemažėja** → tikrink `SurvivalStats`: ar tai **Script** (ne LocalScript), ar jis yra `ServerScriptService`.
   Faile `SurvivalConfig` patikrink, ar `SecondsToEmpty` nėra `0`.
-- **Nesimato ikonų** → faile `SurvivalConfig` tikrink `Icon` (emoji) ir `IconImage`. Jei naudoji `IconImage`,
-  jis turi būti formato `"rbxassetid://skaičius"` ir paveikslėlis turi būti patvirtintas Roblox.
-- **Blogas išdėstymas (persidengia, per didelis, per mažas)** → faile `SurvivalConfig`, skiltyje `HUD`,
-  keisk `Width`, `IconSize`, `BarHeight`, `TextSize`, `Scale`. Telefone naudojamos `Mobile...` reikšmės.
-- **Reikšmės keičiasi, bet HUD neatsinaujina** → tikrink, ar keiti atributą **serveryje**.
-  Atributo pavadinimas turi sutapti su pavadinimu `Stats` skiltyje (`Hunger`, `Thirst`).
+- **Ikonos atrodo keistai** → faile `SurvivalConfig` tikrink `Icon` (`"Heart"`, `"Shield"`, `"Burger"`, `"Drop"` arba emoji)
+  ir `IconImage` (turi būti `"rbxassetid://skaičius"`).
+- **Šarvai nesugeria žalos** → faile `SurvivalConfig` tikrink `ArmorAbsorbsDamage = true`. Jei vienas smūgis iškart nužudo,
+  šarvai neišgelbsti (tai žinomas apribojimas).
+- **Per dideli / per maži apskritimai** → faile `SurvivalConfig`, skiltyje `HUD`, keisk `Scale` arba `CircleSize`.
