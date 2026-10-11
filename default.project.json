@@ -1,21 +1,30 @@
 {
-  "name": "CheeserTW",
+  "name": "UtenaRP",
   "tree": {
     "$className": "DataModel",
     "ReplicatedStorage": {
       "SurvivalConfig": {
         "$path": "src/ReplicatedStorage/SurvivalConfig.lua"
+      },
+      "HUDSettings": {
+        "$path": "src/ReplicatedStorage/HUDSettings.lua"
       }
     },
     "ServerScriptService": {
       "SurvivalStats": {
         "$path": "src/ServerScriptService/SurvivalStats.server.lua"
+      },
+      "HUDSettingsSave": {
+        "$path": "src/ServerScriptService/HUDSettingsSave.server.lua"
       }
     },
     "StarterPlayer": {
       "StarterPlayerScripts": {
         "SurvivalHUD": {
           "$path": "src/StarterPlayerScripts/SurvivalHUD.client.lua"
+        },
+        "HUDEditor": {
+          "$path": "src/StarterPlayerScripts/HUDEditor.client.lua"
         }
       }
     }

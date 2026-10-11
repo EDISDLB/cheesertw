@@ -1,25 +1,16 @@
---[[
-	SurvivalStats — serveryje valdo žaidėjų alkį, troškulį ir šarvus.
-
-	Reikšmės saugomos kaip žaidėjo atributai "Hunger", "Thirst" ir "Armor".
-	HUD (SurvivalHUD) juos skaito automatiškai.
-	Visi skaičiai (greitis, žala, maksimumas) yra faile SurvivalConfig.
-]]
-
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage:WaitForChild("SurvivalConfig"))
 
--- Nustato visus rodiklius į pradines reikšmes (StartValue).
+-- Pradinės reikšmės
 local function resetStats(player: Player)
 	for statName, stat in Config.Stats do
 		player:SetAttribute(statName, stat.StartValue)
 	end
 end
 
--- Šarvai sugeria žalą: kai gyvybė sumažėja, pirmiausia mažinami šarvai.
--- Jei vienas smūgis iškart nužudo, šarvai nebeišgelbsti.
+-- Šarvai sugeria žalą
 local function protectWithArmor(player: Player, humanoid)
 	local lastHealth = humanoid.Health
 
@@ -39,7 +30,7 @@ local function protectWithArmor(player: Player, humanoid)
 	end)
 end
 
--- Paruošia naują žaidėją.
+-- Naujas žaidėjas
 local function onPlayerAdded(player: Player)
 	resetStats(player)
 
@@ -61,7 +52,7 @@ for _, player in Players:GetPlayers() do
 	onPlayerAdded(player)
 end
 
--- Kas kelias sekundes sumažina rodiklius ir atima gyvybę, jei jie tušti.
+-- Alkis ir troškulys
 while true do
 	local deltaTime = task.wait(Config.UpdateEverySeconds)
 
@@ -69,7 +60,6 @@ while true do
 		local character = player.Character
 		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 
-		-- Mirusiems ir dar neatsiradusiems žaidėjams rodikliai nemažėja.
 		if humanoid and humanoid.Health > 0 then
 			for statName, stat in Config.Stats do
 				local value = player:GetAttribute(statName)
